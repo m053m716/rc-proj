@@ -28,9 +28,14 @@ for iT = 1:size(T,1)
    fname = fullfile(pname,[block IN]);
    
    % Make guess
-   alignGuess = makeAlignmentGuess(p,fname);
+   try
+      alignGuess = makeAlignmentGuess(p,fname);
    
-   % Save guess to same location as beam-break series
-   save(fullfile(pname,[block OUT]),'alignGuess','-v7.3');
+      % Save guess to same location as beam-break series
+      save(fullfile(pname,[block OUT]),'alignGuess','-v7.3');
+   catch
+      T(iT,:) = []; %#ok<SAGROW>
+      iT = iT - 1;
+   end
 end
 

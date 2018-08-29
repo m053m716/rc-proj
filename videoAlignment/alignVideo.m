@@ -28,7 +28,7 @@ function alignVideo(varargin)
 
 %% DEFAULTS
 FNAME = nan;   % Full filename of the beam break file.
-DEF_DIR = 'J:\Rat\BilateralReach\Data'; % Default UI prompt dir
+DEF_DIR = 'P:\Extracted_Data_To_Move\Rat\TDTRat'; % Default UI prompt dir
 
 VID_DIR = 'K:\Rat\Video\BilateralReach\RC'; % MUST point to where the videos are
 VID_TYPE = '.avi';

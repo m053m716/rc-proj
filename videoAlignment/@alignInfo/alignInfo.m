@@ -141,7 +141,7 @@ classdef alignInfo < handle
       % Zoom in on beam break/paw probability time series (top axis)
       function zoomIn(obj)
          set(obj.ax,'XLim',[obj.curVidT.XData(1) - obj.zoomOffset,...
-                            obj.curVidT.XData(1) + obj.zoomOffset);
+                            obj.curVidT.XData(1) + obj.zoomOffset]);
          
          set(obj.paw.h,'LineWidth',2);
          set(obj.beam.h,'LineWidth',3);
