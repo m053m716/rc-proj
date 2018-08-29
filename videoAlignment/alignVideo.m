@@ -22,7 +22,7 @@ function alignVideo(varargin)
 
 %% DEFAULTS
 FNAME = nan;   % Full filename of the beam break file.
-DEF_DIR = 'P:\Extracted_Data_To_Move\Rat\TDTRat'; % Default UI prompt dir
+DEF_DIR = 'J:\Rat\BilateralReach\Data'; % Default UI prompt dir
 
 VID_DIR = 'K:\Rat\Video\BilateralReach\RC'; % MUST point to where the videos are
 VID_TYPE = '.avi';
@@ -61,12 +61,7 @@ dlc_F = dir(fullfile(VID_DIR,[Name '*' DLC_TYPE]));
 
 
 %% 
-tic;
-fprintf(1,'Please wait, loading video (can be a minute or two)...');
-V = VideoReader(fullfile(VID_DIR,vid_F(1).name));
 
-NumFrames=V.NumberOfFrames; %#ok<VIDREAD>
-FPS=V.FrameRate;
 
 %% CONSTRUCT UI
 fig=figure('Name','Bilateral Reach Scoring',...
@@ -78,23 +73,12 @@ fig=figure('Name','Bilateral Reach Scoring',...
 % Panel for displaying information text
 dispPanel = uipanel(fig,'Units','Normalized',...
                         'BackgroundColor','k',...
-                        'Position',[0.76 0.51 0.23 0.49]);
-
-% Panel for selecting which video
-vidSelPanel = uipanel(fig,'Units','Normalized',...
-                          'BackgroundColor','k',...
-                          'Position',[0.76 0 0.23 0.49]);
+                        'Position',[0 0.75 1 0.25]);
                        
                      
 %% BUILD VIDEO PLOT
-plt_ax = axes(fig,'Units','Normalized',...
-              'Position',[0 0.75 0.75 0.25],...
-              'NextPlot','add',...
-              'YLim',[-0.2 1.2],...
-              'YTick',[]);
-           
 vid_ax = axes(fig,'Units','Normalized',...
-            'Position',[0 0 0.75 0.75],...
+            'Position',[0 0 1 0.5],...
             'NextPlot','replacechildren',...
             'XTick',[],...
             'YTick',[],...
@@ -103,19 +87,21 @@ vid_ax = axes(fig,'Units','Normalized',...
             'XLimMode','manual',...
             'YLimMode','manual',...
             'YDir','reverse');
-         
-C=V.read(1); %#ok<VIDREAD> % reading first frame of the video
-x = [0 1];
-y = [0 1];
-im = imagesc(vid_ax,x,y,C); % showing the first frame of the video
-fprintf(1,'complete.\n'); 
-toc;
 
 %% BUILD ANNOTATIONS
+annotation(dispPanel,...
+           'textbox',[0.025 0.4 0.25 0.20],...
+           'Units', 'Normalized', ...
+           'Position', [0.025 0.4 0.25 0.20], ...
+           'Color',[0.94 0.94 0.94],...
+           'FontName','Arial',...
+           'FontSize',16,...
+           'String', strrep(vid_F(1).name,'_','\_'));
+
 VidTimeDisp=annotation(dispPanel, ...
-                       'textbox',[0.025 0.7 0.95 0.25],...
+                       'textbox',[0.325 0.4 0.25 0.20],...
                        'Units', 'Normalized', ...
-                       'Position', [0.025 0.7 0.95 0.25], ...
+                       'Position', [0.325 0.4 0.25 0.20], ...
                        'FontName','Arial',...
                        'FontSize',16,...
                        'Color','w',...
@@ -123,66 +109,60 @@ VidTimeDisp=annotation(dispPanel, ...
 
 
 NeuralTimeDisp = annotation(dispPanel,...
-                       'textbox',[0.025 0.4 0.95 0.25],...
+                       'textbox',[0.625 0.4 0.25 0.20],...
                        'Units', 'Normalized', ...
-                       'Position', [0.025 0.4 0.95 0.25], ...
+                       'Position', [0.625 0.4 0.25 0.20], ...
                        'Color',[0.94 0.94 0.94],...
                        'FontName','Arial',...
                        'FontSize',16,...
                        'String', 'loading...');
                     
+tic;
+fprintf(1,'Please wait, loading video (can be a minute or two)...');
+V = VideoReader(fullfile(VID_DIR,vid_F(1).name));
+NumFrames=V.NumberOfFrames; %#ok<VIDREAD>
+FPS=V.FrameRate;
+C=V.read(1); %#ok<VIDREAD> % reading first frame of the video
+x = [0 1];
+y = [0 1];
+im = imagesc(vid_ax,x,y,C); % showing the first frame of the video
+fprintf(1,'complete.\n'); 
+toc;
 
 % Make video alignment information object
-alignInfoObj = alignInfo(dig_F,dlc_F,plt_ax,FPS);
+alignInfoObj = alignInfo(fig,dig_F,dlc_F,FPS);
 
 % Make video frame object to track video frames
-vidInfoObj = vidInfo(1,FPS,getOffset(alignInfoObj),NumFrames,1);
-vidUpdateObj = vidUpdateListener(vidInfoObj,...
-                                 NeuralTimeDisp,...
-                                 VidTimeDisp,...
-                                 V,...
-                                 im,...
-                                 getNeuralTimeHandle(alignInfoObj));
-                                 
-% Make line object for setting new offsets
-fig.UserData.h = line([nan nan],[0 1],...
-   'Color',[0.75 0.75 0.75],...
-   'LineStyle',':',...
-   'LineWidth',2);
+vidInfoObj = vidInfo(fig,1,FPS,getOffset(alignInfoObj),NumFrames,1);
 
-set(plt_ax,'ButtonDownFcn',{@clickAxes,vidInfoObj,alignInfoObj});
+% Pass everything to listener object in graphics struct
+graphics = struct('neuTime_display',NeuralTimeDisp,...
+                  'vidTime_display',VidTimeDisp,...
+                  'videoFile',V,...
+                  'image_display',im,...
+                  'neuTime_line',getNeuralTimeHandle(alignInfoObj),...
+                  'vidTime_line',getVidTimeHandle(alignInfoObj));
+
+
+% Now that video info object is complete, set it in the alignment info obj
+alignInfoObj.setVidInfoObj(vidInfoObj);
+   
+
+vidUpdateObj = vidUpdateListener(vidInfoObj,alignInfoObj,graphics);
+
 fname = fullfile(DIR,[strrep(vid_F(1).name,VID_TYPE,'') OUT_ID, '.mat']);
 set(fig,'KeyPressFcn',{@hotKey,vidInfoObj,alignInfoObj,fname});
-
-%% Function for clicking in axes to set offset
-    function clickAxes(src, ~, v, a)
-        cp = src.CurrentPoint;
-        if src.Parent.UserData.flag
-           set(src.Parent.UserData.h,'XData',[cp(1) cp(1)]);
-        else
-           % Everything is relative to neural time, so subtract offset
-           v.setVidTime(cp(1) - getOffset(a));
-        end
-    end
-
+set(fig,'WindowButtonMotionFcn',{@trackCursor,alignInfoObj});
  
- %% Function for hotkeys
-   function hotKey(src,evt,v,a,fname)
+%% Function for tracking cursor
+   function trackCursor(src,~,a)
+      a.setCursorPos(src.CurrentPoint(1,1));  
+      drawnow;
+   end
+
+%% Function for hotkeys
+   function hotKey(~,evt,v,a,fname)
       switch evt.Key  
-         case 'o' % Toggle setting or keeping the offset
-            if src.UserData.flag
-               % Update alignment offset
-               a.setNewOffset(src.UserData.h.XData(1));
-               
-               % Make the alignment line disappear
-               src.UserData.h.XData = [nan, nan];
-               
-               % Clicking now skips through the video
-               src.UserData.flag = false;
-            else
-               % Clicking now makes the alignment line appear
-               src.UserData.flag = true;
-            end
          
          case 's' % alt + s = save
             if strcmpi(evt.Modifier,'alt')
@@ -196,6 +176,11 @@ set(fig,'KeyPressFcn',{@hotKey,vidInfoObj,alignInfoObj,fname});
             v.advanceFrame(nan,nan);
          case 'rightarrow'
             v.advanceFrame(nan,nan);
+         case  'subtract'
+            a.zoomOut;
+         case 'add'
+            a.zoomIn;
+         
          case 'space'
             v.playPauseVid;
       end

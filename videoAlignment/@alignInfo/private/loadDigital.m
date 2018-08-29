@@ -25,11 +25,15 @@ stream_struct.t = linspace(0,...
             (numel(stream_struct.data)-1)/stream_struct.fs,...
              numel(stream_struct.data));
           
+% Make copy of time vector for "t0" version that doesn't get shifted
+stream_struct.t0 = stream_struct.t;
+          
 % Remove DC bias
 stream_struct.data = stream_struct.data - min(stream_struct.data);
 
 
 % Normalize between 0 and 1
 stream_struct.data = stream_struct.data ./ max(stream_struct.data);
+
 
 end

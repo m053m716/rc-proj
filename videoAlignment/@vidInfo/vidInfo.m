@@ -3,6 +3,8 @@ classdef vidInfo < handle
 
 %% Properties
    properties(SetAccess = private, GetAccess = public)
+      parent      % Parent figure
+      
       neuralTime  % Current neural data time
       vidTime     % Current video time
       currentVid  % Current video in use (from array)
@@ -26,7 +28,8 @@ classdef vidInfo < handle
 %% Methods
    methods (Access = public)
       % Create the video information object
-      function obj = vidInfo(curFrame,frameRate,vStart,maxframe,curVid)
+      function obj = vidInfo(parentFig,curFrame,frameRate,vStart,maxframe,curVid)
+         obj.parent = parentFig;
          obj.videoStart = vStart;
          obj.FPS = frameRate; 
          obj.maxFrame = maxframe;
@@ -47,12 +50,23 @@ classdef vidInfo < handle
             (newFrame <= obj.maxFrame)
             
             obj.currentFrame = newFrame;
-            obj.vidTime = obj.currentFrame / obj.FPS;
-            obj.neuralTime = obj.vidTime + obj.videoStart(obj.currentVid);
+            obj.updateTime;
+            
             
             notify(obj,'frameChanged');
          end
          
+      end
+      
+      % Update the video and neural times
+      function updateTime(obj)
+         obj.vidTime = obj.currentFrame / obj.FPS;
+         obj.neuralTime = obj.vidTime + obj.videoStart(obj.currentVid);
+      end
+      
+      % Change the video offset
+      function setOffset(obj,new_offset)
+         obj.videoStart = new_offset;
       end
       
       % Play or pause the video
