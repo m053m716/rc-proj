@@ -59,22 +59,11 @@ classdef vidUpdateListener < handle
          set(obj.vidTime_line,'XData',ones(1,2) * src.vidTime);
          
          % Fix axis limits
-         if src.vidTime > obj.vidTime_line.Parent.XLim(2)
-            if src.neuralTime < src.vidTime
-               obj.neuTime_line.Parent.XLim = [src.neuralTime - obj.zoomOffset, ...
-                                               src.vidTime + obj.zoomOffset]; 
-            else
-               obj.neuTime_line.Parent.XLim = [src.vidTime - obj.zoomOffset, ...
-                                               src.neuralTime + obj.zoomOffset]; 
-            end
-         elseif src.vidTime < obj.vidTime_line.Parent.XLim(1)
-            if src.neuralTime < src.vidTime
-               obj.neuTime_line.Parent.XLim = [src.neuralTime - obj.zoomOffset, ...
-                                               src.vidTime + obj.zoomOffset]; 
-            else
-               obj.neuTime_line.Parent.XLim = [src.vidTime - obj.zoomOffset, ...
-                                               src.neuralTime + obj.zoomOffset]; 
-            end
+         xl = obj.vidTime_line.Parent.XLim;
+         if src.vidTime > xl(2)
+            obj.vidTime_line.Parent.XLim = [xl(2),xl(2)+obj.zoomOffset*2];
+         elseif src.vidTime < xl(1)
+            obj.vidTime_line.Parent.XLim = [xl(1)-obj.zoomOffset*2,xl(1)];
          end
          
          drawnow;

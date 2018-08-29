@@ -16,7 +16,13 @@ function alignVideo(varargin)
 %  the video (i.e. if the neural recording was started, then video started
 %  30 seconds later, VideoStart would have a value of +30).
 %
-% By: Max Murphy  v2.0  08/17/2018  Made a lot of changes from previous
+% By: Max Murphy  v2.1  08/29/2018  Changed alignment method from toggling
+%                                   using the "o" key to just click and
+%                                   drag the red (beam break) trace and
+%                                   line it up however looks best against
+%                                   the blue one.
+%
+%                 v2.0  08/17/2018  Made a lot of changes from previous
 %                                   version, which had a different name as
 %                                   well.
 
