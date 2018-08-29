@@ -15,7 +15,7 @@ classdef alignInfo < handle
       beam     % Beam break times   
       paw      % Paw guesses from DLC
       
-      alignLag % Best guess or current alignment lag offset
+      alignLag = nan; % Best guess or current alignment lag offset
    end
    
    properties(SetAccess = private, GetAccess = private)
@@ -63,10 +63,19 @@ classdef alignInfo < handle
       
       % Load the digital stream data (alignments like beam,pellet break)
       function setDigitalStreams(obj,dig_F)
-         if numel(dig_F)==2
-            obj.pellet = loadDigital(fullfile(dig_F(2).folder,dig_F(2).name));
-         else
-            obj.pellet = nan;
+         obj.pellet = nan;
+         if numel(dig_F)>1
+            for ii = 2:numel(dig_F)
+               str = dig_F(ii).name((end-8):(end-4));
+               switch str
+                  case 'Guess'
+                     load(fullfile(dig_F(ii).folder,dig_F(ii).name),'alignGuess');
+                     obj.alignLag = alignGuess;
+                  otherwise
+                     obj.pellet = loadDigital(fullfile(dig_F(ii).folder,dig_F(ii).name));
+               end
+                  
+            end
          end
          obj.beam = loadDigital(fullfile(dig_F(1).folder,dig_F(1).name));
       end
@@ -153,6 +162,12 @@ classdef alignInfo < handle
    
    methods (Access = private)
       function guessAlignment(obj)
+         % If guess already exists, skip this part
+         if ~isnan(obj.alignLag)
+            disp('Found alignment lag guess. Skipping computation');
+            return;
+         end
+         
          % Upsample by 16 because of weird FS used by TDT...
          ds_fac = round((double(obj.beam.fs) * 16) / obj.FS);
          x = resample(double(obj.beam.data),16,ds_fac);
