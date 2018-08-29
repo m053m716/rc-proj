@@ -3,13 +3,14 @@ classdef vidUpdateListener < handle
    
 
    properties 
-%       graphics % Has the following fields:
-      neuTime_display  % Text displaying neural data time
-      vidTime_display  % Text displaying video time
-      videoFile        % VideoReader file object
-      image_display    % Graphics image object for displaying current frame
-      neuTime_line     % Line indicating neural time
-      vidTime_line     % Line indicating video time
+      % Parsed from 'graphics' arg, which has the following fields:
+      animalName_display   % Text displaying animal name/recording
+      neuTime_display      % Text displaying neural data time
+      vidTime_display      % Text displaying video time
+      videoFile            % VideoReader file object
+      image_display        % Graphics object for displaying current frame
+      neuTime_line         % Line indicating neural time
+      vidTime_line         % Line indicating video time
       
       zoomOffset = 2; % Offset (sec)
    end
@@ -27,18 +28,28 @@ classdef vidUpdateListener < handle
             end
          end
          
+         % Add listeners for event notifications from video object
          addlistener(vidInfo_obj,...
             'frameChanged',@obj.updateFrame);
          addlistener(vidInfo_obj,...
             'vidChanged',@obj.updateVideo);
          
+         % Add listeners for event notifications from alignment object
          addlistener(alignInfo_obj,...
             'align',@(o,e) obj.updateAlignment(o,e,vidInfo_obj));
+         addlistener(alignInfo_obj,...
+            'saveFile',@obj.updateSaveStatus);
          
          obj.updateFrame(vidInfo_obj,nan);
          
       end
       
+      % Change color of the animal name display
+      function updateSaveStatus(obj,~,~)
+         set(obj.animalName_display,'Color',[0.2 0.9 0.2]);
+      end
+      
+      % Change the neural and video times in the videoInfoObject
       function updateAlignment(obj,src,~,v)
          v.setOffset(src.getOffset);
          v.updateTime;

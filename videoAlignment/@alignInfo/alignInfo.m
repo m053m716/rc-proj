@@ -28,12 +28,15 @@ classdef alignInfo < handle
       cursorX;                   % Current cursor X position on figure
       curOffsetPt;               % Last-clicked position for dragging line
       guessName = 'Guess.mat';   % If guessAlignment is performed, save it
+      xStart = -10;              % (seconds) - lowest x-point to plot
+      zoomFlag = false;          % Is the time-series axis zoomed in?
    end
    
 %% Events
    events % These correspond to different scoring events
       align
       switchVid
+      saveFile
    end
    
 %% Methods
@@ -139,6 +142,7 @@ classdef alignInfo < handle
          fprintf(1,'Please wait, saving %s...',fname);
          save(fname,'VideoStart','-v7.3');
          fprintf(1,'complete.\n');
+         notify(obj,'saveFile');
       end
       
       % Zoom out on beam break/paw probability time series (top axis)
@@ -146,13 +150,14 @@ classdef alignInfo < handle
          set(obj.ax,'XLim',obj.axLim);
          set(obj.paw.h,'LineWidth',1);
          set(obj.beam.h,'LineWidth',1);
+         obj.zoomFlag = false;
       end
       
       % Zoom in on beam break/paw probability time series (top axis)
       function zoomIn(obj)
          set(obj.ax,'XLim',[obj.curVidT.XData(1) - obj.zoomOffset,...
                             obj.curVidT.XData(1) + obj.zoomOffset]);
-         
+         obj.zoomFlag = true;
          set(obj.paw.h,'LineWidth',2);
          set(obj.beam.h,'LineWidth',3);
       end
@@ -214,14 +219,16 @@ classdef alignInfo < handle
          obj.curVidT = line(obj.ax,x,y,...
             'LineStyle',':',...
             'LineWidth',2,...
-            'Color',[0.2 0.2 0.9]);
+            'Color',[0.2 0.2 0.9],...
+            'ButtonDownFcn',@obj.clickAxes);
          
          x = ones(1,2) * obj.alignLag; % Neural data is relative to vid
          y = [0 1];
          obj.curNeuT = line(obj.ax,x,y,...
             'LineStyle','--',...
             'LineWidth',2,...
-            'Color',[0.9 0.2 0.2]);
+            'Color',[0.9 0.2 0.2],...
+            'ButtonDownFcn',@obj.clickAxes);
          
          
          
@@ -250,10 +257,14 @@ classdef alignInfo < handle
                'Color','m',...
                'ButtonDownFcn',@obj.clickSeries);
             legend(obj.ax,{'Vid-Time';'Offset';'Paw';'Beam';'Pellet'},...
+               'Location','northoutside',...
+               'Orientation','horizontal',...
                'FontName','Arial',...
                'FontSize',14);
          else
             legend(obj.ax,{'Vid-Time';'Offset';'Paw';'Beam'},...
+               'Location','northoutside',...
+               'Orientation','horizontal',...
                'FontName','Arial',...
                'FontSize',14);
          end
@@ -284,10 +295,19 @@ classdef alignInfo < handle
                'ButtonDownFcn',@obj.clickAxes);
          end
          
-         % Get the max. axis limits and then zoom in
-         obj.axLim = get(obj.ax,'XLim');
-         zoomIn(obj);
+         % Get the max. axis limits
+         obj.resetAxesLimits;
          
+      end
+      
+      % Extend or shrink axes x-limits as appropriate
+      function resetAxesLimits(obj)
+         obj.axLim = nan(1,2);
+         obj.axLim(1) = obj.xStart;
+         obj.axLim(2) = max(obj.beam.t(end),obj.paw.t(end));
+         if ~obj.zoomFlag
+            set(obj.ax,'XLim',obj.axLim);
+         end
       end
       
       % ButtonDownFcn for top axes and children
@@ -301,6 +321,7 @@ classdef alignInfo < handle
 %             obj.setAlignment(new_align_offset);
             obj.beam.h.Visible = 'on';
             obj.beam.sh.Visible = 'off';
+            obj.resetAxesLimits;
             if isstruct(obj.pellet)
                obj.pellet.h.Visible = 'on';
                obj.pellet.sh.Visible = 'off';
