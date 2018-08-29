@@ -27,6 +27,7 @@ classdef alignInfo < handle
       moveStreamFlag = false;    % Flag for moving objects on top axes
       cursorX;                   % Current cursor X position on figure
       curOffsetPt;               % Last-clicked position for dragging line
+      guessName = 'Guess.mat';   % If guessAlignment is performed, save it
    end
    
 %% Events
@@ -53,6 +54,7 @@ classdef alignInfo < handle
          obj.VID_FS = FPS;
          
          obj.guessAlignment;
+         obj.plotStreams;
          
       end
       
@@ -69,14 +71,22 @@ classdef alignInfo < handle
                str = dig_F(ii).name((end-8):(end-4));
                switch str
                   case 'Guess'
-                     load(fullfile(dig_F(ii).folder,dig_F(ii).name),'alignGuess');
+                     load(fullfile(dig_F(ii).folder,dig_F(ii).name),...
+                        'alignGuess');
                      obj.alignLag = alignGuess;
                   otherwise
-                     obj.pellet = loadDigital(fullfile(dig_F(ii).folder,dig_F(ii).name));
+                     obj.pellet = loadDigital(fullfile(dig_F(ii).folder,...
+                        dig_F(ii).name));
                end
                   
             end
          end
+         
+         if isnan(obj.alignLag)
+            obj.guessName = fullfile(dig_F(1).folder,...
+               strrep(dig_F(1).name,'Ch_001.mat',obj.guessName));
+         end
+         
          obj.beam = loadDigital(fullfile(dig_F(1).folder,dig_F(1).name));
       end
       
@@ -180,7 +190,8 @@ classdef alignInfo < handle
          fprintf(1,'Please wait, making best alignment offset guess (usually 1-2 mins)...');
          [R,lag] = getR(x,y);
          setAlignment(obj,parseR(R,lag));
-         obj.plotStreams;
+         alignGuess = obj.alignLag;
+         save(obj.guessName,'alignGuess','-v7.3');
          fprintf(1,'complete.\n');
          toc;
       end
