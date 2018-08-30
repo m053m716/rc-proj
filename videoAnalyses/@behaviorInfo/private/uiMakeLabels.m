@@ -1,7 +1,9 @@
-function [y,lab] = makeLabels(panel,labels,varargin)
-%% MAKELABELS  Make labels at equally spaced increments along left of panel
+function [y,lab] = uiMakeLabels(panel,labels,varargin)
+%% UIMAKELABELS  Make labels at equally spaced increments along left of panel
 %
-%  MAKELABELS(panel,labels)
+%  y = UIMAKELABELS(panel,labels);
+%  [y,lab] = UIMAKELABELS(panel,labels);
+%  [y,lab] = UIMAKELABELS(panel,labels,'NAME',value,...);
 %
 %  --------
 %   INPUTS
@@ -13,6 +15,18 @@ function [y,lab] = makeLabels(panel,labels,varargin)
 %
 %   varargin   :     (Optional) 'NAME', value input argument pairs.
 %
+%                 -> 'LEFT' [def: 0.025] // Offset from left border
+%                 (normalized from 0 to 1)
+%
+%                 -> 'RIGHT' [def: 0.475] // Offset from right border
+%                 (normalized from 0 to 1)
+%
+%                 -> 'BOT' [def: 0.025] // Offset from bottom border
+%                 (normalized from 0 to 1)
+%
+%                 -> 'TOP' [def: 0.025] // Offset from top border
+%                 (normalized from 0 to 1)
+%
 %  --------
 %   OUTPUT
 %  --------
@@ -23,11 +37,10 @@ function [y,lab] = makeLabels(panel,labels,varargin)
 % By: Max Murphy  v1.0   08/08/2018    Original version (R2017b)
 
 %% DEFAULTS
-TOP_SPACING = 0.025;
-BOT_SPACING = 0.025;
+TOP = 0.025;
+BOT = 0.025;
 
-LEFT_SPACING = 0.025;
-WIDTH = 0.45;
+LEFT = 0.025;
 
 BACKGROUND_COL = 'k';
 FOREGROUND_COL = 'w';
@@ -39,12 +52,14 @@ for iV = 1:2:numel(varargin)
    eval([upper(varargin{iV}) '=varargin{iV+1};']);
 end
 
-%%
+%% COMPUTE POSITIONS
 n = numel(labels);
-h = (1/n) - (TOP_SPACING + BOT_SPACING);
-w = WIDTH;
-x = LEFT_SPACING;
-y = linspace(BOT_SPACING,1-TOP_SPACING-h,n);
+[x,w] = uiGetHorizontalSpacing(1,... % 1 column
+   'LEFT',LEFT);
+[y,h] = uiGetHorizontalSpacing(n,...
+   'TOP',TOP,...
+   'BOT',BOT);
+
 
 %% CREATE LABELS
 lab = cell(n,1);

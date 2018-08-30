@@ -1,13 +1,13 @@
 # rc-proj #
-Custom (Matlab) analyses used for experiments studying post-injury plasticity in bilateral rostral and caudal forelimb area in rats. Most code was developed in Matlab R2017a/b.
+Custom (Matlab) analyses used for experiments studying post-injury plasticity in bilateral rostral and caudal forelimb area in rats. Most code was developed in *Matlab R2017a/b.*
 
 ---
 
 ## Contents ##
 
-[videoAlignment](#video-alignment)  
-[videoScoring](#video-scoring)  
-[spikeAnalyses](#spike-analyses)  
+[Video Alignment](#video-alignment)  
+[Behavioral Scoring](#video-scoring)  
+[Spike Analyses](#spike-analyses)  
 
 ---
 
@@ -22,7 +22,9 @@ There are three setup steps to run the video alignment:
 
 3. Need to have all the digital streams .mat files associated with a given video. These can be in any location, since they are what are selected through the UI if no other arguments are passed to the alignVideo.m function.  
 
-In Matlab, navigate to the videoAlignment sub-folder in your local cloned repository (or add all folders and subfolders in this path to the current path) and run:  
+4. (Optional) Include "_Guess.mat" file in the same location as the digital streams .mat files for a particular video. Including this file will skip the initial step where it tries to guess the optimal alignment and can save a couple of minutes each time you load a video to align.
+
+In Matlab, navigate to the videoAnalyses sub-folder in your local cloned repository (or add all folders and subfolders in this path to the current path) and run:  
 
 ```matlab
 alignVideo;
@@ -45,6 +47,10 @@ alignVideo('VID_DIR','/path/where/videos/exist','FNAME','/full/file/name/of/mat/
 ---
 
 ## Video Scoring ##
+
+### Setup ###
+
+### Use ###
 
   
 ---

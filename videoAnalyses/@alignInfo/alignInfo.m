@@ -6,9 +6,9 @@ classdef alignInfo < handle
       % Graphics objects
       parent      % Parent figure object
       ax          % Axes to plot streams on
+      
       curNeuT     % Line indicating current neural time
       curVidT     % Line indicating current video time
-      v           % VidInfoObj
       
       % Data streams
       pellet   % Pellet break times (may not exist)
@@ -16,6 +16,7 @@ classdef alignInfo < handle
       paw      % Paw guesses from DLC
       
       alignLag = nan; % Best guess or current alignment lag offset
+      cp; % Current point on axes
    end
    
    properties(SetAccess = private, GetAccess = private)
@@ -30,23 +31,28 @@ classdef alignInfo < handle
       guessName = 'Guess.mat';   % If guessAlignment is performed, save it
       xStart = -10;              % (seconds) - lowest x-point to plot
       zoomFlag = false;          % Is the time-series axis zoomed in?
+      
+      % Graphics
+      AnimalNameDisp;
+      NeuralTimeDisp;
+      VidTimeDisp;
    end
    
 %% Events
    events % These correspond to different scoring events
       align
-      switchVid
       saveFile
+      skip
    end
    
 %% Methods
    methods (Access = public)
       % Construct the object for keeping track of which "button press" (or
       % trial) we are currently looking at
-      function obj = alignInfo(parentFig,dig_F,dlc_F,FPS)
+      function obj = alignInfo(figH,dig_F,dlc_F)
          % Parse parent (must be figure)
-         if isa(parentFig,'matlab.ui.Figure')
-            obj.parent = parentFig;
+         if isa(figH,'matlab.ui.Figure')
+            obj.parent = figH;
          else
             error('parentFig argument must be a figure handle.');
          end
@@ -54,16 +60,9 @@ classdef alignInfo < handle
          obj.setDigitalStreams(dig_F);
          obj.setDLCStreams(dlc_F);
          
-         obj.VID_FS = FPS;
-         
          obj.guessAlignment;
-         obj.plotStreams;
+         obj.buildStreamsGraphics;
          
-      end
-      
-      % Set the video info object for this alignment object
-      function setVidInfoObj(obj,vidInfoObj)
-         obj.v = vidInfoObj;
       end
       
       % Load the digital stream data (alignments like beam,pellet break)
@@ -93,7 +92,6 @@ classdef alignInfo < handle
          obj.beam = loadDigital(fullfile(dig_F(1).folder,dig_F(1).name));
       end
       
-      
       % Set the alignment stream from markerless DLC tracking
       function setDLCStreams(obj,dlc_F)
          vidTracking = importRC_Grasp(...
@@ -105,12 +103,6 @@ classdef alignInfo < handle
             (numel(obj.paw.data)-1)/obj.paw.fs,...
              numel(obj.paw.data));
          
-      end
-      
-      % Set the current video
-      function setVideo(obj,curVidNum)
-         obj.currentVid = curVidNum;
-         notify(obj,'switchVid');
       end
       
       % Set new neural time
@@ -173,9 +165,18 @@ classdef alignInfo < handle
          end
       end
       
+      % Create graphics objects associated with this class
+      function graphics = getGraphics(obj)
+         
+         % Pass everything to listener object in graphics struct
+         graphics = struct('neuTime_line',obj.curNeuT,...
+            'vidTime_line',obj.curVidT);
+      end
+      
    end
    
    methods (Access = private)
+      % Get best of offset using cross-correlation of time series
       function guessAlignment(obj)
          % If guess already exists, skip this part
          if ~isnan(obj.alignLag)
@@ -203,7 +204,7 @@ classdef alignInfo < handle
       
       % Make all the graphics for tracking relative position of neural
       % (beam/pellet) and video (paw probability) time series
-      function plotStreams(obj)
+      function buildStreamsGraphics(obj)
          % Make axes for graphics objects
          obj.ax = axes(obj.parent,'Units','Normalized',...
               'Position',[0 0.51 1 0.24],...
@@ -312,7 +313,7 @@ classdef alignInfo < handle
       
       % ButtonDownFcn for top axes and children
       function clickAxes(obj,~,~)
-         cp = obj.ax.CurrentPoint(1,1);
+         obj.cp = obj.ax.CurrentPoint(1,1);
          
          % If FLAG is enabled
          if obj.moveStreamFlag
@@ -328,8 +329,7 @@ classdef alignInfo < handle
             end
             obj.moveStreamFlag = false;            
          else % Otherwise, allows to skip to point in video
-            % (Referencing things to the VIDEO time)
-            obj.v.setVidTime(cp);
+            notify(obj,'skip');
          end
       end
       
@@ -350,7 +350,6 @@ classdef alignInfo < handle
          new_align_offset = obj.alignLag + align_offset_delta;
          
       end
-      
       
       % Set the trial hand and emit a notification about the event
       function setAlignment(obj,align_offset)

@@ -65,103 +65,48 @@ dig_F = dir(fullfile(DIR,[Name '*Bea2*.mat']));
 vid_F = dir(fullfile(VID_DIR,[Name '*' VID_TYPE]));
 dlc_F = dir(fullfile(VID_DIR,[Name '*' DLC_TYPE]));
 
-
-%% 
 if isempty(vid_F)
-   error('No video file located. Please check VID_DIR or perhaps no recording was taken for that TDT Block.');
+   disp('No video file located!');
+   error('Please check VID_DIR or missing video for that session.');
 end
 
 %% CONSTRUCT UI
 fig=figure('Name','Bilateral Reach Scoring',...
-           'Color','k',...
-           'Units','Normalized',...
-           'Position',[0.1 0.1 0.8 0.8],...
-           'UserData',struct('flag',false,'h',[]));
-        
+   'Color','k',...
+   'Units','Normalized',...
+   'Position',[0.1 0.1 0.8 0.8],...
+   'UserData',struct('flag',false,'h',[]));
+
 % Panel for displaying information text
 dispPanel = uipanel(fig,'Units','Normalized',...
-                        'BackgroundColor','k',...
-                        'Position',[0 0.75 1 0.25]);
-                       
-                     
-%% BUILD VIDEO PLOT
-vid_ax = axes(fig,'Units','Normalized',...
-            'Position',[0 0 1 0.5],...
-            'NextPlot','replacechildren',...
-            'XTick',[],...
-            'YTick',[],...
-            'XLim',[0 1],...
-            'YLim',[0 1],...
-            'XLimMode','manual',...
-            'YLimMode','manual',...
-            'YDir','reverse');
-
-%% BUILD ANNOTATIONS
-AnimalNameDisp = annotation(dispPanel,...
-   'textbox',[0.025 0.4 0.25 0.20],...
-   'Units', 'Normalized', ...
-   'Position', [0.025 0.4 0.25 0.20], ...
-   'Color',[0.94 0.94 0.94],...
-   'FontName','Arial',...
-   'FontSize',20,...
-   'FontWeight','bold',...
-   'String', strrep(vid_F(1).name,'_','\_'));
-
-VidTimeDisp = annotation(dispPanel, ...
-   'textbox',[0.325 0.4 0.25 0.20],...
-   'Units', 'Normalized', ...
-   'Position', [0.325 0.4 0.25 0.20], ...
-   'FontName','Arial',...
-   'FontSize',20,...
-   'FontWeight','bold',...
-   'Color','w',...
-   'String','loading...');
+   'BackgroundColor','k',...
+   'Position',[0 0.75 0.75 0.25]);
 
 
-NeuralTimeDisp = annotation(dispPanel,...
-   'textbox',[0.625 0.4 0.25 0.20],...
-   'Units', 'Normalized', ...
-   'Position', [0.625 0.4 0.25 0.20], ...
-   'Color',[0.94 0.94 0.94],...
-   'FontName','Arial',...
-   'FontSize',20,...
-   'FontWeight','bold',...
-   'String', 'loading...');
-
-tic;
-fprintf(1,'Please wait, loading video (can be a minute or two)...');
-V = VideoReader(fullfile(VID_DIR,vid_F(1).name));
-NumFrames=V.NumberOfFrames; %#ok<VIDREAD>
-FPS=V.FrameRate;
-C=V.read(1); %#ok<VIDREAD> % reading first frame of the video
-x = [0 1];
-y = [0 1];
-im = imagesc(vid_ax,x,y,C); % showing the first frame of the video
-fprintf(1,'complete.\n'); 
-toc;
-
+%% CONSTRUCT CUSTOM CLASS OBJECTS
 % Make video alignment information object
-alignInfoObj = alignInfo(fig,dig_F,dlc_F,FPS);
+alignInfoObj = alignInfo(fig,dig_F,dlc_F);
 
 % Make video frame object to track video frames
-vidInfoObj = vidInfo(fig,1,FPS,getOffset(alignInfoObj),NumFrames,1);
+vidInfoObj = vidInfo(fig,dispPanel,vid_F);
+vidInfoObj.setOffset(alignInfoObj.getOffset);
 
-% Pass everything to listener object in graphics struct
-graphics = struct('animalName_display',AnimalNameDisp,...
-                  'neuTime_display',NeuralTimeDisp,...
-                  'vidTime_display',VidTimeDisp,...
-                  'videoFile',V,...
-                  'image_display',im,...
-                  'neuTime_line',getNeuralTimeHandle(alignInfoObj),...
-                  'vidTime_line',getVidTimeHandle(alignInfoObj));
+% Make listener object to integrate class information
+graphicsUpdateObj = graphicsUpdater(vid_F);
+graphicsUpdateObj.addListeners(vidInfoObj,alignInfoObj);
 
+% Construct video selection interface and load video
+graphics = vidInfoObj.getGraphics;
+graphicsUpdateObj.addGraphics(graphics);
+vidInfoObj.buildVidSelectionList;
 
-% Now that video info object is complete, set it in the alignment info obj
-alignInfoObj.setVidInfoObj(vidInfoObj);
-   
+% Add associated graphics objects to listener
+graphics = alignInfoObj.getGraphics;
+graphicsUpdateObj.addGraphics(graphics);
+graphics = vidInfoObj.getGraphics;
+graphicsUpdateObj.addGraphics(graphics);
 
-vidUpdateObj = vidUpdateListener(vidInfoObj,alignInfoObj,graphics);
-
+%% SET HOTKEY AND MOUSE MOVEMENT FUNCTIONS
 fname = fullfile(DIR,[strrep(vid_F(1).name,VID_TYPE,'') OUT_ID, '.mat']);
 set(fig,'KeyPressFcn',{@hotKey,vidInfoObj,alignInfoObj,fname});
 set(fig,'WindowButtonMotionFcn',{@trackCursor,alignInfoObj});
@@ -169,31 +114,35 @@ set(fig,'WindowButtonMotionFcn',{@trackCursor,alignInfoObj});
 %% Function for tracking cursor
    function trackCursor(src,~,a)
       a.setCursorPos(src.CurrentPoint(1,1));  
-%       drawnow;
    end
 
 %% Function for hotkeys
    function hotKey(~,evt,v,a,fname)
-      switch evt.Key  
-         
-         case 's' % alt + s = save
+      switch evt.Key     
+         case 's' % Press 'alt' and 's' at the same time to save
             if strcmpi(evt.Modifier,'alt')
                a.saveAlignment(fname);
             end
-         case 'a'
+            
+         case 'a' % Press 'a' to go back one frame
             v.retreatFrame(1);
-         case 'leftarrow'
+            
+         case 'leftarrow' % Press 'leftarrow' key to go back 5 frames
             v.retreatFrame(5);
-         case 'd'
+            
+         case 'd' % Press 'd' to go forward one frame
             v.advanceFrame(nan,nan);
-         case 'rightarrow'
+            
+         case 'rightarrow' % Press 'rightarrow' key to go forward one frame
             v.advanceFrame(nan,nan);
-         case  'subtract'
+            
+         case  'subtract' % Press numpad '-' key to zoom out on time series
             a.zoomOut;
-         case 'add'
+            
+         case 'add' % Press numpad '+' key to zoom in on time series
             a.zoomIn;
-         
-         case 'space'
+            
+         case 'space' % Press 'spacebar' key to play or pause video
             v.playPauseVid;
       end
    end
