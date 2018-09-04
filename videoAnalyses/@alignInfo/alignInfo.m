@@ -11,12 +11,18 @@ classdef alignInfo < handle
       curVidT     % Line indicating current video time
       
       % Data streams
-      pellet   % Pellet break times (may not exist)
       beam     % Beam break times   
       paw      % Paw guesses from DLC
+      press    % Button press times (may not exist)
       
-      alignLag = nan; % Best guess or current alignment lag offset
-      cp; % Current point on axes
+      % Input files
+      streams % File struct for data streams
+      scalars % File struct for scalar values
+      
+      % Scalars
+      alignLag = nan;   % Best guess or current alignment lag offset
+      guess = nan;      % Alignment guess value
+      cp;               % Current point on axes
    end
    
    properties(SetAccess = private, GetAccess = private)
@@ -28,80 +34,74 @@ classdef alignInfo < handle
       moveStreamFlag = false;    % Flag for moving objects on top axes
       cursorX;                   % Current cursor X position on figure
       curOffsetPt;               % Last-clicked position for dragging line
-      guessName = 'Guess.mat';   % If guessAlignment is performed, save it
       xStart = -10;              % (seconds) - lowest x-point to plot
       zoomFlag = false;          % Is the time-series axis zoomed in?
       
+      
       % Graphics
-      AnimalNameDisp;
-      NeuralTimeDisp;
-      VidTimeDisp;
+      AlignmentPanel
    end
    
 %% Events
    events % These correspond to different scoring events
-      align
-      saveFile
-      skip
+      moveOffset  % Alignment has been dragged/moved in some way
+      saveFile    % Output file has been saved
+      axesClick   % Skip to current clicked point in axes (in video)
    end
    
 %% Methods
    methods (Access = public)
       % Construct the object for keeping track of which "button press" (or
       % trial) we are currently looking at
-      function obj = alignInfo(figH,dig_F,dlc_F)
+      function obj = alignInfo(figH,dat_F)
          % Parse parent (must be figure)
          if isa(figH,'matlab.ui.Figure')
             obj.parent = figH;
          else
             error('parentFig argument must be a figure handle.');
          end
-         
-         obj.setDigitalStreams(dig_F);
-         obj.setDLCStreams(dlc_F);
+         obj.parseInputFiles(dat_F);
          
          obj.guessAlignment;
          obj.buildStreamsGraphics;
          
       end
       
-      % Load the digital stream data (alignments like beam,pellet break)
-      function setDigitalStreams(obj,dig_F)
-         obj.pellet = nan;
-         if numel(dig_F)>1
-            for ii = 2:numel(dig_F)
-               str = dig_F(ii).name((end-8):(end-4));
-               switch str
-                  case 'Guess'
-                     load(fullfile(dig_F(ii).folder,dig_F(ii).name),...
-                        'alignGuess');
-                     obj.alignLag = alignGuess;
-                  otherwise
-                     obj.pellet = loadDigital(fullfile(dig_F(ii).folder,...
-                        dig_F(ii).name));
-               end
-                  
-            end
+      % Load the digital stream data (alignments like beam,press break)
+      function parseInputFiles(obj,F)
+         % Initialize data streams as NaN for checks later
+         obj.press = nan;
+         obj.paw = nan;
+         obj.beam = nan;
+         
+         % Store file info structs as properties
+         obj.streams = F.streams;
+         obj.scalars = F.scalars;
+         
+         % Parse streams
+         s = fieldnames(F.streams);
+         s = s(ismember(s,properties(obj)));
+         for ii = 1:numel(s)
+            f = F.streams.(s{ii});
+            obj.(s{ii}) = loadStream(f);
          end
          
-         if isnan(obj.alignLag)
-            obj.guessName = fullfile(dig_F(1).folder,...
-               strrep(dig_F(1).name,'Ch_001.mat',obj.guessName));
+         % Parse scalars
+         s = fieldnames(F.scalars);
+         s = s(ismember(s,properties(obj)));
+         for ii = 1:numel(s)
+            f = F.scalars.(s{ii});
+            obj.(s{ii}) = loadScalar(f);
          end
          
-         obj.beam = loadDigital(fullfile(dig_F(1).folder,dig_F(1).name));
-      end
-      
-      % Set the alignment stream from markerless DLC tracking
-      function setDLCStreams(obj,dlc_F)
-         vidTracking = importRC_Grasp(...
-            fullfile(dlc_F(obj.currentVid).folder,...
-                     dlc_F(obj.currentVid).name));
-         obj.paw.data = vidTracking.grasp_p;
-         obj.paw.fs = obj.VID_FS;
-         obj.paw.t = linspace(0,...
-            (numel(obj.paw.data)-1)/obj.paw.fs,...
-             numel(obj.paw.data));
+         % Update if appropriate scalar values are found
+         if ~isnan(obj.alignLag)
+            disp('Found previous alignment lag.');
+            obj.setAlignment(obj.alignLag);
+         elseif isnan(obj.alignLag) && ~isnan(obj.guess)
+            disp('Found alignment lag guess.');
+            obj.setAlignment(obj.guess);         
+         end
          
       end
       
@@ -129,8 +129,10 @@ classdef alignInfo < handle
       end
       
       % Save the output file
-      function saveAlignment(obj,fname)
+      function saveAlignment(obj)
          VideoStart = obj.alignLag;
+         fname = fullfile(obj.scalars.alignLag.folder,...
+                          obj.scalars.alignLag.name);
          fprintf(1,'Please wait, saving %s...',fname);
          save(fname,'VideoStart','-v7.3');
          fprintf(1,'complete.\n');
@@ -170,7 +172,8 @@ classdef alignInfo < handle
          
          % Pass everything to listener object in graphics struct
          graphics = struct('neuTime_line',obj.curNeuT,...
-            'vidTime_line',obj.curVidT);
+            'vidTime_line',obj.curVidT,...
+            'alignment_panel',obj.AlignmentPanel);
       end
       
    end
@@ -180,7 +183,7 @@ classdef alignInfo < handle
       function guessAlignment(obj)
          % If guess already exists, skip this part
          if ~isnan(obj.alignLag)
-            disp('Found alignment lag guess. Skipping computation');
+            disp('Skipping computation');
             return;
          end
          
@@ -197,17 +200,23 @@ classdef alignInfo < handle
          [R,lag] = getR(x,y);
          setAlignment(obj,parseR(R,lag));
          alignGuess = obj.alignLag;
-         save(obj.guessName,'alignGuess','-v7.3');
+         save(fullfile(obj.scalars.guess.folder,...
+            obj.scalars.guess.name),'alignGuess','-v7.3');
          fprintf(1,'complete.\n');
          toc;
       end
       
       % Make all the graphics for tracking relative position of neural
-      % (beam/pellet) and video (paw probability) time series
+      % (beam/press) and video (paw probability) time series
       function buildStreamsGraphics(obj)
+         % Make panel to contain graphics
+         obj.AlignmentPanel = uipanel(obj.parent,'Units','Normalized',...
+            'BackgroundColor','k',...
+            'Position',[0 0 1 0.25]);
+         
          % Make axes for graphics objects
-         obj.ax = axes(obj.parent,'Units','Normalized',...
-              'Position',[0 0.51 1 0.24],...
+         obj.ax = axes(obj.AlignmentPanel,'Units','Normalized',...
+              'Position',[0 0 1 1],...
               'NextPlot','add',...
               'XColor','w',...
               'YLim',[-0.2 1.2],...
@@ -241,7 +250,7 @@ classdef alignInfo < handle
             'DisplayName','paw',...
             'ButtonDownFcn',@obj.clickAxes);
          
-         % Make beam plot and if present, pellet breaks
+         % Make beam plot and if present, press breaks
          obj.beam.h = plot(obj.ax,...
             obj.beam.t,...
             obj.beam.data,...
@@ -249,15 +258,15 @@ classdef alignInfo < handle
             'Tag','beam',...
             'DisplayName','beam',...
             'ButtonDownFcn',@obj.clickSeries);
-         if isstruct(obj.pellet)
-            obj.pellet.h = plot(obj.ax,...
-               obj.pellet.t,...
-               obj.pellet.data,...
-               'Tag','pellet',...
-               'DisplayName','pellet',...
+         if isstruct(obj.press)
+            obj.press.h = plot(obj.ax,...
+               obj.press.t,...
+               obj.press.data,...
+               'Tag','press',...
+               'DisplayName','press',...
                'Color','m',...
                'ButtonDownFcn',@obj.clickSeries);
-            legend(obj.ax,{'Vid-Time';'Offset';'Paw';'Beam';'Pellet'},...
+            legend(obj.ax,{'Vid-Time';'Offset';'Paw';'Beam';'Press'},...
                'Location','northoutside',...
                'Orientation','horizontal',...
                'FontName','Arial',...
@@ -282,17 +291,17 @@ classdef alignInfo < handle
             'DisplayName','beam-move',...
             'ButtonDownFcn',@obj.clickAxes);
          
-         if isstruct(obj.pellet)
-            % Make "fake" pellet-plot for shadow when "dragging"
-            obj.pellet.sh = plot(obj.ax,...
-               obj.pellet.t,...
-               obj.pellet.data,...
+         if isstruct(obj.press)
+            % Make "fake" press-plot for shadow when "dragging"
+            obj.press.sh = plot(obj.ax,...
+               obj.press.t,...
+               obj.press.data,...
                'LineWidth',1.5,...
                'Color',[0.60 0.60 0.60],...
                'LineStyle',':',...
-               'Tag','pellet',...
+               'Tag','press',...
                'Visible','off',...
-               'DisplayName','pellet-move',...
+               'DisplayName','press-move',...
                'ButtonDownFcn',@obj.clickAxes);
          end
          
@@ -317,23 +326,23 @@ classdef alignInfo < handle
          
          % If FLAG is enabled
          if obj.moveStreamFlag
-            % Place the (dragged) neural (beam/pellet) streams with cursor
+            % Place the (dragged) neural (beam/press) streams with cursor
 %             new_align_offset = obj.computeOffset(obj.curOffsetPt,cp);
 %             obj.setAlignment(new_align_offset);
             obj.beam.h.Visible = 'on';
             obj.beam.sh.Visible = 'off';
             obj.resetAxesLimits;
-            if isstruct(obj.pellet)
-               obj.pellet.h.Visible = 'on';
-               obj.pellet.sh.Visible = 'off';
+            if isstruct(obj.press)
+               obj.press.h.Visible = 'on';
+               obj.press.sh.Visible = 'off';
             end
             obj.moveStreamFlag = false;            
          else % Otherwise, allows to skip to point in video
-            notify(obj,'skip');
+            notify(obj,'axesClick');
          end
       end
       
-      % ButtonDownFcn for neural sync time series (beam/pellet)
+      % ButtonDownFcn for neural sync time series (beam/press)
       function clickSeries(obj,src,~)
          if ~obj.moveStreamFlag
             obj.moveStreamFlag = true;
@@ -355,20 +364,20 @@ classdef alignInfo < handle
       function setAlignment(obj,align_offset)
          obj.alignLag = align_offset;
          obj.updateStreamTime;
-         notify(obj,'align');
+         notify(obj,'moveOffset');
       end
       
       % Updates stream times and graphic object times associated with
       function updateStreamTime(obj)
-         % Moves the beam and pellet streams, relative to VIDEO
+         % Moves the beam and press streams, relative to VIDEO
          obj.beam.t = obj.beam.t0 - obj.alignLag;
          obj.beam.h.XData = obj.beam.t;
          obj.beam.sh.XData = obj.beam.t;
          
-         if isstruct(obj.pellet)
-            obj.pellet.t = obj.pellet.t0 - obj.alignLag;
-            obj.pellet.h.XData = obj.pellet.t;
-            obj.pellet.sh.XData = obj.pellet.t;
+         if isstruct(obj.press)
+            obj.press.t = obj.press.t0 - obj.alignLag;
+            obj.press.h.XData = obj.press.t;
+            obj.press.sh.XData = obj.press.t;
             
          end
       end

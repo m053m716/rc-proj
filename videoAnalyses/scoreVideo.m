@@ -9,11 +9,14 @@ function scoreVideo(varargin)
 %                                            object-oriented structure.
 
 %% DEFAULTS
-DEF_DIR = 'J:\Rat\BilateralReach\Data';
-DIR = nan;
+DEF_DIR = 'P:\Extracted_Data_To_Move\Rat\TDTRat';
+% VID_DIR = 'K:\Rat\Video\BilateralReach\RC';
+VID_DIR = 'C:\Users\Max Murphy\Desktop\tmp';
+FILE = nan;
 
+VARS = {'Trial','Reach','Grasp','Support','Outcome'};
 ALIGN_ID = '_VideoAlignment.mat';
-BUTTON_ID = '_ButtonPress.mat';
+TRIAL_ID = '_Trials.mat';
 SCORE_ID = '_Scoring.mat';
 
 %% PARSE VARARGIN
@@ -21,196 +24,158 @@ for iV = 1:2:numel(varargin)
    eval([upper(varargin{iV}) '=varargin{iV+1};']);
 end
 
-%% GET VIDEO FILE(S)
-if isnan(DIR)
-   DIR = uigetdir(DEF_DIR,'Select recording BLOCK');
-   if DIR == 0
-      error('No BLOCK selected. Script aborted.');
+%% GET TRIALS FILE
+if exist(VID_DIR,'dir')==0
+   VID_DIR = inputdlg({['Bad video directory. ' ...
+      'Specify VID_DIR here (change variable for next time).']},...
+      'Invalid VID_DIR path',1,{'C:/vid/dir/path'});
+   if isempty(VID_DIR)
+      error('No valid video directory specified. Script canceled.');
+   else
+      VID_DIR = VID_DIR{1};
    end
 end
 
-addpath('utils');
-
-Name = strsplit(DIR, filesep);
-Name = Name{end};
-
-vid_F = dir(fullfile(DIR,[Name '*.avi']));         % Video files
-align_F = dir(fullfile(DIR,[Name '*' ALIGN_ID]));    % Alignment files
-
-
-%% LOAD BEHAVIOR DATA
-
-fname = fullfile(DIR,[Name SCORE_ID]);
-if exist(fname,'file')~=0
-   load(fname,'behaviorData');
-   
+if isnan(FILE)
+   [FILE,DIR] = uigetfile(['*' TRIAL_ID],'Select TRIALS file',DEF_DIR);
+   if FILE == 0
+      error('No file selected. Script aborted.');
+   end
 else
-   tmp = load(fullfile(DIR,[Name BUTTON_ID]),'button');
-   Button = tmp.button;
-   Button = reshape(Button,numel(Button),1);
-   
-   Reach = nan(size(Button));
-   Grasp = nan(size(Button));
-   Outcome = nan(size(Button));
-   Forelimb = repmat('?',size(Button,1),1);
-   
-   behaviorData = table(Button,Reach,Grasp,Outcome,Forelimb);
-   save(fname,'behaviorData');
-   fprintf(1,'Scoring file for %s created.\n',Name);
-   
-   
+   [DIR,FILE,ext] = fileparts(FILE);
+   FILE = [FILE,ext];
 end
 
-VideoStart = nan(size(align_F));
-for ii = 1:numel(align_F)
-   in = load(fullfile(DIR,align_F(ii).name),'VideoStart');
-   VideoStart(ii) = in.VideoStart;
-end
 
-tic;
-fprintf(1,'Please wait, loading video (can be a minute or two)...');
-V = VideoReader(fullfile(DIR,vid_F(1).name));
-
-NumFrames=V.NumberOfFrames; %#ok<VIDREAD>
-FPS=V.FrameRate;
-TimerPeriod=2*round(1000/FPS)/1000;
-
-%% CONSTRUCT UI
+%% MAKE UI WINDOW AND DISPLAY CONTAINER
 fig=figure('Name','Bilateral Reach Scoring',...
+           'NumberTitle','off',...
            'Color','k',...
            'Units','Normalized',...
            'Position',[0.1 0.1 0.8 0.8]);
-   
+        
+% Panel for displaying information text
+dispPanel = uipanel(fig,'Units','Normalized',...
+   'BackgroundColor','k',...
+   'Position',[0 0 0.75 1]);
+
+        
+%% CREATE BEHAVIOR INFORMATION OBJECT
+
+Name = strsplit(FILE, TRIAL_ID);
+Name = Name{1};
+
+% All potential datapoints
+F = struct('vectors',struct(...
+      'Trials',struct('folder',DIR,'name',[Name TRIAL_ID])),...
+   'scalars',struct(...
+      'VideoStart',struct('folder',DIR,'name',[Name ALIGN_ID])),...
+   'tables',struct(...
+      'behaviorData',struct('folder',DIR,'name',[Name SCORE_ID])));
+
+behaviorInfoObj = behaviorInfo(fig,F,VARS);
+
+
+%% LOAD VIDEO DATA
+vid_F = dir(fullfile(VID_DIR,[Name '*.avi']));         % Video files
+
 % Make custom classes for tracking video and behavioral data
 vidInfoObj = vidInfo(fig,dispPanel,vid_F);
-behaviorInfoObj = behaviorInfo(fig,behaviorData);                 
  
-%% BUILD GRAPHICAL ELEMENTS             
-behaviorInfoObj.buildVideoControlPanel;
-behaviorInfoObj.buildProgressTracker(dispPanel);
-      
-graphicsUpdateObj = graphicsUpdater(vid_F);
+%% BUILD GRAPHICAL ELEMENTS                   
+graphicsUpdateObj = graphicsUpdater(vid_F,VARS);
 
 % Construct video selection interface and load video
 vidInfoObj.buildVidSelectionList;
 
-graphics = getGraphics(videoInfoObj);
+graphics = getGraphics(vidInfoObj);
 graphicsUpdateObj.addGraphics(graphics);
 graphics = getGraphics(behaviorInfoObj);
 graphicsUpdateObj.addGraphics(graphics);
 
 
-graphicsUpdateObj.addListeners(vidInfoObj,alignInfoObj);
-
-graphicsUpdateObj.setBehaviorData(behaviorData);
-
-
-% Set callback for navigating through trials
-set(trialPop,'Callback',{@selectTrial,behaviorInfoObj});
+graphicsUpdateObj.addListeners(vidInfoObj,behaviorInfoObj);
                      
 % Initialize hotkeys for navigating through movie
 set(fig,'WindowKeyPressFcn',...
-   {@hotKey,vidInfoObj,behaviorInfoObj,behaviorUpdateObj,fname});
+   {@hotKey,vidInfoObj,behaviorInfoObj});
 
 % Update everything to make sure it looks correct
-graphicsUpdateObj.updateVideo(vidInfoObj);
+vidInfoObj.setOffset(behaviorInfoObj.VideoStart);
+notify(vidInfoObj,'vidChanged');
+behaviorInfoObj.setTrial(nan,behaviorInfoObj.cur,true);
 
-
-%% Function to set frame when slider is moved
+%% Function to set frame when a key is pressed
     function setCurrentFrame(newFrame,v)
        v.setFrame(newFrame);       
     end
 
 %% Function to change button push
-   function setCurrentTrial(newButton,bu)
-      bu.setButton(newButton);
+   function setCurrentTrial(newTrial,b)
+      b.setTrial(nan,newTrial);
    end 
 
 %% Function to add/remove current frame as Reach
-   function addRemoveReach(v,bu,t)
-      if isnan(t)
-         curTime = getTime(v);
-      else
-         curTime = t;
-      end
-      
-      bu.setReachTime(curTime);
+   function markReachFrame(b,t)
+      b.setValue(2,t);
    end
 
 %% Function to add/remove current frame as Grasp
-   function addRemoveGrasp(v,bu,t)
-      if isnan(t)
-         curTime = getTime(v);
-      else
-         curTime = t;
-      end
-      
-      bu.setGraspTime(curTime);      
+   function markGraspFrame(b,t)
+      b.setValue(3,t);    
    end
 
-%% Function to set trial handedness
-   function setTrialHand(hand,bu)
-      bu.setHandedness(hand);
+%% Function to add/remove "both" hands (support)
+   function markSupportFrame(b,t)
+      b.setValue(4,t); 
    end
 
 %% Function to set trial outcome
-   function setTrialOutcome(outcome,bu)
-       bu.setOutcome(outcome);    
-   end
-
-%% Function to save scoring data
-   function saveScoring(beh,fname)
-      % Done this way to avoid global variable
-      out = struct('behaviorData',beh.behaviorData);
-
-      % Save data
-      save(fname,'-struct','out');
+   function markTrialOutcome(outcome,b)
+       b.setValue(5,outcome);    
    end
 
 %% Function for hotkeys
-   function hotKey(~,evt,v,bu,beh,fname)
+   function hotKey(~,evt,v,b)
+      t = getVidTime(v);
       switch evt.Key
-         case 'r' % set reach trial
-            addRemoveReach(v,bu,nan);
+         case 'r' % set reach frame
+            markReachFrame(b,t);
             
-         case 'g' % set grasp trial
-            addRemoveGrasp(v,bu,nan);
+         case 'g' % set grasp frame
+            markGraspFrame(b,t);
+            
+         case 'b' % set "both" (support) frame
+            markSupportFrame(b,t);
+            
+         case 'v' % (next to 'b') -> no "support" for this trial
+            markSupportFrame(b,inf);
             
          case 'w' % set outcome as Successful
-            setTrialOutcome(1,bu);
+            markTrialOutcome(1,b);
             
          case 'x' % set outcome as Unsuccessful
-            setTrialOutcome(0,bu);
-            
-         case 'e' % set hand as Right
-            setTrialHand('R',bu);
-            
-         case 'q' % set hand as Left
-            setTrialHand('L',bu);
+            markTrialOutcome(0,b);
             
          case 'a' % previous frame
             setCurrentFrame(getFrame(v)-15,v);
             
          case 'leftarrow' % previous trial
-            setCurrentTrial(getTrial(bu)-1,bu);
+            setCurrentTrial(b.cur-1,b);
             
          case 'd' % next frame
             setCurrentFrame(getFrame(v)+1,v);
             
          case 'rightarrow' % next trial
-            setCurrentTrial(getTrial(bu)+1,bu);
+            setCurrentTrial(b.cur+1,b);
             
          case 's' % alt + s = save
             if strcmpi(evt.Modifier,'alt')
-               fprintf(1,'Saving %s...',fname);
-               saveScoring(beh,fname);
-               fprintf(1,'complete.\n');
+               b.saveScoring;
             end
             
          case 'delete'
-            addRemoveReach(v,bu,inf);
-            addRemoveGrasp(v,bu,inf);
-            
+            b.removeTrial;
          case 'space'
             v.playPauseVid;
       end
