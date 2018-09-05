@@ -88,7 +88,7 @@ classdef vidInfo < handle
       % Update the video and neural times
       function updateTime(obj)
          obj.tVid = obj.frame / obj.FPS;
-         obj.tNeu = obj.tVid + obj.videoStart(obj.vidListIdx);
+         obj.tNeu = obj.tVid + obj.videoStart;
          notify(obj,'timesUpdated');
       end
       

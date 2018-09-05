@@ -47,17 +47,6 @@ for iV = 1:2:numel(varargin)
 end
 
 %% PARSE INPUT
-if exist(VID_DIR,'dir')==0
-   VID_DIR = inputdlg({['Bad video directory. ' ...
-      'Specify VID_DIR here (change variable for next time).']},...
-      'Invalid VID_DIR path',1,{ALT_VID_DIR});
-   if isempty(VID_DIR)
-      error('No valid video directory specified. Script canceled.');
-   else
-      VID_DIR = VID_DIR{1};
-   end
-end
-
 if isnan(FNAME)
    [FNAME,DIR] = uigetfile(['*' BEAM_ID '.mat'],...
       'Select Beam Break File',...
@@ -76,8 +65,39 @@ end
 Name = strsplit(FNAME,BEAM_ID);
 Name = Name{1};
 
-Block = strsplit(DIR,filesep);
-Block = strjoin(Block(1:(end-1)),filesep);
+%% PARSE VIDEO FILES / LOCATION
+% Check in several places for the video files...
+vid_F = dir(fullfile(VID_DIR,[Name '*' VID_TYPE]));
+
+if isempty(vid_F)
+   fprintf(1,'No videos in\n->\t%s\n',VID_DIR);
+   
+   fprintf(1,'Checking location with _Beam.mat...');
+   % Check for videos in same location as other files
+   vid_F = dir(fullfile(DIR,[Name '*' VID_TYPE]));
+   
+   if isempty(vid_F) % Maybe they are in some other, unspecified directory?
+      fprintf(1,'unsuccessful.\n');
+      VID_DIR = inputdlg({['Bad video directory. ' ...
+         'Specify VID_DIR here (change variable for next time).']},...
+         'Invalid VID_DIR path',1,{ALT_VID_DIR});
+      if isempty(VID_DIR)
+         error('No valid video directory specified. Script canceled.');
+      else
+         VID_DIR = VID_DIR{1};
+      end
+      vid_F = dir(fullfile(VID_DIR,[Name '*' VID_TYPE]));
+      
+      if isempty(vid_F) % If there are still no files something else wrong
+         disp('No video file located!');
+         error('Please check VID_DIR or missing video for that session.');
+      end
+   else
+      fprintf(1,'successful!\n');
+   end
+end
+
+%% MAKE STRUCT OF FILE LOCATIONS
 
 % All potential data streams or data files
 dat_F = struct('streams',struct(...
@@ -88,13 +108,7 @@ dat_F = struct('streams',struct(...
    'guess',struct('folder',DIR,'name',[Name GUESS_ID '.mat']),...
    'alignLag',struct('folder',DIR,'name',[Name OUT_ID '.mat'])));
 
-% Video file(s)
-vid_F = dir(fullfile(VID_DIR,[Name '*' VID_TYPE]));
 
-if isempty(vid_F)
-   disp('No video file located!');
-   error('Please check VID_DIR or missing video for that session.');
-end
 
 %% CONSTRUCT UI
 fig=figure('Name','Bilateral Reach Scoring',...

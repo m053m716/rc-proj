@@ -1,8 +1,8 @@
-function alignGuess = makeAlignmentGuess(p,fname,varargin)
+function alignGuess = makeAlignmentGuess(p,F,varargin)
 %% MAKEALIGNMENTGUESS Modified version of guessAlignment method for batch processing
 %
-%  alignGuess = MAKEALIGNMENTGUESS(p,fname);
-%  alignGuess = MAKEALIGNMENTGUESS(p,fname,'NAME',value,...);
+%  alignGuess = MAKEALIGNMENTGUESS(p,F);
+%  alignGuess = MAKEALIGNMENTGUESS(p,F,'NAME',value,...);
 %
 %  --------
 %   INPUTS
@@ -10,8 +10,9 @@ function alignGuess = makeAlignmentGuess(p,fname,varargin)
 %     p     :     Probability time-series for detected grasp paw from
 %                 video. Has same sampling rate as video.
 %
-%   fname   :     Filename of digital beam-break file to load for
-%                 cross-correlation with paw probability series.
+%     F     :     Struct with 'folder' and 'name' fields as returned by
+%                 'dir' function. Should point to file with beam-break
+%                 stream.
 %
 %  varargin :     (Optional) 'NAME', value input argument pairs.
 %
@@ -35,7 +36,7 @@ for iV = 1:2:numel(varargin)
 end
 
 % Upsample by 16 because of weird FS used by TDT...
-beam = loadDigital(fname);
+beam = loadStream(F);
 ds_fac = round((double(beam.fs) * 16) / FS);
 x = resample(double(beam.data),16,ds_fac);
 
@@ -46,7 +47,7 @@ y = resample(p,FS,round(VID_FS));
 tic;
 fprintf(1,...
    'Please wait, making best guess for %s (usually 1-2 mins)...',...
-   fname);
+   F.name);
 [R,lag] = getR(x,y);
 alignGuess = parseR(R,lag);
 fprintf(1,'complete.\n');

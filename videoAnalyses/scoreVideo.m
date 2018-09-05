@@ -27,17 +27,6 @@ for iV = 1:2:numel(varargin)
 end
 
 %% GET TRIALS FILE
-if exist(VID_DIR,'dir')==0
-   VID_DIR = inputdlg({['Bad video directory. ' ...
-      'Specify VID_DIR here (change variable for next time).']},...
-      'Invalid VID_DIR path',1,{'C:/vid/dir/path'});
-   if isempty(VID_DIR)
-      error('No valid video directory specified. Script canceled.');
-   else
-      VID_DIR = VID_DIR{1};
-   end
-end
-
 if isnan(FILE)
    [FILE,DIR] = uigetfile(['*' TRIAL_ID],'Select TRIALS file',DEF_DIR);
    if FILE == 0
@@ -46,6 +35,42 @@ if isnan(FILE)
 else
    [DIR,FILE,ext] = fileparts(FILE);
    FILE = [FILE,ext];
+end
+
+%% PARSE FILE NAMES
+Name = strsplit(FNAME,TRIAL_ID);
+Name = Name{1};
+
+%% PARSE VIDEO FILES / LOCATION
+% Check in several places for the video files...
+vid_F = dir(fullfile(VID_DIR,[Name '*' VID_TYPE]));
+
+if isempty(vid_F)
+   fprintf(1,'No videos in\n->\t%s\n',VID_DIR);
+   
+   fprintf(1,'Checking location with _Beam.mat...');
+   % Check for videos in same location as other files
+   vid_F = dir(fullfile(DIR,[Name '*' VID_TYPE]));
+   
+   if isempty(vid_F) % Maybe they are in some other, unspecified directory?
+      fprintf(1,'unsuccessful.\n');
+      VID_DIR = inputdlg({['Bad video directory. ' ...
+         'Specify VID_DIR here (change variable for next time).']},...
+         'Invalid VID_DIR path',1,{ALT_VID_DIR});
+      if isempty(VID_DIR)
+         error('No valid video directory specified. Script canceled.');
+      else
+         VID_DIR = VID_DIR{1};
+      end
+      vid_F = dir(fullfile(VID_DIR,[Name '*' VID_TYPE]));
+      
+      if isempty(vid_F) % If there are still no files something else wrong
+         disp('No video file located!');
+         error('Please check VID_DIR or missing video for that session.');
+      end
+   else
+      fprintf(1,'successful!\n');
+   end
 end
 
 
@@ -64,9 +89,6 @@ dispPanel = uipanel(fig,'Units','Normalized',...
         
 %% CREATE BEHAVIOR INFORMATION OBJECT
 
-Name = strsplit(FILE, TRIAL_ID);
-Name = Name{1};
-
 % All potential datapoints
 F = struct('vectors',struct(...
       'Trials',struct('folder',DIR,'name',[Name TRIAL_ID])),...
@@ -79,7 +101,7 @@ behaviorInfoObj = behaviorInfo(fig,F,VARS);
 
 
 %% LOAD VIDEO DATA
-vid_F = dir(fullfile(VID_DIR,[Name '*.avi']));         % Video files
+
 
 % Make custom classes for tracking video and behavioral data
 vidInfoObj = vidInfo(fig,dispPanel,vid_F);
