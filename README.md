@@ -197,7 +197,7 @@ This is the *reach onset* time. We are defining it as the first frame in which t
 ##### Grasp #####  
 This is the *grasp onset* time. We are defining it as the first frame in which the digits close around the food pellet. It is the easiest phase of behavior to identify in this experimental setup, and provides the most consistent neurophysiological alignment landmark for behavior. Trials need both a visible *reach* and *grasp* in order to be considered for further analysis.  
 
-** Successful Example ** 
+**Successful Example** 
 
 ![](docs/img/01_score_successful-grasp-1.PNG "Fig. 7a - Successful Grasp 1")  
 **Figure 7a: Successful Grasp - arpeggio.** We aren't officially looking for arpeggio, but basically just before he closes his paw, the digits will splay out like this.  
@@ -208,7 +208,7 @@ This is the *grasp onset* time. We are defining it as the first frame in which t
 ![](docs/img/01_score_successful-grasp-3.PNG "Fig. 7c - Successful Grasp 3")  
 **Figure 7c: Successful Grasp - retrieval.** The forelimb supinates as he retrieves the pellet successfully. Typical behavior is to bring the pellet directly to the mouth, with the other forelimb coming over to help hold it.    
 
-** Unsuccessful Example **  
+**Unsuccessful Example**  
 ![](docs/img/01_score_unsuccessful-grasp-1.PNG "Fig. 8a - Unsuccessful Grasp 1")  
 **Figure 8a: Unsuccessful Grasp.** Here, he has attempted to retrieve the pellet (left), but was unsuccessful as it has popped out. He still closed his paw, so this is considered as a grasping trial. 
 
