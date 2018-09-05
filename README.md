@@ -46,18 +46,18 @@ alignVideo;
 ### Use ###  
 
 #### Select File ####  
-![docs/img/00_align_uiselect.PNG]  
+![](docs/img/00_align_uiselect.PNG "Fig. 1 - File Select")  
 **Figure 1: File selection.** If no arguments are specified, select the _Beam.mat file from wherever you have put it.  After a few steps of processing, generating the interface, and loading the video, the interface should popup.  
 
 #### GUI Overview ####  
-![docs/img/00_align_baseGUI.PNG]  
+![](docs/img/00_align_baseGUI.PNG "Fig. 2 - GUI")  
 **Figure 2: GUI overview.** The graphical user interface (GUI) consists of 3 main components: a heads up display (HUD) at the top; the video which is displayed in the middle; and an alignment timeline at the bottom.  
 
 #### HUD ####  
-![docs/img/00_align_HUD.PNG]  
+![](docs/img/00_align_HUD.PNG "Fig. 3 - HUD")  
 **Figure 3: HUD.** This region simply shows the name of the currently selected video, the time with respect to the start of the video (Video Time, seconds), and the time with respect to the start of the neurophysiological recording (Neural Time, seconds). The window on the right could be used in case there are multiple videos for a given neural recording, but in practice this hasn't been used.  
 
-![docs/img/00_align_save.PNG]  
+![](docs/img/00_align_save.PNG "Fig. 4 - Saving")    
 **Figure 4: Save Status.** Once you have saved the alignment offset (alt + s), the file name will turn green and the GUI will prompt you to exit.   
 
 **General Strategy**  
@@ -68,31 +68,31 @@ This alignment technique works on the assumption that basically most of the time
 3. Check several reaches as a sanity-check. Remember, this is only as good as the video frame-rate precision, so it doesn't have to be 100% perfect (there will be some jitter due to the video device sampling and codecs used).  
 
 #### Example ####  
-![docs/img/00_align_ax-good-guess.PNG]  
+![](docs/img/00_align_ax-good-guess.PNG "Fig. 5 - Good Guess")    
 **Figure 5: Good alignment guess.** In this case, the correlation algorithm worked pretty well and the "trains" appear to be aligned fairly well. Recommend going straight to step 2.  
 
-![docs/img/00_align_ax-bad-guess.PNG]  
+![](docs/img/00_align_ax-bad-guess.PNG "Fig. 6 - Bad Guess")    
 **Figure 6: Bad alignment guess.** Something went wrong with the correlation algorithm. Note the starred points. You want to grab an idiosyncratic "feature" of the red train to try and have the best ability to line it up with a similarly shaped point on the blue train. Alternatively, the double-starred point shows where you have two high-frequency "bursts" near each other, which tends to be an easier thing to match up while dragging the series against one another.  
 
-![docs/img/00_align_ax-drag-bad.PNG]  
+![](docs/img/00_align_ax-drag-bad.PNG "Fig. 7 - Bad Match")  
 **Figure 7: Bad dragging match.** The dot-dashed series is being dragged, but at this point it doesn't really match up well on anything. Notice lots of periods where the blue and dot-dashed series do not overlap.  
 
-![docs/img/00_align_ax-drag-ok.PNG]  
+![](docs/img/00_align_ax-drag-ok.PNG "Fig. 8 - OK mismatch")  
 **Figure 8: OK mismatch.** Sometimes, the experimenter's hand is in the way etc. so you don't get the paw time-series. So in that case you should be able to see the beam breaks but not have any paw probability time-series since DeepLabCut (DLC) couldn't "see" the paw. In practice, DLC was pretty accurate on detecting the paw presence, so more often than not it is worse to have a lot of blue (paw) series that don't have any matching red series than the other way around. It sort of depends on the idiosyncracies of the rat, though.  
 
-![docs/img/00_align_ax-drag-good.PNG]  
+![](docs/img/00_align_ax-drag-good.PNG "Fig. 9 - Good Match")  
 **Figure 9: Good match.** Once things are aligned, click the axis again and it will make the lines bold and they won't follow the mouse any more. Notice how the blue lines have more or less "disappeared" behind the red, indicating that this is a good approximate line-up.  
 
-![docs/img/00_align_ax-fine-tune_03.PNG]  
+![](docs/img/00_align_ax-fine-tune_03.PNG "Fig. 10a - Fine-tuning 1")  
 **Figure 10a: Fine-tuning.** Click the zoomed-out axis above the series to move the video to that time-point. Then zoom in (numpad +). You can zoom back out if this ends up not working (numpad -), or hit spacebar to just play the video and approximately see how it looks. You can also navigate 1 frame forward or backwards using the 'd' and 'a' keys respectively. Here, a point is selected just before the onset of a moderate-length beam break, where the paw was also detected. Notice that the alignment so far is good because the beam is not crossed and we are not crossing it yet in the time-series.  
 
-![docs/img/00_align_ax-fine-tune_04.PNG]  
+![](docs/img/00_align_ax-fine-tune_04.PNG "Fig. 10b - Fine-tuning 2")  
 **Figure 10b: Fine-tuning.** Advancing by 1 frame, the beam is crossed and it is also crossed in the time-series.  
 
-![docs/img/00_align_ax-fine-tune_01.PNG]  
+![](docs/img/00_align_ax-fine-tune_01.PNG "Fig. 10c - Fine-tuning 3")  
 **Figure 10c: Fine-tuning.** Going to the end of the beam-break, we see that in the last beam frame, the paw still appears to be crossing the beam.  
 
-![docs/img/00_align_ax-fine-tune_02.PNG]  
+![](docs/img/00_align_ax-fine-tune_02.PNG "Fig. 10d - Fine-tuning 4")  
 **Figure 10d: Fine-tuning.** Advancing by 1 frame, the paw has moved off of the frame in the video and the red line indicating the tripping of the beam-break by a high value has returned to low as well. Repeating this process for several beam-breaks at various points throughout the video gives a good indication that the video and neural data are aligned.  
 
 **Hotkeys**  
