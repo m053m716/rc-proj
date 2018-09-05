@@ -13,9 +13,9 @@ Custom (Matlab) analyses used for experiments studying post-injury plasticity in
 
 ## Video Alignment ##  
 
-[Setup](#setup)  
-[Use](#use)  
-[Hotkeys](#hotkeys)  
+[Setup](#alignvideo-setup)  
+[Use](#alignvideo-use)  
+[Hotkeys](#alignvideo-hotkeys)  
 
 ---
 
@@ -50,11 +50,11 @@ alignVideo;
  ```
 
 ### alignVideo Use ### 
-[File Selection](#select-file)  
-[Overview](#gui-overview)  
-[HUD](#hud)  
-[Strategy](#general-strategy)  
-[Example](#example)  
+[File Selection](#alignvideo-select-file)  
+[Overview](#alignvideo-gui-overview)  
+[HUD](#alignvideo-hud)  
+[Strategy](#alignvideo-general-strategy)  
+[Example](#alignvideo-example)  
 
 ---
 
@@ -129,9 +129,9 @@ This alignment technique works on the assumption that basically most of the time
 ---
 
 ## Video Scoring ##  
-[Setup](#scoreVideo-setup)    
-[Use](#scoreVideo-use)  
-[Hotkeys](#scoreVideo-hotkeys)  
+[Setup](#scorevideo-setup)    
+[Use](#scorevideo-use)  
+[Hotkeys](#scorevideo-hotkeys)  
 
 ---
 
@@ -143,10 +143,10 @@ This alignment technique works on the assumption that basically most of the time
 ---
 
 ### scoreVideo Use ###  
-[File Selection](#scoreVideo-select-file)  
-[Overview](#scoreVideo-gui-overview)  
-[HUD](#scoreVideo-hud)  
-[How to Score](#scoreVideo-defining-events)  
+[File Selection](#scorevideo-select-file)  
+[Overview](#scorevideo-gui-overview)  
+[HUD](#scorevideo-hud)  
+[How to Score](#scorevideo-defining-events)  
 
 ---
 
