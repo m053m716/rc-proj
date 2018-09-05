@@ -13,8 +13,9 @@ function scoreVideo(varargin)
 DEF_DIR = 'C:\RC_Video_Scoring';
 
 VID_DIR = 'C:\RC_Video_Scoring'; % MUST point to where the videos are
+VID_TYPE = '.avi';
 ALT_VID_DIR = 'K:\Rat\Video\BilateralReach\RC';
-FILE = nan;
+FNAME = nan;
 
 VARS = {'Trial','Reach','Grasp','Support','Outcome'};
 ALIGN_ID = '_VideoAlignment.mat';
@@ -27,14 +28,14 @@ for iV = 1:2:numel(varargin)
 end
 
 %% GET TRIALS FILE
-if isnan(FILE)
-   [FILE,DIR] = uigetfile(['*' TRIAL_ID],'Select TRIALS file',DEF_DIR);
-   if FILE == 0
+if isnan(FNAME)
+   [FNAME,DIR] = uigetfile(['*' TRIAL_ID],'Select TRIALS file',DEF_DIR);
+   if FNAME == 0
       error('No file selected. Script aborted.');
    end
 else
-   [DIR,FILE,ext] = fileparts(FILE);
-   FILE = [FILE,ext];
+   [DIR,FNAME,ext] = fileparts(FNAME);
+   FNAME = [FNAME,ext];
 end
 
 %% PARSE FILE NAMES
@@ -161,7 +162,7 @@ behaviorInfoObj.setTrial(nan,behaviorInfoObj.cur,true);
 
 %% Function for hotkeys
    function hotKey(~,evt,v,b)
-      t = v.vidTime;
+      t = v.tVid;
       switch evt.Key
          case 'r' % set reach frame
             markReachFrame(b,t);

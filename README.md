@@ -11,9 +11,15 @@ Custom (Matlab) analyses used for experiments studying post-injury plasticity in
 
 ---
 
-## Video Alignment ##
+## Video Alignment ##  
 
-### Setup ###
+[Setup](#setup)  
+[Use](#use)  
+[Hotkeys](#hotkeys)  
+
+---
+
+### alignVideo Setup ###
 There are three setup steps to run the video alignment:  
 
 1. Need to have all the video files in one folder, and update the variable VID_DIR in alignVideo.m to reflect that path.  
@@ -28,46 +34,59 @@ In Matlab, navigate to the videoAnalyses sub-folder in your local cloned reposit
 
 ```matlab
 alignVideo;
-```  
+```
 
 (Advanced) You can specify 'NAME', value input argument pairs instead of modifying the code directly:  
 
 * Example 1) specify a different default directory for selecting the _Beam.mat file:
- 
+
  ```matlab
  alignVideo('DEF_DIR','/path/where/mat/files/exist');
- ```  
+ ```
 * Example 2) specify a different directory where video files are stored, and skip the file selection UI:
- 
+
  ```matlab
  alignVideo('VID_DIR','/path/where/videos/exist','FNAME','/full/file/name/of/mat/file');
- ```  
+ ```
 
-### Use ###  
+### alignVideo Use ### 
+[File Selection](#select-file)  
+[Overview](#gui-overview)  
+[HUD](#hud)  
+[Strategy](#general-strategy)  
+[Example](#example)  
 
-#### Select File ####  
+---
+
+#### alignVideo Select File ####  
 ![](docs/img/00_align_uiselect.PNG "Fig. 1 - File Select")  
-**Figure 1: File selection.** If no arguments are specified, select the _Beam.mat file from wherever you have put it.  After a few steps of processing, generating the interface, and loading the video, the interface should popup.  
+**Figure 1: File selection.** If no arguments are specified, select the **Beam.mat** file from wherever you have put it.  After a few steps of processing, generating the interface, and loading the video, the interface should popup. To skip this step, specify the optional ('FNAME', _val_) argument pair.  
 
-#### GUI Overview ####  
+---
+
+#### alignVideo GUI Overview ####  
 ![](docs/img/00_align_baseGUI.PNG "Fig. 2 - GUI")  
 **Figure 2: GUI overview.** The graphical user interface (GUI) consists of 3 main components: a heads up display (HUD) at the top; the video which is displayed in the middle; and an alignment timeline at the bottom.  
 
-#### HUD ####  
+---
+
+#### alignVideo HUD ####  
 ![](docs/img/00_align_HUD.PNG "Fig. 3 - HUD")  
 **Figure 3: HUD.** This region simply shows the name of the currently selected video, the time with respect to the start of the video (Video Time, seconds), and the time with respect to the start of the neurophysiological recording (Neural Time, seconds). The window on the right could be used in case there are multiple videos for a given neural recording, but in practice this hasn't been used.  
 
 ![](docs/img/00_align_save.PNG "Fig. 4 - Saving")    
 **Figure 4: Save Status.** Once you have saved the alignment offset (alt + s), the file name will turn green and the GUI will prompt you to exit.   
 
-**General Strategy**  
+#### alignVideo General Strategy ####    
 This alignment technique works on the assumption that basically most of the time we see the rat's arm, he is reaching for a pellet or reaching out of the box. So correlating the two time-series gets us a good approximation, and then it is fine-tuned by matching the video image as accurately as possible (within the framerate precision):  
 
 1. Just try to match up the red and blue lines as best as possible by clicking the red series and then moving the mouse left or right. Click the axis again to "drop" it.
 2. Zoom in (numpad +) for fine-tuning.  When zoomed in, you want to see how the relative timing of the video matches with the current time of the video and beam break data given the current alignment.  
 3. Check several reaches as a sanity-check. Remember, this is only as good as the video frame-rate precision, so it doesn't have to be 100% perfect (there will be some jitter due to the video device sampling and codecs used).  
 
-#### Example ####  
+---
+
+#### alignVideo Example ####  
 ![](docs/img/00_align_ax-good-guess.PNG "Fig. 5 - Good Guess")    
 **Figure 5: Good alignment guess.** In this case, the correlation algorithm worked pretty well and the "trains" appear to be aligned fairly well. Recommend going straight to step 2.  
 
@@ -95,7 +114,9 @@ This alignment technique works on the assumption that basically most of the time
 ![](docs/img/00_align_ax-fine-tune_02.PNG "Fig. 10d - Fine-tuning 4")  
 **Figure 10d: Fine-tuning.** Advancing by 1 frame, the paw has moved off of the frame in the video and the red line indicating the tripping of the beam-break by a high value has returned to low as well. Repeating this process for several beam-breaks at various points throughout the video gives a good indication that the video and neural data are aligned.  
 
-**Hotkeys**  
+---
+
+### alignVideo Hotkeys ###  
 * _alt + s_ | Save current offset.  
 * _a_ | Go back 1 frame.  
 * _leftarrow_ | Go back 5 frames.
@@ -104,19 +125,131 @@ This alignment technique works on the assumption that basically most of the time
 * _numpad -_ | Zoom out on alignment timeline.  
 * _numpad +_ | Zoom in on alignment timeline.  
 * _spacebar_ | Play or pause the video (can run slowly; typically faster to navigate by clicking on video alignment timeline).  
- 
+
 ---
 
-## Video Scoring ##
+## Video Scoring ##  
+[Setup](#scoreVideo-setup)    
+[Use](#scoreVideo-use)  
+[Hotkeys](#scoreVideo-hotkeys)  
 
-### Setup ###
+---
 
-### Use ###
+### scoreVideo Setup ###  
+1. Put all the video files in one folder and update the variable VID_DIR in scoreVideo.m to reflect that path. Alternatively, if all of the *.avi (video) and *.mat (data) files are kept together, then don't worry about updating VID_DIR. If you plan on running scoreVideo without input arguments, you may want to configure DEF_DIR as well to speed up the file selection UI.   
+2. The *_VideoAlignment.mat file that is output from alignVideo.m is optional; it lets you see the relative neural time compared to the video time, but since all time points are relative to the start of the video it is not necessary for the scoring to run.  
+3. A *_Trials.mat file that can be placed either in the same directory as the videos, or wherever as long as VID_DIR is specified. This data file contains an N x 1 vector of (double) time-stamps (seconds) where candidate trials may occur throughout the video. Because the output from scoreVideo.m is a Matlab Table, each record in the table has a candidate trial that it corresponds to. "Bad" guesses are removed from the table during scoring by pressing the 'delete' key.  
 
+---
+
+### scoreVideo Use ###  
+[File Selection](#scoreVideo-select-file)  
+[Overview](#scoreVideo-gui-overview)  
+[HUD](#scoreVideo-hud)  
+[How to Score](#scoreVideo-defining-events)  
+
+---
+
+#### scoreVideo Select File ####  
+![](docs/img/01_score_uiselect.PNG "Fig. 1 - File Select")  
+**Figure 1: File selection.** If no arguments are specified, select the **Trials.mat** file from wherever you have put it.  After a few steps of processing, generating the interface, and loading the video, the interface should popup. To skip this step, specify the optional ('FNAME', _val_) argument pair.  
+
+---
+
+#### scoreVideo GUI Overview ####  
+![](docs/img/01_score_baseGUI.PNG "Fig. 2 - GUI")  
+**Figure 2: GUI overview.** The graphical user interface (GUI) consists of 3 main components: a heads up display (HUD) at the top; the video which is displayed on the left/middle; and a control display for marker times on the right side.  
+
+---
+
+#### scoreVideo HUD ####  
+![](docs/img/01_score_HUD.PNG "Fig. 3 - HUD")  
+**Figure 3: HUD.** This region simply shows the name of the currently selected video, the time with respect to the start of the video (Video Time, seconds), and the time with respect to the start of the neurophysiological recording (Neural Time, seconds); if no alignment has been done, the default is zero offset. The main difference from the alignVideo.m HUD is the right-most part that has a progress indicator that shows the total number of trials to score and the current trial being scored. As invalid trials are removed (_delete_ key), the total number of trials will decrease. When all fields (Reach, Grasp, Support, and Outcome) have been filled for a given trial, the corresponding segment of the tracker image will change from red to blue.  Continuing a previously-scored video should fill the bar with your previous progress and move you to the next unscored trial, so it's fine to save (_alt + s_) in the middle and finish later.  
+
+---
+
+#### scoreVideo Defining Events ####  
+
+[Reach](#reach)  
+[Grasp](#grasp)  
+[Support](#support)  
+[Outcome](#outcome)  
+[Deletion](#deletion)  
+
+**Consistency in the alignment event definitions is the most important part of the behavioral scoring procedure.**  
+
+---
+
+##### Reach #####  
+This is the *reach onset* time. We are defining it as the first frame in which the digits cross the box opening. It is similar to the *digits-to-midline.*  
+
+![](docs/img/01_score_bad-reach.PNG "Fig. 4 - Bad Reach")  
+**Figure 4: Bad Reach.** Pressing _r_ sets the reach onset time. Pressing it again on the same frame unsets the reach time. In this example, he is reaching but no pellet is present; when this happens he does not close his paw, so it is not considered a complete trial and thus excluded (_delete_ key) from further analysis.  
+
+![](docs/img/01_score_not-a-grasp.PNG "Fig. 5 - Not-a-grasp")  
+**Figure 5: Not-a-grasp.** This is a typical posture when a reach is performed without a grasp. This type of behavior is discarded.   
+
+![](docs/img/01_score_good-reach.PNG "Fig. 6 - Good Reach")  
+**Figure 6: Good Reach.** Here, he is just crossing the plane of the box opening, and there is a pellet present.  
+
+---
+
+##### Grasp #####  
+This is the *grasp onset* time. We are defining it as the first frame in which the digits close around the food pellet. It is the easiest phase of behavior to identify in this experimental setup, and provides the most consistent neurophysiological alignment landmark for behavior. Trials need both a visible *reach* and *grasp* in order to be considered for further analysis.  
+
+** Successful Example ** 
+
+![](docs/img/01_score_successful-grasp-1.PNG "Fig. 7a - Successful Grasp 1")  
+**Figure 7a: Successful Grasp - arpeggio.** We aren't officially looking for arpeggio, but basically just before he closes his paw, the digits will splay out like this.  
+
+![](docs/img/01_score_successful-grasp-2.PNG "Fig. 7b - Successful Grasp 2")  
+**Figure 7b: Successful Grasp - closing.** His paw closes fully around the pellet. This is the frame that gets scored as grasp onset (hotkey _g_).    
+
+![](docs/img/01_score_successful-grasp-3.PNG "Fig. 7c - Successful Grasp 3")  
+**Figure 7c: Successful Grasp - retrieval.** The forelimb supinates as he retrieves the pellet successfully. Typical behavior is to bring the pellet directly to the mouth, with the other forelimb coming over to help hold it.    
+
+** Unsuccessful Example **  
+![](docs/img/01_score_unsuccessful-grasp-1.PNG "Fig. 8a - Unsuccessful Grasp 1")  
+**Figure 8a: Unsuccessful Grasp.** Here, he has attempted to retrieve the pellet (left), but was unsuccessful as it has popped out. He still closed his paw, so this is considered as a grasping trial. 
+
+![](docs/img/01_score_unsuccessful-grasp-2.PNG "Fig. 8b - Unsuccessful Grasp 2")  
+**Figure 8b: Unsuccessful Grasp - closing.** A common failure mode is the lack of fine motor control in the digits, particularly in injured rats. In this case, the pellet just got wedged between his digits but he did not actually fully close the digits around it.  
+
+![](docs/img/01_score_unsuccessful-grasp-3.PNG "Fig. 8c - Unsuccessful Grasp 3")  
+**Figure 8c: Unsuccessful Grasp - retrieval.** When the pellet is retrieved as in **8b** a small bar prevents the full retrieval of the pellet into the behavioral box. This results in the pellet popping out of the paw (blue arrow).  
+
+---
+
+##### Support #####  
+This is the *support onset* time. It is fairly approximate, since the supporting limb is inside the behavioral box and often partially obscured from view. This is primarily scored to give an indication of the number of trials in which the inappropriate forelimb was grossly active during the trial.  
+
+![](docs/img/01_score_support.PNG "Fig. 9 - Both forelimbs in use")  
+**Figure 9: Support limb activity.** As soon as the other forelimb is seen actively moving (particularly pressing against the glass or mirroring the movements of the retrieving limb), the support marker is placed (hotkey _b_). If no activity of the other forelimb is observed for the duration of the trial, this is indicated by marking the support time as _inf_ (hotkey _v_).  
+
+---
+
+##### Outcome #####  
+This is the functional *result* of the trial, in terms of whether the pellet was received successfully or unsuccessfully. Trials in which the pellet was retrieved but not brought to the mouth for ingestion are considered unsuccessful because they don't represent a functionally complete behavior. See the [Grasp](#grasp) section for examples of differences between successful and unsuccessful retrievals.  
+
+---
+
+### scoreVideo Hotkeys ###  
+* _alt + s_ | Save current offset.  
+* _a_ | Go back 5 frames (takes longer to scroll backwards than forwards, so made this jump bigger).   
+* _d_ | Advance 1 frame.  
+* _r_ | Mark/unmark current frame as reach. Removes the marker if the same frame is selected twice.  
+* _g_ | Mark/unmark current frame as grasp. Removes the marker if the same frame is selected twice.  
+* _b_ | Mark/unmark current frame as "both" (support). Removes the marker if the same frame is selected twice.  
+* _v_ | Set current trial as not having a support hand. This can be undone by pressing v again, or by specifying the support frame by pressing 'b'.  This is basically so that the progress tracker works properly (and downstream data doesn't have to be cleaned).  
+* _w_ | Mark current trial as successful.  
+* _x_ | Mark current trial as unsuccessful.  
+* _leftarrow_ | Go to the previous alignment trial.  Can also be selected from dropdown list.  
+* _rightarrow_ | Go to the next alignment trial. Can also be selected from dropdown list.  
+* _delete_ | Remove this trial. (Careful; scoring has to be restarted if you want to refresh a removed trial, currently).  This should be done in instances where the proposed trial, which is based on the paw probability time-series, does not correspond to an actual reaching event (and in many cases, this means a reach with NO GRASP). You have to check that subsequent trials are not corresponding to the same scored reach frames, the GUI does not check that for you currently.    
+* _spacebar_ | Play or pause the video (can run slowly; typically faster to navigate by clicking on video alignment timeline).  
   
 ---
 
 ## Spike Analyses ##
 
-  
 ---
