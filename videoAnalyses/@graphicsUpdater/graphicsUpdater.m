@@ -206,6 +206,7 @@ classdef graphicsUpdater < handle
          v.setOffset(src.getOffset);
          v.updateTime;
          obj.frameChangedVidCB(v,nan);
+         obj.curState = true; % Now, when save is done, prompt to exit
       end
       
       % Skip to a point from clicking in axes plot
