@@ -9,9 +9,11 @@ function scoreVideo(varargin)
 %                                            object-oriented structure.
 
 %% DEFAULTS
-DEF_DIR = 'P:\Extracted_Data_To_Move\Rat\TDTRat';
-% VID_DIR = 'K:\Rat\Video\BilateralReach\RC';
-VID_DIR = 'C:\Users\Max Murphy\Desktop\tmp';
+% DEF_DIR = 'P:\Extracted_Data_To_Move\Rat\TDTRat'; % Default UI prompt dir
+DEF_DIR = 'C:\RC_Video_Scoring';
+
+VID_DIR = 'C:\RC_Video_Scoring'; % MUST point to where the videos are
+ALT_VID_DIR = 'K:\Rat\Video\BilateralReach\RC';
 FILE = nan;
 
 VARS = {'Trial','Reach','Grasp','Support','Outcome'};
