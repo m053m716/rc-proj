@@ -5,11 +5,13 @@ classdef graphicsUpdater < handle
    properties (SetAccess = private, GetAccess = public)
       parent % figure handle
       
-      videoFile_list       % 'dir' struct of videos
-      videoFile            % VideoReader file object
-      
+      % Keep track of time scalars
       tVid                 % Current video time
       tNeu                 % Current neural time (TDT recording)
+      
+      % Video properties
+      videoFile_list       % 'dir' struct of videos
+      videoFile            % VideoReader file object
       
       % 'graphics' arg fields from vidInfoObj
       animalName_display   % Text displaying animal name/recording
@@ -21,7 +23,6 @@ classdef graphicsUpdater < handle
       hud_panel            % Panel for heads-up-display (HUD)
       
       % 'graphics' arg fields for alignInfoObj:
-      neuTime_line         % Line indicating neural time
       vidTime_line         % Line indicating video time
       alignment_panel      % Panel containing graphics objs for alignment
       
@@ -42,7 +43,8 @@ classdef graphicsUpdater < handle
       vidOffset = 0;         % Video offset
       
       % Constant for alignment tracking:
-      zoomOffset = 2; % Offset (sec)
+      zoomOffset = 4; % Offset (sec)
+      xLim            % Track x-limits for centering video tracking line
    end
 
 
@@ -84,11 +86,15 @@ classdef graphicsUpdater < handle
                   
                case 'alignInfo'
                   addlistener(varargin{iV},...
+                     'zoomChanged',@obj.zoomChangedAlignCB);
+                  addlistener(varargin{iV},...
                      'saveFile',@obj.saveFileCB);
                   addlistener(varargin{iV},...
                      'moveOffset',@(o,e) obj.moveOffsetAlignCB(o,e,vidInfo_obj));
                   addlistener(varargin{iV},...
                      'axesClick',@(o,e) obj.axesClickAlignCB(o,e,vidInfo_obj));
+                  addlistener(vidInfo_obj,...
+                     'timesUpdated',@(o,e) obj.timesUpdateAlignCB(o,e,varargin{iV}));
                   
                otherwise
                   fprintf(1,'%s is not a class supported by vidUpdateListener.\n',...
@@ -119,34 +125,34 @@ classdef graphicsUpdater < handle
       function frameChangedVidCB(obj,src,~)
          
          set(obj.neuTime_display,'String',...
-               sprintf('Neural Time: %0.3f',src.neuralTime));
+               sprintf('Neural Time: %0.3f',src.tNeu));
          set(obj.vidTime_display,'String',...
-               sprintf('Video Time: %0.3f',src.vidTime));
+               sprintf('Video Time: %0.3f',src.tVid));
          set(obj.image_display,'CData',...
-               obj.videoFile.read(src.getFrame));
+               obj.videoFile.read(src.frame));
             
-         if ~isempty(obj.neuTime_line)
-            set(obj.neuTime_line,'XData',ones(1,2) * src.neuralTime);
-            set(obj.vidTime_line,'XData',ones(1,2) * src.vidTime);
-
+         obj.tNeu = src.tNeu;
+         obj.tVid = src.tVid;
+            
+         % If vidTime_line is not empty, that means there is the alignment
+         % axis plot so we should update that too:
+         if ~isempty(obj.vidTime_line)
+            set(obj.vidTime_line,'XData',ones(1,2) * src.tVid);
+            
             % Fix axis limits
-            xl = obj.vidTime_line.Parent.XLim;
-            if src.vidTime > xl(2)
-               obj.vidTime_line.Parent.XLim = [xl(2),xl(2)+obj.zoomOffset*2];
-            elseif src.vidTime < xl(1)
-               obj.vidTime_line.Parent.XLim = [xl(1)-obj.zoomOffset*2,xl(1)];
+            if (src.tVid >= obj.xLim(2)) || (src.tVid <= obj.xLim(1))
+               obj.updateZoom;
+               set(obj.vidTime_line.Parent,'XLim',obj.xLim);
             end
          end  
          
-         obj.tNeu = src.neuralTime;
-         obj.tVid = src.vidTime;
       end
       
       % Change any graphics associated with a different video
       function vidChangedVidCB(obj,src,~)   
          % Get the file name information
-         path = obj.videoFile_list(src.currentVid).folder;
-         fname = obj.videoFile_list(src.currentVid).name;
+         path = obj.videoFile_list(src.vidListIdx).folder;
+         fname = obj.videoFile_list(src.vidListIdx).name;
          vfname = fullfile(path,fname);
          
          % Read the actual video file
@@ -164,7 +170,8 @@ classdef graphicsUpdater < handle
          obj.updateImageObject(x,y,C);
 
          % Move video to the correct time
-         src.setVidTime(src.toVidTime(src.getNeuTime));
+         src.setVidTime(src.tVid);
+         obj.updateZoom;
          
          % Update the correct frame, last
          obj.frameChangedVidCB(src,nan);
@@ -203,7 +210,7 @@ classdef graphicsUpdater < handle
       
       % Change the neural and video times in the videoInfoObject
       function moveOffsetAlignCB(obj,src,~,v)
-         v.setOffset(src.getOffset);
+         v.setOffset(src.alignLag);
          v.updateTime;
          obj.frameChangedVidCB(v,nan);
          obj.curState = true; % Now, when save is done, prompt to exit
@@ -212,6 +219,17 @@ classdef graphicsUpdater < handle
       % Skip to a point from clicking in axes plot
       function axesClickAlignCB(~,src,~,v)
          v.setVidTime(src.cp);
+      end
+      
+      % Update the known axes limits
+      function zoomChangedAlignCB(obj,src,~)
+         obj.xLim = src.curAxLim;
+      end
+      
+      % Update associated times when video info times are changed
+      function timesUpdateAlignCB(~,src,~,a)
+         a.setVidTime(src.tVid);
+         a.setNeuTime(src.tNeu);
       end
       
       %% Functions for behaviorInfo class:  
@@ -223,8 +241,10 @@ classdef graphicsUpdater < handle
          
          % Increment through the variables (columns of behaviorData)
          while src.stepIdx
-            val = obj.getVal(src);        % Get the corresponding value
-            str = obj.getString(src,val); % Turn it to appropriate string
+            % For each variable get the appropriate corresponding value,
+            % turn it into a string, and update the graphics with that:
+            val = obj.translateMarkedValue(src);
+            str = obj.getGraphicString(src,val);  
             obj.updateBehaviorEditBox(src.idx,str);
          end
          
@@ -248,7 +268,7 @@ classdef graphicsUpdater < handle
          % Decide if the state is changed and put new value into the table
          % which will be saved as an output.
          obj.varState(src.idx) = src.addRemoveValue(val);
-         str = obj.getString(src,val);
+         str = obj.getGraphicString(src,val);
          
          % Update graphics pertaining to this variable
          obj.updateBehaviorEditBox(src.idx,str);
@@ -330,7 +350,7 @@ classdef graphicsUpdater < handle
    
    methods (Access = private)
       % Get appropriate string to put in controller edit box
-      function str = getString(obj,src,val) 
+      function str = getGraphicString(obj,src,val) 
          switch lower(src.varName{src.idx})
             case 'hand'
                if val > 0
@@ -353,7 +373,7 @@ classdef graphicsUpdater < handle
       end
       
       % Get corresponding value
-      function val = getVal(obj,src)
+      function val = translateMarkedValue(obj,src)
          val = src.behaviorData.(obj.varName{src.idx})(src.cur);
       end
       
@@ -365,6 +385,11 @@ classdef graphicsUpdater < handle
       % Convert to neural time
       function tNeu = toNeuTime(obj,tVid)
          tNeu = tVid + (obj.tNeu - obj.tVid);
+      end
+      
+      % Fix zoom on axes
+      function updateZoom(obj)
+         obj.xLim = [obj.tVid - obj.zoomOffset, obj.tVid + obj.zoomOffset];
       end
    end
 end

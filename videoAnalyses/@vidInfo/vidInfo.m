@@ -7,10 +7,11 @@ classdef vidInfo < handle
       panel           % Container for display graphics
       vidPanel        % Container for video
       
-      neuralTime        % Current neural data time
-      vidTime           % Current video time
-      currentVid = 0    % Current video in use (from array)
-      currentFrame = 0; % Frame currently viewed
+      tNeu              % Current neural data time
+      tVid              % Current video time
+      
+      vidListIdx = 0    % Current video in use (from array)
+      frame = 0;        % Frame currently viewed
       playTimer         % Video playback timer
       
       videoStart      % Video offset from neural data (seconds)
@@ -35,9 +36,10 @@ classdef vidInfo < handle
    
 %% Events
    events
-      frameChanged  % Emitted any time a frame is changed
-      vidChanged    % Emitted any time the video is changed
-      offsetChanged % Emitted any time the offset is changed
+      frameChanged  % Emitted AFTER any frame changes
+      timesUpdated  % Emitted AFTER any video/neural times are updated
+      vidChanged    % Emitted AFTER video is changed
+      offsetChanged % Emitted AFTER offset is changed
    end
    
 %% Methods
@@ -70,11 +72,11 @@ classdef vidInfo < handle
             newFrame = 1;
          end
          
-         if (newFrame ~= obj.currentFrame) && ...
+         if (newFrame ~= obj.frame) && ...
             (newFrame > 0) && ...
             (newFrame <= obj.maxFrame)
             
-            obj.currentFrame = newFrame;
+            obj.frame = newFrame;
             obj.updateTime;
             
             
@@ -85,8 +87,9 @@ classdef vidInfo < handle
       
       % Update the video and neural times
       function updateTime(obj)
-         obj.vidTime = obj.currentFrame / obj.FPS;
-         obj.neuralTime = obj.vidTime + obj.videoStart(obj.currentVid);
+         obj.tVid = obj.frame / obj.FPS;
+         obj.tNeu = obj.tVid + obj.videoStart(obj.vidListIdx);
+         notify(obj,'timesUpdated');
       end
       
       % Change the video offset
@@ -109,13 +112,13 @@ classdef vidInfo < handle
       % Function that runs while video is playing from timer object
       function advanceFrame(obj,~,~)  
          %executed at each timer period, when playing the video
-         newFrame = obj.currentFrame + 1;
+         newFrame = obj.frame + 1;
          obj.setFrame(newFrame);
       end
       
       % Function to go backwards some frames
       function retreatFrame(obj,n)
-         newFrame = obj.currentFrame - n;
+         newFrame = obj.frame - n;
          obj.setFrame(newFrame);
       end
       
@@ -126,35 +129,20 @@ classdef vidInfo < handle
          
       end
       
-      % Get the current video frame
-      function curFrame = getFrame(obj)
-         curFrame = obj.currentFrame;
-      end
-      
-      % Get the current video time
-      function curVidTime = getVidTime(obj)
-         curVidTime = obj.vidTime;
-      end
-   
-      % Get the current neural time
-      function curNeuTime = getNeuTime(obj)
-         curNeuTime = obj.neuralTime;
-      end
-      
       % Get "neural time" from corresponding video timestamp
       function neuTime = toNeuTime(obj,vid_t)
-         neuTime = vid_t + obj.videoStart(obj.currentVid);
+         neuTime = vid_t + obj.videoStart(obj.vidListIdx);
       end
       
       % Get "video time" from corresponding neural timestamp
       function vidTime = toVidTime(obj,neu_t)
-         vidTime = neu_t - obj.videoStart(obj.currentVid);
+         vidTime = neu_t - obj.videoStart(obj.vidListIdx);
       end  
       
       % Set the current video index for the listener object
       function setCurrentVideo(obj,src,~)
-         if src.Value ~= obj.currentVid
-            obj.currentVid = src.Value;
+         if src.Value ~= obj.vidListIdx
+            obj.vidListIdx = src.Value;
             notify(obj,'vidChanged');
          end
       end

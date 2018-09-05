@@ -139,7 +139,7 @@ behaviorInfoObj.setTrial(nan,behaviorInfoObj.cur,true);
 
 %% Function for hotkeys
    function hotKey(~,evt,v,b)
-      t = getVidTime(v);
+      t = v.vidTime;
       switch evt.Key
          case 'r' % set reach frame
             markReachFrame(b,t);
@@ -160,13 +160,13 @@ behaviorInfoObj.setTrial(nan,behaviorInfoObj.cur,true);
             markTrialOutcome(0,b);
             
          case 'a' % previous frame
-            setCurrentFrame(getFrame(v)-15,v);
+            setCurrentFrame(v.frame-15,v);
             
          case 'leftarrow' % previous trial
             setCurrentTrial(b.cur-1,b);
             
          case 'd' % next frame
-            setCurrentFrame(getFrame(v)+1,v);
+            setCurrentFrame(v.frame+1,v);
             
          case 'rightarrow' % next trial
             setCurrentTrial(b.cur+1,b);

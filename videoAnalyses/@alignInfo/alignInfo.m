@@ -7,8 +7,10 @@ classdef alignInfo < handle
       parent      % Parent figure object
       ax          % Axes to plot streams on
       
-      curNeuT     % Line indicating current neural time
-      curVidT     % Line indicating current video time
+      tVid        % Current video time
+      tNeu        % Current neural time
+      
+      vidTime_line     % Line indicating current video time
       
       % Data streams
       beam     % Beam break times   
@@ -22,18 +24,21 @@ classdef alignInfo < handle
       % Scalars
       alignLag = nan;   % Best guess or current alignment lag offset
       guess = nan;      % Alignment guess value
-      cp;               % Current point on axes
+      cp                % Current point on axes
+      
+      % Graphics info
+      curAxLim
    end
    
    properties(SetAccess = private, GetAccess = private)
       FS = 125;                  % Resampled rate for correlation
       VID_FS = 30000/1001;       % Frame-rate of video
       currentVid = 1;            % If there is a list of videos
-      axLim;                     % Stores "outer" axes ranges
-      zoomOffset = 2;            % # Seconds to buffer zoom window
+      axLim                      % Stores "outer" axes ranges
+      zoomOffset = 4;            % # Seconds to buffer zoom window
       moveStreamFlag = false;    % Flag for moving objects on top axes
-      cursorX;                   % Current cursor X position on figure
-      curOffsetPt;               % Last-clicked position for dragging line
+      cursorX                    % Current cursor X position on figure
+      curOffsetPt                % Last-clicked position for dragging line
       xStart = -10;              % (seconds) - lowest x-point to plot
       zoomFlag = false;          % Is the time-series axis zoomed in?
       
@@ -47,6 +52,7 @@ classdef alignInfo < handle
       moveOffset  % Alignment has been dragged/moved in some way
       saveFile    % Output file has been saved
       axesClick   % Skip to current clicked point in axes (in video)
+      zoomChanged % Axes zoom has been altered
    end
    
 %% Methods
@@ -106,28 +112,23 @@ classdef alignInfo < handle
       end
       
       % Set new neural time
+      function setNeuTime(obj,t)
+         obj.tNeu = t;
+      end
+      
+      % Set new video time
+      function setVidTime(obj,t)
+         obj.tVid = t;
+      end
+      
+      % Set new neural offset
       function setNewOffset(obj,x)
          align_offset = x - obj.curNeuT.XData(1);
          align_offset = obj.alignLag - align_offset;
          
          obj.setAlignment(align_offset);
       end
-      
-      % Return the current alignment offset
-      function lag = getOffset(obj)
-         lag = obj.alignLag;
-      end
-      
-      % Get handle to neural time indicator line
-      function h = getNeuralTimeHandle(obj)
-         h = obj.curNeuT;
-      end
-      
-      % Get handle to video time indicator line
-      function h = getVidTimeHandle(obj)
-         h = obj.curVidT;
-      end
-      
+
       % Save the output file
       function saveAlignment(obj)
          VideoStart = obj.alignLag;
@@ -142,18 +143,22 @@ classdef alignInfo < handle
       % Zoom out on beam break/paw probability time series (top axis)
       function zoomOut(obj)
          set(obj.ax,'XLim',obj.axLim);
+         obj.curAxLim = obj.axLim;
          set(obj.paw.h,'LineWidth',1);
          set(obj.beam.h,'LineWidth',1);
          obj.zoomFlag = false;
+         notify(obj,'zoomChanged');
       end
       
       % Zoom in on beam break/paw probability time series (top axis)
       function zoomIn(obj)
-         set(obj.ax,'XLim',[obj.curVidT.XData(1) - obj.zoomOffset,...
-                            obj.curVidT.XData(1) + obj.zoomOffset]);
+         obj.curAxLim = [obj.tVid - obj.zoomOffset,...
+                         obj.tVid + obj.zoomOffset];
+         set(obj.ax,'XLim',obj.curAxLim);
          obj.zoomFlag = true;
          set(obj.paw.h,'LineWidth',2);
-         set(obj.beam.h,'LineWidth',3);
+         set(obj.beam.h,'LineWidth',2);
+         notify(obj,'zoomChanged');
       end
       
       % Update the current cursor X-position in figure frame
@@ -171,8 +176,7 @@ classdef alignInfo < handle
       function graphics = getGraphics(obj)
          
          % Pass everything to listener object in graphics struct
-         graphics = struct('neuTime_line',obj.curNeuT,...
-            'vidTime_line',obj.curVidT,...
+         graphics = struct('vidTime_line',obj.vidTime_line,...
             'alignment_panel',obj.AlignmentPanel);
       end
       
@@ -201,7 +205,7 @@ classdef alignInfo < handle
          setAlignment(obj,parseR(R,lag));
          alignGuess = obj.alignLag;
          save(fullfile(obj.scalars.guess.folder,...
-            obj.scalars.guess.name),'alignGuess','-v7.3');
+                       obj.scalars.guess.name),'alignGuess','-v7.3');
          fprintf(1,'complete.\n');
          toc;
       end
@@ -226,20 +230,11 @@ classdef alignInfo < handle
          % Make current position indicators for neural and video times
          x = zeros(1,2); % Vid starts at zero
          y = [0 1];
-         obj.curVidT = line(obj.ax,x,y,...
+         obj.vidTime_line = line(obj.ax,x,y,...
             'LineStyle',':',...
             'LineWidth',2,...
             'Color',[0.2 0.2 0.9],...
-            'ButtonDownFcn',@obj.clickAxes);
-         
-         x = ones(1,2) * obj.alignLag; % Neural data is relative to vid
-         y = [0 1];
-         obj.curNeuT = line(obj.ax,x,y,...
-            'LineStyle','--',...
-            'LineWidth',2,...
-            'Color',[0.9 0.2 0.2],...
-            'ButtonDownFcn',@obj.clickAxes);
-         
+            'ButtonDownFcn',@obj.clickAxes);         
          
          
          % Plot paw probability time-series from DeepLabCut
@@ -250,61 +245,40 @@ classdef alignInfo < handle
             'DisplayName','paw',...
             'ButtonDownFcn',@obj.clickAxes);
          
-         % Make beam plot and if present, press breaks
+         % Make beam break plot
          obj.beam.h = plot(obj.ax,...
             obj.beam.t,...
             obj.beam.data,...
-            'Color','r',...
+            'Color',[0.8 0.2 0.2],...
             'Tag','beam',...
+            'UserData',[0.8 0.2 0.2],...
             'DisplayName','beam',...
             'ButtonDownFcn',@obj.clickSeries);
+         
+         % Check for button presses and add if present
          if isstruct(obj.press)
             obj.press.h = plot(obj.ax,...
                obj.press.t,...
                obj.press.data,...
                'Tag','press',...
                'DisplayName','press',...
-               'Color','m',...
+               'LineWidth',1.5,...
+               'Color',[0 0.75 0],...
+               'UserData',[0 0.75 0],...
                'ButtonDownFcn',@obj.clickSeries);
-            legend(obj.ax,{'Vid-Time';'Offset';'Paw';'Beam';'Press'},...
+            legend(obj.ax,{'Vid-Time';'Paw';'Beam';'Press'},...
                'Location','northoutside',...
                'Orientation','horizontal',...
                'FontName','Arial',...
                'FontSize',14);
          else
-            legend(obj.ax,{'Vid-Time';'Offset';'Paw';'Beam'},...
+            legend(obj.ax,{'Vid-Time';'Paw';'Beam'},...
                'Location','northoutside',...
                'Orientation','horizontal',...
                'FontName','Arial',...
                'FontSize',14);
          end
-         
-         % Make "fake" beam-plot for shadow when "dragging"
-         obj.beam.sh = plot(obj.ax,...
-            obj.beam.t,...
-            obj.beam.data,...
-            'LineWidth',1.5,...
-            'Color',[0.40 0.40 0.40],...
-            'LineStyle',':',...
-            'Tag','beam',...
-            'Visible','off',...
-            'DisplayName','beam-move',...
-            'ButtonDownFcn',@obj.clickAxes);
-         
-         if isstruct(obj.press)
-            % Make "fake" press-plot for shadow when "dragging"
-            obj.press.sh = plot(obj.ax,...
-               obj.press.t,...
-               obj.press.data,...
-               'LineWidth',1.5,...
-               'Color',[0.60 0.60 0.60],...
-               'LineStyle',':',...
-               'Tag','press',...
-               'Visible','off',...
-               'DisplayName','press-move',...
-               'ButtonDownFcn',@obj.clickAxes);
-         end
-         
+                 
          % Get the max. axis limits
          obj.resetAxesLimits;
          
@@ -317,6 +291,8 @@ classdef alignInfo < handle
          obj.axLim(2) = max(obj.beam.t(end),obj.paw.t(end));
          if ~obj.zoomFlag
             set(obj.ax,'XLim',obj.axLim);
+            obj.curAxLim = obj.axLim;
+            notify(obj,'zoomChanged');
          end
       end
       
@@ -327,14 +303,14 @@ classdef alignInfo < handle
          % If FLAG is enabled
          if obj.moveStreamFlag
             % Place the (dragged) neural (beam/press) streams with cursor
-%             new_align_offset = obj.computeOffset(obj.curOffsetPt,cp);
-%             obj.setAlignment(new_align_offset);
-            obj.beam.h.Visible = 'on';
-            obj.beam.sh.Visible = 'off';
             obj.resetAxesLimits;
+            obj.beam.h.Color = obj.beam.h.UserData;
+            obj.beam.h.LineWidth = 2;
+            obj.beam.h.LineStyle = '-';
             if isstruct(obj.press)
-               obj.press.h.Visible = 'on';
-               obj.press.sh.Visible = 'off';
+               obj.press.h.Color = obj.press.h.UserData;
+               obj.press.h.LineWidth = 2;
+               obj.press.h.LineStyle = '-';
             end
             obj.moveStreamFlag = false;            
          else % Otherwise, allows to skip to point in video
@@ -347,8 +323,15 @@ classdef alignInfo < handle
          if ~obj.moveStreamFlag
             obj.moveStreamFlag = true;
             obj.curOffsetPt = obj.cursorX;
-            obj.(src.Tag).sh.Visible = 'on';
-            src.Visible = 'off';
+            src.Color = [0.5 0.5 0.5];
+            src.LineStyle = '-.';
+            src.LineWidth = 1;
+         else
+            src.Color = src.UserData;
+            src.LineStyle = '-';
+            src.LineWidth = 2;
+            obj.resetAxesLimits;
+            obj.moveStreamFlag = false;
          end
          
       end
@@ -372,12 +355,10 @@ classdef alignInfo < handle
          % Moves the beam and press streams, relative to VIDEO
          obj.beam.t = obj.beam.t0 - obj.alignLag;
          obj.beam.h.XData = obj.beam.t;
-         obj.beam.sh.XData = obj.beam.t;
          
          if isstruct(obj.press)
             obj.press.t = obj.press.t0 - obj.alignLag;
             obj.press.h.XData = obj.press.t;
-            obj.press.sh.XData = obj.press.t;
             
          end
       end

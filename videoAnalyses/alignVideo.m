@@ -115,7 +115,7 @@ alignInfoObj = alignInfo(fig,dat_F);
 
 % Make video frame object to track video frames
 vidInfoObj = vidInfo(fig,dispPanel,vid_F);
-vidInfoObj.setOffset(alignInfoObj.getOffset);
+vidInfoObj.setOffset(alignInfoObj.alignLag);
 
 % Make listener object to integrate class information
 graphicsUpdateObj = graphicsUpdater(vid_F,{'alignment'});
