@@ -170,6 +170,15 @@ classdef behaviorInfo < handle
          notify(obj,'update');
       end
       
+      % Set all associated values
+      function setValueAll(obj,idx,val)
+         vec = 1:obj.N;
+         obj.varVal(idx) = val;
+         obj.idx = idx;
+         notify(obj,'update'); % Update first to display it
+         obj.behaviorData.(obj.varName{obj.idx})(:) = val;
+      end
+      
       % Add or remove the grasp time for this trial
       function varState = addRemoveValue(obj,val)
          if obj.idx == 1 % Don't modify trial onset guesses

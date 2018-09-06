@@ -17,7 +17,7 @@ VID_TYPE = '.avi';
 ALT_VID_DIR = 'K:\Rat\Video\BilateralReach\RC';
 FNAME = nan;
 
-VARS = {'Trial','Reach','Grasp','Support','Outcome'};
+VARS = {'Trial','Reach','Grasp','Support','Outcome','Forelimb'};
 ALIGN_ID = '_VideoAlignment.mat';
 TRIAL_ID = '_Trials.mat';
 SCORE_ID = '_Scoring.mat';
@@ -80,6 +80,8 @@ fig=figure('Name','Bilateral Reach Scoring',...
            'NumberTitle','off',...
            'Color','k',...
            'Units','Normalized',...
+           'MenuBar','none',...
+           'ToolBar','none',...
            'Position',[0.1 0.1 0.8 0.8]);
         
 % Panel for displaying information text
@@ -131,12 +133,12 @@ notify(vidInfoObj,'vidChanged');
 behaviorInfoObj.setTrial(nan,behaviorInfoObj.cur,true);
 
 %% Function to set frame when a key is pressed
-    function setCurrentFrame(newFrame,v)
+    function setCurrentFrame(v,newFrame)
        v.setFrame(newFrame);       
     end
 
 %% Function to change button push
-   function setCurrentTrial(newTrial,b)
+   function setCurrentTrial(b,newTrial)
       b.setTrial(nan,newTrial);
    end 
 
@@ -156,8 +158,19 @@ behaviorInfoObj.setTrial(nan,behaviorInfoObj.cur,true);
    end
 
 %% Function to set trial outcome
-   function markTrialOutcome(outcome,b)
-       b.setValue(5,outcome);    
+   function markTrialOutcome(b,outcome)
+      b.setValue(5,outcome);    
+   end
+
+%% Function to set trial forelimb
+   function markTrialForelimb(b,limb)
+      b.setValue(6,limb);
+   end
+
+
+%% Function to mark all trial forelimbs (for single-handed task)
+   function markAllTrialForelimb(b,limb)
+      b.setValueAll(6,limb);
    end
 
 %% Function for hotkeys
@@ -177,22 +190,36 @@ behaviorInfoObj.setTrial(nan,behaviorInfoObj.cur,true);
             markSupportFrame(b,inf);
             
          case 'w' % set outcome as Successful
-            markTrialOutcome(1,b);
+            markTrialOutcome(b,1);
             
          case 'x' % set outcome as Unsuccessful
-            markTrialOutcome(0,b);
+            markTrialOutcome(b,0);
+            
+         case 'e' % set forelimb as 'Right' (1)
+            if strcmpi(evt.Modifier,'alt') % alt + e: all trials are 'right'
+               markAllTrialForelimb(b,1);
+            else
+               markTrialForelimb(b,1);
+            end
+            
+         case 'q' % set forelimb as 'Left' (0)
+            if strcmpi(evt.Modifier,'alt') % alt + q: all trials are 'left'
+              markAllTrialForelimb(b,0);
+            else
+               markTrialForelimb(b,0);
+            end
             
          case 'a' % previous frame
-            setCurrentFrame(v.frame-15,v);
+            setCurrentFrame(v,v.frame-1);
             
          case 'leftarrow' % previous trial
-            setCurrentTrial(b.cur-1,b);
+            setCurrentTrial(b,b.cur-1);
             
          case 'd' % next frame
-            setCurrentFrame(v.frame+1,v);
+            setCurrentFrame(v,v.frame+1);
             
          case 'rightarrow' % next trial
-            setCurrentTrial(b.cur+1,b);
+            setCurrentTrial(b,b.cur+1);
             
          case 's' % alt + s = save
             if strcmpi(evt.Modifier,'alt')

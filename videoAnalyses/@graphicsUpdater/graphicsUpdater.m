@@ -352,7 +352,7 @@ classdef graphicsUpdater < handle
       % Get appropriate string to put in controller edit box
       function str = getGraphicString(obj,src,val) 
          switch lower(src.varName{src.idx})
-            case 'hand'
+            case 'forelimb'
                if val > 0
                   str = 'Right';
                else

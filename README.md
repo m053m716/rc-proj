@@ -237,8 +237,12 @@ This is the functional *result* of the trial, in terms of whether the pellet was
 
 ### scoreVideo Hotkeys ###  
 * _alt + s_ | Save current offset.  
-* _a_ | Go back 5 frames (takes longer to scroll backwards than forwards, so made this jump bigger).   
+* _a_ | Go back 1 frame.   
 * _d_ | Advance 1 frame.  
+* *q* | Mark current trial as (rat's) left forelimb.
+* *alt + q* | Mark all trials as (rat's) left forelimb.
+* *e* | Mark current trial as (rat's) right forelimb.
+* *alt + e| Mark all trials as (rat's) right forelimb.
 * _r_ | Mark/unmark current frame as reach. Removes the marker if the same frame is selected twice.  
 * _g_ | Mark/unmark current frame as grasp. Removes the marker if the same frame is selected twice.  
 * _b_ | Mark/unmark current frame as "both" (support). Removes the marker if the same frame is selected twice.  
@@ -249,7 +253,7 @@ This is the functional *result* of the trial, in terms of whether the pellet was
 * _rightarrow_ | Go to the next alignment trial. Can also be selected from dropdown list.  
 * _delete_ | Remove this trial. (Careful; scoring has to be restarted if you want to refresh a removed trial, currently).  This should be done in instances where the proposed trial, which is based on the paw probability time-series, does not correspond to an actual reaching event (and in many cases, this means a reach with NO GRASP). You have to check that subsequent trials are not corresponding to the same scored reach frames, the GUI does not check that for you currently.    
 * _spacebar_ | Play or pause the video (can run slowly; typically faster to navigate by clicking on video alignment timeline).  
-  
+
 ---
 
 ## Spike Analyses ##
