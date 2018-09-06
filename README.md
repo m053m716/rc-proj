@@ -13,6 +13,8 @@ Custom (Matlab) analyses used for experiments studying post-injury plasticity in
 
 ## Video Alignment ##  
 
+*All videos aligned as of 2018-09-06*
+
 [Setup](#alignvideo-setup)  
 [Use](#alignvideo-use)  
 [Hotkeys](#alignvideo-hotkeys)  
