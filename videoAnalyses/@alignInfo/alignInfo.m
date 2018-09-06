@@ -146,6 +146,7 @@ classdef alignInfo < handle
          obj.curAxLim = obj.axLim;
          set(obj.paw.h,'LineWidth',1);
          set(obj.beam.h,'LineWidth',1);
+         set(obj.vidTime_line,'LineStyle','none');
          obj.zoomFlag = false;
          notify(obj,'zoomChanged');
       end
@@ -158,6 +159,7 @@ classdef alignInfo < handle
          obj.zoomFlag = true;
          set(obj.paw.h,'LineWidth',2);
          set(obj.beam.h,'LineWidth',2);
+         set(obj.vidTime_line,'LineStyle',':');
          notify(obj,'zoomChanged');
       end
       
@@ -229,11 +231,16 @@ classdef alignInfo < handle
          
          % Make current position indicators for neural and video times
          x = zeros(1,2); % Vid starts at zero
-         y = [0 1];
+         y = [0 1.1]; % Make slightly taller
          obj.vidTime_line = line(obj.ax,x,y,...
-            'LineStyle',':',...
-            'LineWidth',2,...
-            'Color',[0.2 0.2 0.9],...
+            'LineWidth',2.5,...
+            'LineStyle','none',...
+            'Marker','v',...
+            'MarkerIndices',2,... % Only show top marker
+            'MarkerSize',16,...
+            'MarkerEdgeColor',[0.3 0.3 0.3],...
+            'MarkerFaceColor',[0.3 0.3 0.3],...
+            'Color',[0.3 0.3 0.3],...
             'ButtonDownFcn',@obj.clickAxes);         
          
          
