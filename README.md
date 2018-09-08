@@ -243,8 +243,10 @@ This is the functional *result* of the trial, in terms of whether the pellet was
 * *alt + q* | Mark all trials as (rat's) left forelimb.
 * *e* | Mark current trial as (rat's) right forelimb.
 * *alt + e*| Mark all trials as (rat's) right forelimb.
-* _r_ | Mark/unmark current frame as reach. Removes the marker if the same frame is selected twice.  
+* _t_ | Mark/unmark current frame as reach. Removes the marker if the same frame is selected twice.  
+* _r_ | Set current trial as not having a reach. (see hotkey _v_)
 * _g_ | Mark/unmark current frame as grasp. Removes the marker if the same frame is selected twice.  
+* _f_ | Set current trial as not having a grasp. (see hotkey _v_)
 * _b_ | Mark/unmark current frame as "both" (support). Removes the marker if the same frame is selected twice.  
 * _v_ | Set current trial as not having a support hand. This can be undone by pressing v again, or by specifying the support frame by pressing 'b'.  This is basically so that the progress tracker works properly (and downstream data doesn't have to be cleaned).  
 * _w_ | Mark current trial as successful.  

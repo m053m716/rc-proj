@@ -187,11 +187,17 @@ behaviorInfoObj.setTrial(nan,behaviorInfoObj.cur,true);
    function hotKey(~,evt,v,b)
       t = v.tVid;
       switch evt.Key
-         case 'r' % set reach frame
+         case 't' % set reach frame
             markReachFrame(b,t);
+            
+         case 'r' % set no reach for trial
+            markReachFrame(b,inf);
             
          case 'g' % set grasp frame
             markGraspFrame(b,t);
+            
+         case 'f' % set no grasp for trial
+            markGraspFrame(b,inf);
             
          case 'b' % set "both" (support) frame
             markSupportFrame(b,t);
@@ -234,8 +240,8 @@ behaviorInfoObj.setTrial(nan,behaviorInfoObj.cur,true);
          case 's' % alt + s = save
             if strcmpi(evt.Modifier,'alt')
                b.saveScoring;
-            end
-         
+            end           
+            
          case 'numpad0'
             markPelletCount(b,0);
          case 'numpad1'
