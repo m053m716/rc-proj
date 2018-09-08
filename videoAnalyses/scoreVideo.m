@@ -17,7 +17,7 @@ VID_TYPE = '.avi';
 ALT_VID_DIR = 'K:\Rat\Video\BilateralReach\RC';
 FNAME = nan;
 
-VARS = {'Trial','Reach','Grasp','Support','Outcome','Forelimb'};
+VARS = {'Trial','Reach','Grasp','Support','Pellets','PelletPresent','Outcome','Forelimb'};
 ALIGN_ID = '_VideoAlignment.mat';
 TRIAL_ID = '_Trials.mat';
 SCORE_ID = '_Scoring.mat';
@@ -157,20 +157,30 @@ behaviorInfoObj.setTrial(nan,behaviorInfoObj.cur,true);
       b.setValue(4,t); 
    end
 
+%% Function to mark number of pellets around box in trial
+   function markPelletCount(b,n)
+      b.setValue(5,n);
+   end
+
+%% Function to mark presence or absence of pellet in front of rat
+   function markPelletPresence(b,pelletPresent)
+      b.setValue(6,pelletPresent);
+   end
+
 %% Function to set trial outcome
    function markTrialOutcome(b,outcome)
-      b.setValue(5,outcome);    
+      b.setValue(7,outcome);    
    end
 
 %% Function to set trial forelimb
    function markTrialForelimb(b,limb)
-      b.setValue(6,limb);
+      b.setValue(8,limb);
    end
 
 
 %% Function to mark all trial forelimbs (for single-handed task)
    function markAllTrialForelimb(b,limb)
-      b.setValueAll(6,limb);
+      b.setValueAll(7,limb);
    end
 
 %% Function for hotkeys
@@ -225,6 +235,31 @@ behaviorInfoObj.setTrial(nan,behaviorInfoObj.cur,true);
             if strcmpi(evt.Modifier,'alt')
                b.saveScoring;
             end
+         
+         case 'numpad0'
+            markPelletCount(b,0);
+         case 'numpad1'
+            markPelletCount(b,1);
+         case 'numpad2'
+            markPelletCount(b,2);
+         case 'numpad3'
+            markPelletCount(b,3);
+         case 'numpad4'
+            markPelletCount(b,4);
+         case 'numpad5'
+            markPelletCount(b,5);
+         case 'numpad6'
+            markPelletCount(b,6);
+         case 'numpad7'
+            markPelletCount(b,7);
+         case 'numpad8'
+            markPelletCount(b,8);
+         case 'numpad9'
+            markPelletCount(b,9);     
+         case 'numpad-'
+            markPelletPresence(b,0);
+         case 'numpad+'
+            markPelletPresence(b,1);
             
          case 'delete'
             b.removeTrial;

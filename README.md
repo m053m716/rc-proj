@@ -242,13 +242,15 @@ This is the functional *result* of the trial, in terms of whether the pellet was
 * *q* | Mark current trial as (rat's) left forelimb.
 * *alt + q* | Mark all trials as (rat's) left forelimb.
 * *e* | Mark current trial as (rat's) right forelimb.
-* *alt + e| Mark all trials as (rat's) right forelimb.
+* *alt + e*| Mark all trials as (rat's) right forelimb.
 * _r_ | Mark/unmark current frame as reach. Removes the marker if the same frame is selected twice.  
 * _g_ | Mark/unmark current frame as grasp. Removes the marker if the same frame is selected twice.  
 * _b_ | Mark/unmark current frame as "both" (support). Removes the marker if the same frame is selected twice.  
 * _v_ | Set current trial as not having a support hand. This can be undone by pressing v again, or by specifying the support frame by pressing 'b'.  This is basically so that the progress tracker works properly (and downstream data doesn't have to be cleaned).  
 * _w_ | Mark current trial as successful.  
 * _x_ | Mark current trial as unsuccessful.  
+* *numpad0-9* | Mark the number of pellets in the frame, including the pellet in front of rat
+* *numpad+ or numpad-* | Mark presence (+) or absence (-) of pellet in front of rat.
 * _leftarrow_ | Go to the previous alignment trial.  Can also be selected from dropdown list.  
 * _rightarrow_ | Go to the next alignment trial. Can also be selected from dropdown list.  
 * _delete_ | Remove this trial. (Careful; scoring has to be restarted if you want to refresh a removed trial, currently).  This should be done in instances where the proposed trial, which is based on the paw probability time-series, does not correspond to an actual reaching event (and in many cases, this means a reach with NO GRASP). You have to check that subsequent trials are not corresponding to the same scored reach frames, the GUI does not check that for you currently.    

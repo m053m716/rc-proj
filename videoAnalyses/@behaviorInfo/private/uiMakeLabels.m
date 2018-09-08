@@ -1,9 +1,9 @@
-function [y,lab] = uiMakeLabels(panel,labels,varargin)
+function [x,y,w,h,lab] = uiMakeLabels(panel,labels,varargin)
 %% UIMAKELABELS  Make labels at equally spaced increments along left of panel
 %
-%  y = UIMAKELABELS(panel,labels);
-%  [y,lab] = UIMAKELABELS(panel,labels);
-%  [y,lab] = UIMAKELABELS(panel,labels,'NAME',value,...);
+%  [x,y,w,h] = UIMAKELABELS(panel,labels);
+%  [x,y,w,h,lab] = UIMAKELABELS(panel,labels);
+%  [x,y,w,h,lab] = UIMAKELABELS(panel,labels,'NAME',value,...);
 %
 %  --------
 %   INPUTS
@@ -30,7 +30,13 @@ function [y,lab] = uiMakeLabels(panel,labels,varargin)
 %  --------
 %   OUTPUT
 %  --------
+%     x        :     X coordinate corresponding to each element of lab
+%
 %     y        :     Y coordinate corresponding to each element of lab
+%
+%     w        :     Width of each label (normalized)
+%
+%     h        :     Height of each label (normalized)
 %
 %    lab       :     Label cell array
 %
@@ -70,7 +76,7 @@ for ii = 1:n
             'FontSize',FONTSIZE,...
             'BackgroundColor',BACKGROUND_COL,...
             'ForegroundColor',FOREGROUND_COL,...
-            'Position',[x, y(ii), w, h],...
+            'Position',[x, y(ii), w, h/2],... % div by 2 to "center"
             'String',labels{ii});
 end
 
