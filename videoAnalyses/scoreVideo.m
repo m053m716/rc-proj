@@ -256,9 +256,9 @@ behaviorInfoObj.setTrial(nan,behaviorInfoObj.cur,true);
             markPelletCount(b,8);
          case 'numpad9'
             markPelletCount(b,9);     
-         case 'numpad-'
+         case 'subtract'
             markPelletPresence(b,0);
-         case 'numpad+'
+         case 'add'
             markPelletPresence(b,1);
             
          case 'delete'

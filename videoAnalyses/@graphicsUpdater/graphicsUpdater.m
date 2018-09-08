@@ -366,6 +366,20 @@ classdef graphicsUpdater < handle
                   str = 'Unsuccessful';
                end
                
+            case 'pelletpresent'
+               if val > 0
+                  str = 'Yes';
+               else
+                  str = 'No';
+               end
+               
+            case 'pellets'
+               if val > 8
+                  str = '9+';
+               else
+                  str = num2str(val);
+               end           
+               
             otherwise
                % Already in video time: set to neural time for display
                str = num2str(obj.toNeuTime(val));
