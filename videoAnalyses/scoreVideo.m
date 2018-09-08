@@ -180,7 +180,7 @@ behaviorInfoObj.setTrial(nan,behaviorInfoObj.cur,true);
 
 %% Function to mark all trial forelimbs (for single-handed task)
    function markAllTrialForelimb(b,limb)
-      b.setValueAll(7,limb);
+      b.setValueAll(8,limb);
    end
 
 %% Function for hotkeys
