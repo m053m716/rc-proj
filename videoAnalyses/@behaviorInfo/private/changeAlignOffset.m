@@ -13,7 +13,8 @@ function behaviorData = changeAlignOffset(behaviorData,offset,add_rm,varType)
 %                                   video. Positive value indicates neural
 %                                   data started first.
 %
-%  add_rm         :     Add (1) or remove (-1) offset.
+%  add_rm         :     (Optional) Add (1) or remove (-1) offset. If
+%                                  unspecified, defaults to 1.
 %
 %  varType        :     (Optional) Vector with values giving the UserData
 %                       field of behaviorData.Properties. This specifies
@@ -29,8 +30,15 @@ function behaviorData = changeAlignOffset(behaviorData,offset,add_rm,varType)
 % By: Max Murphy  v1.0  09/11/2018  Original version (R2017b)
 
 %% PARSE INPUT
+% Default for "Trials" "Reach" "Grasp" "Support" and then nothing else
+% needs offset added or removed.
 if exist('varType','var')==0
    varType = [0,1,1,1,2,3,4,5]; % Works for RC project
+end
+
+% Default is to add offset
+if exist('add_rm','var')==0
+   add_rm = 1;
 end
 
 % Parse variable types
