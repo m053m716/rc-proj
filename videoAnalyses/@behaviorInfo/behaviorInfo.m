@@ -130,6 +130,13 @@ classdef behaviorInfo < handle
          obj.Trials = table2array(obj.behaviorData(:,1));
       end
       
+      % Update ID of person scoring
+      function setUserID(obj,ID)
+         todays_date = datestr(datetime,'YYYY-mm-dd');
+         obj.behaviorData.Properties.Description = ...
+            sprintf('Scored by %s on %s',ID,todays_date);
+      end
+      
       % Set the current trial button and emit notification about the event
       function setTrial(obj,src,newTrial,reset)
          % Give option of sending in a uiControl object and getting value
@@ -401,15 +408,16 @@ classdef behaviorInfo < handle
             if ismember(vname{iV},properties(obj))
                obj.(vname{iV}) = loadTable(f.(vname{iV})); 
                
-               % And make sure to remove the neural offset
-               v = obj.(vname{iV}).Properties.VariableNames;
-               for ii = 1:numel(v)
-                  if obj.(vname{iV}).Properties.UserData(ii) < 2
-                     obj.(vname{iV}).(v{ii}) = ...
-                        obj.(vname{iV}).(v{ii}) - obj.VideoStart; 
+               if ~isempty(obj.(vname{iV}))
+                  % And make sure to remove the neural offset
+                  v = obj.(vname{iV}).Properties.VariableNames;
+                  for ii = 1:numel(v)
+                     if obj.(vname{iV}).Properties.UserData(ii) < 2
+                        obj.(vname{iV}).(v{ii}) = ...
+                           obj.(vname{iV}).(v{ii}) - obj.VideoStart; 
+                     end
                   end
                end
-               
                
             end
             

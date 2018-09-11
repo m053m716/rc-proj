@@ -17,6 +17,9 @@ VID_TYPE = '.avi';
 ALT_VID_DIR = 'K:\Rat\Video\BilateralReach\RC';
 FNAME = nan;
 
+% USER = 'MM'; % track scoring
+USER = 'AP';
+
 VARS = {'Trial','Reach','Grasp','Support','Pellets','PelletPresent','Outcome','Forelimb'};
 VAR_TYPE = [0,1,1,1,2,3,4,5]; % must have same number of elements as VARS
                               % options: 
@@ -140,6 +143,11 @@ set(fig,'WindowKeyPressFcn',...
 vidInfoObj.setOffset(behaviorInfoObj.VideoStart);
 notify(vidInfoObj,'vidChanged');
 behaviorInfoObj.setTrial(nan,behaviorInfoObj.cur,true);
+behaviorInfoObj.setUserID(USER);
+
+% For debugging:
+behaviorData = behaviorInfoObj.behaviorData;
+mtb(behaviorData);
 
 %% Function to set frame when a key is pressed
     function setCurrentFrame(v,newFrame)
