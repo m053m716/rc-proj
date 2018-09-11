@@ -351,29 +351,29 @@ classdef graphicsUpdater < handle
    methods (Access = private)
       % Get appropriate string to put in controller edit box
       function str = getGraphicString(obj,src,val) 
-         switch lower(src.varName{src.idx})
-            case 'forelimb'
+         switch src.varType(src.idx)
+            case 5 % Currently, which paw was used for the trial
                if val > 0
                   str = 'Right';
                else
                   str = 'Left';
                end
                
-            case 'outcome'
+            case 4 % Currently, outcome of the pellet retrieval attempt
                if val > 0
                   str = 'Successful';
                else
                   str = 'Unsuccessful';
                end
                
-            case 'pelletpresent'
+            case 3 % Currently, presence of pellet in front of rat
                if val > 0
                   str = 'Yes';
                else
                   str = 'No';
                end
                
-            case 'pellets'
+            case 2 % Currently, # of pellets on platform
                if val > 8
                   str = '9+';
                else

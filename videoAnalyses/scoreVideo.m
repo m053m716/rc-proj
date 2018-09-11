@@ -18,6 +18,15 @@ ALT_VID_DIR = 'K:\Rat\Video\BilateralReach\RC';
 FNAME = nan;
 
 VARS = {'Trial','Reach','Grasp','Support','Pellets','PelletPresent','Outcome','Forelimb'};
+VAR_TYPE = [0,1,1,1,2,3,4,5]; % must have same number of elements as VARS
+                              % options: 
+                              % -> 0: Trial "onset" guess
+                              % -> 1: Timestamps
+                              % -> 2: Counts (0 - 9)
+                              % -> 3: No (0) or Yes (1)
+                              % -> 4: Unsuccessful (0) or Successful (1)
+                              % -> 5: Left (0) or Right (1)
+                              
 ALIGN_ID = '_VideoAlignment.mat';
 TRIAL_ID = '_Trials.mat';
 SCORE_ID = '_Scoring.mat';
@@ -100,7 +109,7 @@ F = struct('vectors',struct(...
    'tables',struct(...
       'behaviorData',struct('folder',DIR,'name',[Name SCORE_ID])));
 
-behaviorInfoObj = behaviorInfo(fig,F,VARS);
+behaviorInfoObj = behaviorInfo(fig,F,VARS,VAR_TYPE);
 
 
 %% LOAD VIDEO DATA

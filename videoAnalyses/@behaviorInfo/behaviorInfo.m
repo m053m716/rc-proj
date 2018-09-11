@@ -57,7 +57,14 @@ classdef behaviorInfo < handle
 %% Methods
    methods (Access = public)
       % Construct the behaviorInfo object
-      function obj = behaviorInfo(figH,F,vname,container)
+      function obj = behaviorInfo(figH,F,vname,vtype,container)
+         % Parse input
+         if numel(vname)~=numel(vtype)
+            error('Mismatch in number of variable names and their types.');
+         else % Set the variable type
+            obj.varType = vtype;
+         end
+         
          obj.parent = figH;
          obj.loadData(F);
          
@@ -102,6 +109,7 @@ classdef behaviorInfo < handle
                   'VariableNames',vname(ii))]; %#ok<AGROW>
          end
          obj.behaviorData = tmp;
+         obj.behaviorData.Properties.UserData = obj.varType;
          obj.updateBehaviorData;
       end
       
@@ -112,6 +120,11 @@ classdef behaviorInfo < handle
          vname = obj.behaviorData.Properties.VariableNames;
          vname = reshape(vname,1,numel(vname));
          obj.varName = vname;
+         
+         % Get the variable types as well
+         if ~isempty(obj.behaviorData.Properties.UserData)
+            obj.varType = obj.behaviorData.Properties.UserData;
+         end
          
          % In case there is a dimension mismatch from previous deletions
          obj.Trials = table2array(obj.behaviorData(:,1));
@@ -222,8 +235,10 @@ classdef behaviorInfo < handle
          fprintf(1,'Saving %s...',obj.tables.behaviorData.name);
          behaviorData = obj.behaviorData;  %#ok<*PROP>
          for ii = 1:numel(obj.varName) % Set correct offset
-            behaviorData.(obj.varName{ii}) = ...
-               behaviorData.(obj.varName{ii}) + obj.VideoStart;
+            if behaviorData.Properties.UserData(ii) < 2
+               behaviorData.(obj.varName{ii}) = ...
+                  behaviorData.(obj.varName{ii}) + obj.VideoStart;
+            end
          end
          save(fname,'behaviorData','-v7.3');
          notify(obj,'saveFile');
@@ -389,9 +404,13 @@ classdef behaviorInfo < handle
                % And make sure to remove the neural offset
                v = obj.(vname{iV}).Properties.VariableNames;
                for ii = 1:numel(v)
-                  obj.(vname{iV}).(v{ii}) = ...
-                     obj.(vname{iV}).(v{ii}) - obj.VideoStart;
+                  if obj.(vname{iV}).Properties.UserData(ii) < 2
+                     obj.(vname{iV}).(v{ii}) = ...
+                        obj.(vname{iV}).(v{ii}) - obj.VideoStart; 
+                  end
                end
+               
+               
             end
             
          end
