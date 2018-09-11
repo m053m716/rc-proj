@@ -220,7 +220,11 @@ classdef behaviorInfo < handle
          fname = fullfile(obj.tables.behaviorData.folder,...
             obj.tables.behaviorData.name);
          fprintf(1,'Saving %s...',obj.tables.behaviorData.name);
-         behaviorData = obj.behaviorData; %#ok<PROP>
+         behaviorData = obj.behaviorData;  %#ok<*PROP>
+         for ii = 1:numel(obj.varName) % Set correct offset
+            behaviorData.(obj.varName{ii}) = ...
+               behaviorData.(obj.varName{ii}) + obj.VideoStart;
+         end
          save(fname,'behaviorData','-v7.3');
          notify(obj,'saveFile');
          fprintf(1,'complete.\n');
@@ -380,8 +384,16 @@ classdef behaviorInfo < handle
          vname = fieldnames(f);
          for iV = 1:numel(vname)
             if ismember(vname{iV},properties(obj))
-               obj.(vname{iV}) = loadTable(f.(vname{iV}));           
+               obj.(vname{iV}) = loadTable(f.(vname{iV})); 
+               
+               % And make sure to remove the neural offset
+               v = obj.(vname{iV}).Properties.VariableNames;
+               for ii = 1:numel(v)
+                  obj.(vname{iV}).(v{ii}) = ...
+                     obj.(vname{iV}).(v{ii}) - obj.VideoStart;
+               end
             end
+            
          end
       end
       
