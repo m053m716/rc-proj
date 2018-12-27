@@ -287,8 +287,12 @@ classdef graphicsUpdater < handle
          str = obj.getGraphicString(src,zeros(size(src.idx)));
          
          % Update graphics pertaining to this variable
-         for i = 1:numel(str)
-            obj.updateBehaviorEditBox(src.idx(i),str{i});            
+         if iscell(str)
+            for i = 1:numel(str)
+               obj.updateBehaviorEditBox(src.idx(i),str{i});            
+            end
+         else
+            obj.updateBehaviorEditBox(src.idx,str);  
          end
          
          % Update graphics pertaining to scoring progress

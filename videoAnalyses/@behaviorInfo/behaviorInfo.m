@@ -184,14 +184,43 @@ classdef behaviorInfo < handle
          end
       end
       
-      % Set the associated value and notify
+      % Set the associated value and notify. Parse different kinds of
+      % inputs to create "shortcuts" here that automatically update certain
+      % elements.
       function setValue(obj,idx,val)
-         switch obj.varType(idx)
-            case 2 % if 0 pellets are present, must be no pellet
-               if val==0
-                  idx = find(ismember(obj.varType,[2,3,4]));
+         switch obj.varName{idx}
+            case 'Grasp'
+               obj.varVal(idx) = val;
+               obj.idx = idx;
+               notify(obj,'update');
+               if isinf(val) % Must be unsuccessful if no grasp
+                  idx = find(ismember(obj.varName,'Outcome'),1,'first');
+                  
                   if ~isempty(idx)
                      obj.idx = idx;
+                     obj.varVal(idx) = 0;
+                     notify(obj,'countIsZero');
+                  end
+                  
+                  % Check that support not entered; if not, default it to
+                  % inf at this point.
+                  idx = find(ismember(obj.varName,'Support'),1,'first');
+                  if ~isempty(idx)
+                     if isnan(obj.varVal(idx))
+                        obj.varVal(idx) = inf;
+                        obj.idx = idx;
+                        notify(obj,'countIsZero');
+                     end
+                  end
+               end            
+            case 'Pellets' % if 0 pellets are present, must be no pellet
+               if val==0
+                  idx = find(ismember(obj.varName,{'Pellets','PelletPresent','Outcome'}));
+                  if ~isempty(idx)
+                     obj.idx = idx;
+                     for ii = 1:numel(idx)
+                        obj.varVal(idx(ii)) = 0;
+                     end
                      notify(obj,'countIsZero');
                   end
                else
@@ -199,32 +228,36 @@ classdef behaviorInfo < handle
                   obj.idx = idx;
                   notify(obj,'update');
                end
-            case 3 % if pellet presence
+            case 'PelletPresent' % if pellet presence
                if val==0 % if not present, must be unsuccessful
-                  idx = find(ismember(obj.varType,[3,4]));
+                  idx = find(ismember(obj.varName,{'PelletPresent','Outcome'}));
                   if ~isempty(idx)
                      obj.idx = idx;
+                     for ii = 1:numel(idx)
+                        obj.varVal(idx(ii)) = 0;
+                     end
                      notify(obj,'countIsZero');
-                  end
-                  
-                  % should also check what previous trial pellet count was
-                  % and set this one to that if possible
-                  idx = find(ismember(obj.varType,2),1,'first');
-                  
-                  if ~isempty(idx)
-                     if isnan(obj.varVal(idx)) && (obj.cur>1)
-                        obj.idx = idx;
-                        % If everything works, get previous value:
-                        obj.varVal(idx) = ...
-                           obj.behaviorData.(obj.varName{idx})(obj.cur-1);
-                        notify(obj,'update');
-                     end                     
                   end
                   
                else
                   obj.varVal(idx) = val;
                   obj.idx = idx;
                   notify(obj,'update');
+               end
+               
+               % should also check what previous trial pellet count was
+               % and set this one to that if possible
+               idx = find(ismember(obj.varName,'Pellets'),1,'first');
+               
+               if ~isempty(idx)
+                  if (isnan(obj.varVal(idx)) || isinf(obj.varVal(idx))) ...
+                        && (obj.cur>1)
+                     obj.idx = idx;
+                     % If everything works, get previous value:
+                     obj.varVal(idx) = ...
+                        obj.behaviorData.(obj.varName{idx})(obj.cur-1);
+                     notify(obj,'update');
+                  end
                end
             otherwise
                obj.varVal(idx) = val;
@@ -269,8 +302,8 @@ classdef behaviorInfo < handle
                case 0 % Trial "onset" guess
                   varState(i) = false; % something is wrong
                case 1 % Timestamps
-                  obj.behaviorData.(obj.varName{k})(obj.cur) = nan;
-                  varState(i) = false; % something is wrong
+                  obj.behaviorData.(obj.varName{k})(obj.cur) = inf;
+                  varState(i) = true;
                case 2 % Counts
                   obj.behaviorData.(obj.varName{k})(obj.cur) = 0;
                   varState(i) = true;
@@ -281,7 +314,7 @@ classdef behaviorInfo < handle
                   obj.behaviorData.(obj.varName{k})(obj.cur) = 0;
                   varState(i) = true;
                case 5 % Left (0) or Right (1)
-                  obj.behaviorData.(obj.varName{k})(obj.cur) = nan;
+                  obj.behaviorData.(obj.varName{k})(obj.cur) = inf;
                   varState(i) = false; % something is wrong
                otherwise
                   varState(i) = true; % something is wrong

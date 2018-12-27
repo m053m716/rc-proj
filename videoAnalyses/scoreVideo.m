@@ -35,6 +35,7 @@ TRIAL_ID = '_Trials.mat';
 SCORE_ID = '_Scoring.mat';
 
 %% PARSE VARARGIN
+clc;
 for iV = 1:2:numel(varargin)
    eval([upper(varargin{iV}) '=varargin{iV+1};']);
 end
