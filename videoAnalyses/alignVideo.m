@@ -28,8 +28,8 @@ function alignVideo(varargin)
 
 %% DEFAULTS
 FNAME = nan;   % Full filename of the beam break file.
-% DEF_DIR = 'P:\Extracted_Data_To_Move\Rat\TDTRat'; % Default UI prompt dir
-DEF_DIR = 'C:\RC_Video_Scoring';
+DEF_DIR = 'P:\Extracted_Data_To_Move\Rat\TDTRat'; % Default UI prompt dir
+% DEF_DIR = 'C:\RC_Video_Scoring';
 
 VID_DIR = 'C:\RC_Video_Scoring'; % MUST point to where the videos are
 ALT_VID_DIR = 'K:\Rat\Video\BilateralReach\RC';

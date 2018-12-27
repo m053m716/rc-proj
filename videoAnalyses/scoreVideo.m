@@ -145,9 +145,9 @@ notify(vidInfoObj,'vidChanged');
 behaviorInfoObj.setTrial(nan,behaviorInfoObj.cur,true);
 behaviorInfoObj.setUserID(USER);
 
-% For debugging:
-behaviorData = behaviorInfoObj.behaviorData;
-mtb(behaviorData);
+% % For debugging:
+% behaviorData = behaviorInfoObj.behaviorData;
+% mtb(behaviorData);
 
 %% Function to set frame when a key is pressed
     function setCurrentFrame(v,newFrame)

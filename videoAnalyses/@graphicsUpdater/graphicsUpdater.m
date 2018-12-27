@@ -81,6 +81,8 @@ classdef graphicsUpdater < handle
                      'newTrial',@(o,e) obj.newTrialBehaviorCB(o,e,vidInfo_obj));
                   addlistener(varargin{iV},...
                      'update',@obj.updateBehaviorCB);
+                  addlistener(varargin{iV},...
+                     'countIsZero',@obj.updateBehaviorZeroCaseCB);
                   addlistener(vidInfo_obj,...
                      'offsetChanged',@(o,e) obj.offsetChangedBehaviorCB(o,e,varargin{iV}));
                   
@@ -276,6 +278,22 @@ classdef graphicsUpdater < handle
          % Update graphics pertaining to scoring progress
          obj.updateBehaviorTracker(src.cur,src.N);
       end
+      
+      % Update graphics to reflect update to behaviorData for ZERO count
+      function updateBehaviorZeroCaseCB(obj,src,~)
+         % Decide if the state is changed and put new value into the table
+         % which will be saved as an output.
+         obj.varState(src.idx) = src.forceZeroValue;
+         str = obj.getGraphicString(src,zeros(size(src.idx)));
+         
+         % Update graphics pertaining to this variable
+         for i = 1:numel(str)
+            obj.updateBehaviorEditBox(src.idx(i),str{i});            
+         end
+         
+         % Update graphics pertaining to scoring progress
+         obj.updateBehaviorTracker(src.cur,src.N);
+      end
 
       % Update the graphics to reflect to new video offset
       function offsetChangedBehaviorCB(obj,src,~,b)
@@ -350,39 +368,52 @@ classdef graphicsUpdater < handle
    
    methods (Access = private)
       % Get appropriate string to put in controller edit box
-      function str = getGraphicString(obj,src,val) 
-         switch src.varType(src.idx)
-            case 5 % Currently, which paw was used for the trial
-               if val > 0
-                  str = 'Right';
-               else
-                  str = 'Left';
-               end
-               
-            case 4 % Currently, outcome of the pellet retrieval attempt
-               if val > 0
-                  str = 'Successful';
-               else
-                  str = 'Unsuccessful';
-               end
-               
-            case 3 % Currently, presence of pellet in front of rat
-               if val > 0
-                  str = 'Yes';
-               else
-                  str = 'No';
-               end
-               
-            case 2 % Currently, # of pellets on platform
-               if val > 8
-                  str = '9+';
-               else
-                  str = num2str(val);
-               end           
-               
-            otherwise
-               % Already in video time: set to neural time for display
-               str = num2str(obj.toNeuTime(val));
+      function str = getGraphicString(obj,src,val)
+         if numel(src.idx) > 1
+            str = cell(size(src.idx));
+            for iIdx = 1:numel(src.idx)
+               str{iIdx} = getStr(obj,src.varType(src.idx(iIdx)),val(iIdx));
+            end
+            return;
+         else
+            str = getStr(obj,src.varType(src.idx),val);
+            return;
+         end
+         
+         function str = getStr(obj,vType,val)
+            switch vType
+               case 5 % Currently, which paw was used for the trial
+                  if val > 0
+                     str = 'Right';
+                  else
+                     str = 'Left';
+                  end
+
+               case 4 % Currently, outcome of the pellet retrieval attempt
+                  if val > 0
+                     str = 'Successful';
+                  else
+                     str = 'Unsuccessful';
+                  end
+
+               case 3 % Currently, presence of pellet in front of rat
+                  if val > 0
+                     str = 'Yes';
+                  else
+                     str = 'No';
+                  end
+
+               case 2 % Currently, # of pellets on platform
+                  if val > 8
+                     str = '9+';
+                  else
+                     str = num2str(val);
+                  end           
+
+               otherwise
+                  % Already in video time: set to neural time for display
+                  str = num2str(obj.toNeuTime(val));
+            end
          end
       end
       
