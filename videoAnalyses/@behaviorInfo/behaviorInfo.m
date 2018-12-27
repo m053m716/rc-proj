@@ -209,7 +209,7 @@ classdef behaviorInfo < handle
                      if isnan(obj.varVal(idx))
                         obj.varVal(idx) = inf;
                         obj.idx = idx;
-                        notify(obj,'countIsZero');
+                        notify(obj,'update');
                      end
                   end
                end            
