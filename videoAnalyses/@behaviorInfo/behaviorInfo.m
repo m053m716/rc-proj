@@ -46,12 +46,17 @@ classdef behaviorInfo < handle
       editArray;           % Cell array of handles to edit boxes
    end
    
+   properties(SetAccess = immutable, GetAccess = private)
+      verbose = false;
+   end
+   
    %% Events
    events % These correspond to different scoring events
       update      % When a value is modified during scoring
       newTrial    % Switch to a new trial ("row" of behaviorData)
       load        % When a behavior file is loaded
       saveFile    % When file is saved
+      closeReq    % When UI is requested to close
       countIsZero % No pellets are on platform, or pellet not present
    end
    
@@ -149,8 +154,19 @@ classdef behaviorInfo < handle
          % Add a "reset" arg that can be used in specific instances where
          % we WANT to reset the trial based on having the same index (for
          % example, after a trial deletion).
-         if exist('reset','var')==0
+         if nargin < 4
             reset = false;
+         end
+         
+         % Update "Trials" to reflect the earliest "timestamped" indicator
+         % (in this case, update to the "Reach" timestamp for Trial, if it
+         %  exists).
+         tsIdx = find(obj.varType==1,1,'first');
+         if ~isempty(tsIdx)
+            t = obj.behaviorData.(obj.varName{tsIdx})(newTrial);
+            if (~isnan(t)) && (~isinf(t))
+               obj.Trials(newTrial) = t;
+            end
          end
          
          % Or just using newTrial as extra input argument
@@ -184,6 +200,12 @@ classdef behaviorInfo < handle
          end
       end
       
+      % Gets the variable index for a particular named variable or array of
+      % indices for set of named variables
+      function idx = getVarIdx(obj,varName)
+         idx = find(ismember(obj.varName,varName));
+      end
+      
       % Set the associated value and notify. Parse different kinds of
       % inputs to create "shortcuts" here that automatically update certain
       % elements.
@@ -194,7 +216,7 @@ classdef behaviorInfo < handle
                obj.idx = idx;
                notify(obj,'update');
                if isinf(val) % Must be unsuccessful if no grasp
-                  idx = find(ismember(obj.varName,'Outcome'),1,'first');
+                  idx = getVarIdx(obj,'Outcome');
                   
                   if ~isempty(idx)
                      obj.idx = idx;
@@ -204,7 +226,7 @@ classdef behaviorInfo < handle
                   
                   % Check that support not entered; if not, default it to
                   % inf at this point.
-                  idx = find(ismember(obj.varName,'Support'),1,'first');
+                  idx = getVarIdx(obj,'Support');
                   if ~isempty(idx)
                      if isnan(obj.varVal(idx))
                         obj.varVal(idx) = inf;
@@ -215,7 +237,7 @@ classdef behaviorInfo < handle
                end            
             case 'Pellets' % if 0 pellets are present, must be no pellet
                if val==0
-                  idx = find(ismember(obj.varName,{'Pellets','PelletPresent','Outcome'}));
+                  idx = getVarIdx(obj,{'Pellets','PelletPresent','Outcome'});
                   if ~isempty(idx)
                      obj.idx = idx;
                      for ii = 1:numel(idx)
@@ -230,7 +252,7 @@ classdef behaviorInfo < handle
                end
             case 'PelletPresent' % if pellet presence
                if val==0 % if not present, must be unsuccessful
-                  idx = find(ismember(obj.varName,{'PelletPresent','Outcome'}));
+                  idx = getVarIdx(obj,{'PelletPresent','Outcome'});
                   if ~isempty(idx)
                      obj.idx = idx;
                      for ii = 1:numel(idx)
@@ -247,7 +269,7 @@ classdef behaviorInfo < handle
                
                % should also check what previous trial pellet count was
                % and set this one to that if possible
-               idx = find(ismember(obj.varName,'Pellets'),1,'first');
+               idx = getVarIdx(obj,'Pellets');
                
                if ~isempty(idx)
                   if (isnan(obj.varVal(idx)) || isinf(obj.varVal(idx))) ...
@@ -346,7 +368,9 @@ classdef behaviorInfo < handle
       function saveScoring(obj)
          fname = fullfile(obj.tables.behaviorData.folder,...
             obj.tables.behaviorData.name);
-         fprintf(1,'Saving %s...',obj.tables.behaviorData.name);
+         if obj.verbose
+            fprintf(1,'Saving %s...',obj.tables.behaviorData.name);
+         end
          behaviorData = obj.behaviorData;  %#ok<*PROP>
          for ii = 1:numel(obj.varName) % Set correct offset
             if behaviorData.Properties.UserData(ii) < 2
@@ -356,7 +380,26 @@ classdef behaviorInfo < handle
          end
          save(fname,'behaviorData','-v7.3');
          notify(obj,'saveFile');
-         fprintf(1,'complete.\n');
+         if obj.verbose
+            fprintf(1,'complete.\n');
+         end
+      end
+      
+      % Request to close scoring UI
+      function closeScoringRequest(obj,forceClose)
+         if nargin < 2
+            forceClose = false;
+         end
+         
+         if forceClose
+            notify(obj,'closeReq')
+         else
+            str = questdlg('Exit scoring?','Close Prompt',...
+               'Yes','No','Yes');
+            if strcmpi(str,'Yes')
+               notify(obj,'closeReq');
+            end
+         end
       end
       
    end
