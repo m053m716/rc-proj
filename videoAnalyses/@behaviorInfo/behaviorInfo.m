@@ -158,21 +158,21 @@ classdef behaviorInfo < handle
             reset = false;
          end
          
-         % Update "Trials" to reflect the earliest "timestamped" indicator
-         % (in this case, update to the "Reach" timestamp for Trial, if it
-         %  exists).
-         tsIdx = find(obj.varType==1,1,'first');
-         if ~isempty(tsIdx)
-            t = obj.behaviorData.(obj.varName{tsIdx})(newTrial);
-            if (~isnan(t)) && (~isinf(t))
-               obj.Trials(newTrial) = t;
-            end
-         end
-         
          % Or just using newTrial as extra input argument
          if ((newTrial ~= obj.cur) && ...
                (newTrial > 0) && ...
                (newTrial <= obj.N) || reset)
+            
+            % Update "Trials" to reflect the earliest "timestamped" indicator
+            % (in this case, update to the "Reach" timestamp for Trial, if it
+            %  exists).
+            tsIdx = find(obj.varType==1,1,'first');
+            if ~isempty(tsIdx)
+               t = obj.behaviorData.(obj.varName{tsIdx})(newTrial);
+               if (~isnan(t)) && (~isinf(t))
+                  obj.Trials(newTrial) = t;
+               end
+            end
             
             obj.idx = 1;  % reset index to 1 for checking graphics
             obj.cur = newTrial;
@@ -234,7 +234,7 @@ classdef behaviorInfo < handle
                         notify(obj,'update');
                      end
                   end
-               end            
+               end
             case 'Pellets' % if 0 pellets are present, must be no pellet
                if val==0
                   idx = getVarIdx(obj,{'Pellets','PelletPresent','Outcome'});
