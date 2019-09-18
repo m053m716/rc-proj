@@ -30,6 +30,7 @@ classdef graphicsUpdater < handle
       trialTracker_display          % Graphic for displaying trial progress
       trialTracker_displayOverlay   % Graphic for tracking current trial
       trialTracker_label            % Graphic label for progress tracking
+      successTracker_label          % Graphic label for success tracking
       trialPopup_display            % Graphic for selecting current trial
       editArray_display             % Array of edit box display graphics
       
@@ -272,7 +273,11 @@ classdef graphicsUpdater < handle
          obj.updateCurrentBehaviorTrial(src.cur);
          
          % Update graphics pertaining to scoring progress
-         obj.updateBehaviorTracker(src.cur,src.N);
+         if ismember('Outcome',src.behaviorData.Properties.VariableNames)
+            obj.updateBehaviorTracker(src.cur,src.N,nansum(src.behaviorData.Outcome));
+         else
+            obj.updateBehaviorTracker(src.cur,src.N);
+         end
          
          % Update the current video frame
          v.setVidTime(src.Trials(src.cur)); % already in "vid" time
@@ -293,7 +298,11 @@ classdef graphicsUpdater < handle
          obj.updateBehaviorEditBox(src.idx,str);
          
          % Update graphics pertaining to scoring progress
-         obj.updateBehaviorTracker(src.cur,src.N);
+         if ismember('Outcome',src.behaviorData.Properties.VariableNames)
+            obj.updateBehaviorTracker(src.cur,src.N,nansum(src.behaviorData.Outcome));
+         else
+            obj.updateBehaviorTracker(src.cur,src.N);
+         end
       end
       
       % Update graphics to reflect update to behaviorData for ZERO count
@@ -313,7 +322,11 @@ classdef graphicsUpdater < handle
          end
          
          % Update graphics pertaining to scoring progress
-         obj.updateBehaviorTracker(src.cur,src.N);
+         if ismember('Outcome',src.behaviorData.Properties.VariableNames)
+            obj.updateBehaviorTracker(src.cur,src.N,nansum(src.behaviorData.Outcome));
+         else
+            obj.updateBehaviorTracker(src.cur,src.N);
+         end
       end
       
       % Update the graphics to reflect to new video offset
@@ -333,7 +346,11 @@ classdef graphicsUpdater < handle
       
       % Update the tracker image by reflecting the "state" using red or
       % blue coloring in an image
-      function updateBehaviorTracker(obj,curTrial,n)
+      function updateBehaviorTracker(obj,curTrial,n,nSuccessful)
+         if nargin < 4
+            nSuccessful = 0;
+         end
+         
          if ~any(~obj.varState)
             obj.trialTracker_display.CData(1,curTrial,:)=[0 0 1];
          else
@@ -345,15 +362,24 @@ classdef graphicsUpdater < handle
          obj.trialTracker_label.String = sprintf(...
             'Progress Indicator      %g/%g',...
             tr,...
-            obj.nTotal);
+            obj.nTotal);       
+         
+         if nSuccessful == 1
+            obj.successTracker_label.String = '1 Successful Retrieval';
+         else
+            obj.successTracker_label.String = sprintf(...
+               '%g Successful Retrievals',nSuccessful);
+         end  
          
          if tr == n
             obj.animalName_display.Color = 'y';
             obj.trialTracker_label.Color = 'y';
+            obj.successTracker_label.Color = 'y';
             obj.curState = true;
          else
             obj.animalName_display.Color = 'r';
             obj.trialTracker_label.Color = 'w';
+            obj.successTracker_label.Color = 'w';
             obj.curState = false;
          end
          
