@@ -48,7 +48,8 @@ p.rat_color = struct(...
       
 p.somatotopy_pca_behavior_fig_dir = 'somatotopy-pca-behavior-scatters';
 p.icms_opts = {'PF','DF'};
-p.area_opts = {'RFA','CFA'};
+p.area_opts = defaults.block('area_opts');
+p.area_color = defaults.block('area_color');
 
 % p.w_avg_dp_thresh = 0.90; % threshold for weighted-average trials
 p.w_avg_dp_thresh = 0;

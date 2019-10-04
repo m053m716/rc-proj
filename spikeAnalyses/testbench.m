@@ -1,3 +1,5 @@
+%% TESTBENCH Main code for generating the array of GROUP, RAT, and BLOCK objects
+
 clear; 
 clc; 
 maintic = tic;
@@ -17,6 +19,7 @@ RAT = {     ...
 
 ratArray = [];
 for ii = 1:numel(RAT) % ~ 2 minutes (have to manually score though)
+% for ii = 9:numel(RAT) % debug for RC-30 issue with data_screening_UI
    ratArray = [ratArray; rat(fullfile(...
       'P:\Extracted_Data_To_Move\Rat\TDTRat',RAT{ii}))]; %#ok<*AGROW>
 end

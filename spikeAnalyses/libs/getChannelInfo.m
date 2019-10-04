@@ -1,4 +1,4 @@
-function getChannelInfo(ratName,tankLoc)
+function info = getChannelInfo(ratName,tankLoc)
 %% GETCHANNELINFO Import numeric data from a text file as a matrix.
 %
 %   GETCHANNELINFO(ratName)

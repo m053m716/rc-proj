@@ -587,10 +587,22 @@ classdef rat < handle
          nAxes = numel(obj.ChannelInfo);
          ax = uiPanelizeAxes(fig,nAxes);
          
+         
+         % Parse parameters for coloring lines, smoothing plots
          cm = defaults.load_cm;
          idx = round(linspace(1,size(cm,1),numel(obj.Children)));
+         filter_order = defaults.rat('lpf_order');
+         fs = defaults.rat('fs');
+         cutoff_freq = defaults.rat('lpf_fc');
+         if ~isnan(cutoff_freq)
+            [b,a] = butter(filter_order,cutoff_freq/(fs/2),'low');
+         end
+         
          
          % Make a separate axes for each channel
+         
+         
+         
          for iCh = 1:nAxes
             ax(iCh).NextPlot = 'add';
             ax(iCh).UserData = iCh;
@@ -605,35 +617,6 @@ classdef rat < handle
                ax(iCh).YColor = 'w';               
             end
             
-            filter_order = defaults.rat('lpf_order');
-            fs = defaults.rat('fs');
-            cutoff_freq = defaults.rat('lpf_fc');
-            if ~isnan(cutoff_freq)
-               [b,a] = butter(filter_order,cutoff_freq/(fs/2),'low');
-            end
-            
-            % Superimpose FILTERED rate traces on the channel axes
-            legText = [];
-            for ii = 1:numel(obj.Children)
-               ch = obj.Children(ii).matchChannel(iCh);
-               if isempty(ch)
-                  continue;
-               end
-               x = getAvgSpikeRate(obj.Children(ii),align,outcome);
-               legText = [legText;...
-                  {sprintf('D%02g',obj.Children(ii).PostOpDay)}];
-               if ~isnan(cutoff_freq)
-                  y = filtfilt(b,a,x);
-               else
-                  y = x;
-               end
-               plot(ax(iCh),...
-                  obj.Children(ii).T*1e3,... % convert to ms
-                  y,...                      % plot filtered trace
-                  'Color',cm(idx(ii),:),...  % color by day
-                  'LineWidth',2.25-(ii/numel(obj.Children)),...
-                  'UserData',[iCh,ii]);
-            end
             str = sprintf('%s-%s-%s',obj.ChannelInfo(iCh).ml,...
                obj.ChannelInfo(iCh).icms,...
                obj.ChannelInfo(iCh).area);
@@ -643,7 +626,39 @@ classdef rat < handle
             ax(iCh).Title.Color = 'k';
             ax(iCh).XLim = defaults.rat('x_lim_screening');
             ax(iCh).YLim = defaults.rat('y_lim_screening');
-            legend(ax(iCh),legText,'Location','NorthWest');
+%             legText = [];
+%             legText = [legText;...
+%                   {sprintf('D%02g',obj.Children(ii).PostOpDay)}];            
+%             legend(ax(iCh),legText,'Location','NorthWest');
+            
+         end
+            
+         
+         for ii = 1:numel(obj.Children)
+          
+            % Superimpose FILTERED rate traces on the channel axes
+            x = getAvgSpikeRate(obj.Children(ii),align,outcome);
+            % Here, add option to filter using parameters from RAT
+            if ~isnan(cutoff_freq)
+               y = filtfilt(b,a,x); 
+            else
+               y = x; % default
+            end
+            
+            for iCh = 1:nAxes  
+               ch = obj.Children(ii).matchChannel(iCh);
+               if isempty(ch)
+                  continue;
+               end
+               plot(ax(iCh),...
+                  obj.Children(ii).T*1e3,... % convert to ms
+                  y(ch,:),...                % plot filtered trace
+                  'Color',cm(idx(ii),:),...  % color by day
+                  'LineWidth',2.25-(ii/numel(obj.Children)),...
+                  'UserData',[iCh,ii]);
+            end
+            
+
          end
          
          if nargout < 1
@@ -657,6 +672,130 @@ classdef rat < handle
                   align,outcome)));
             saveas(fig,fullfile(rate_avg_fig_dir,...
                sprintf('%s_%s-%s_Average-Spike-Rates.png',obj.Name,...
+                  align,outcome)));
+            delete(fig);
+         end
+         
+      end
+      
+      % Plot rate averages across days for all channels
+      function fig = plotNormAverages(obj,align,outcome)
+         if nargin < 3
+            outcome = defaults.rat('batch_outcome');
+         end
+         
+         if nargin < 2
+            align = defaults.rat('batch_align');
+         end
+         
+         if numel(obj)>1
+            if nargout < 1
+               for ii = 1:numel(obj)
+                  plotNormAverages(obj(ii),align,outcome);
+               end
+            else
+               fig = [];
+               for ii = 1:numel(obj)
+                  fig = [fig; plotNormAverages(obj(ii),align,outcome)];
+               end
+            end
+            return;
+         end
+            
+         fig = figure('Name',...
+                  sprintf('%s: %s-%s Normalized Average Rates',obj.Name,align,outcome),...
+                  'Units','Normalized',...
+                  'Position',[0.1 0.1 0.8 0.8],...
+                  'Color','w');
+         
+         nAxes = numel(obj.ChannelInfo);
+         ax = uiPanelizeAxes(fig,nAxes);
+         
+         
+         % Parse parameters for coloring lines, smoothing plots
+         cm = defaults.load_cm;
+         idx = round(linspace(1,size(cm,1),numel(obj.Children)));
+         filter_order = defaults.rat('lpf_order');
+         fs = defaults.rat('fs');
+         cutoff_freq = defaults.rat('lpf_fc');
+         if ~isnan(cutoff_freq)
+            [b,a] = butter(filter_order,cutoff_freq/(fs/2),'low');
+         end
+         
+         
+         % Make a separate axes for each channel
+         
+         
+         
+         for iCh = 1:nAxes
+            ax(iCh).NextPlot = 'add';
+            ax(iCh).UserData = iCh;
+            
+            if obj.ChannelMask(iCh)
+               ax(iCh).Color = 'w';
+               ax(iCh).XColor = 'k';
+               ax(iCh).YColor = 'k';
+            else
+               ax(iCh).Color = 'k';
+               ax(iCh).XColor = 'w';
+               ax(iCh).YColor = 'w';               
+            end
+            
+            str = sprintf('%s-%s-%s',obj.ChannelInfo(iCh).ml,...
+               obj.ChannelInfo(iCh).icms,...
+               obj.ChannelInfo(iCh).area);
+            ax(iCh).Title.String = str;
+            ax(iCh).Title.FontName = 'Arial';
+            ax(iCh).Title.FontSize = 14;
+            ax(iCh).Title.Color = 'k';
+            ax(iCh).XLim = defaults.rat('x_lim_norm');
+            ax(iCh).YLim = defaults.rat('y_lim_norm');
+%             legText = [];
+%             legText = [legText;...
+%                   {sprintf('D%02g',obj.Children(ii).PostOpDay)}];            
+%             legend(ax(iCh),legText,'Location','NorthWest');
+            
+         end
+            
+         
+         for ii = 1:numel(obj.Children)
+          
+            % Superimpose FILTERED rate traces on the channel axes
+            x = getAvgNormRate(obj.Children(ii),align,outcome);
+            % Here, add option to filter using parameters from RAT
+            if ~isnan(cutoff_freq)
+               y = filtfilt(b,a,x); 
+            else
+               y = x; % default
+            end
+            
+            for iCh = 1:nAxes  
+               ch = obj.Children(ii).matchChannel(iCh);
+               if isempty(ch)
+                  continue;
+               end
+               plot(ax(iCh),...
+                  obj.Children(ii).T*1e3,... % convert to ms
+                  y(ch,:),...                % plot filtered trace
+                  'Color',cm(idx(ii),:),...  % color by day
+                  'LineWidth',2.25-(ii/numel(obj.Children)),...
+                  'UserData',[iCh,ii]);
+            end
+            
+
+         end
+         
+         if nargout < 1
+            norm_avg_fig_dir = fullfile(pwd,...
+               defaults.rat('norm_avg_fig_dir'));
+            if exist(norm_avg_fig_dir,'dir')==0
+               mkdir(norm_avg_fig_dir);
+            end
+            savefig(fig,fullfile(norm_avg_fig_dir,...
+               sprintf('%s_%s-%s_Average-Normalized-Spike-Rates.fig',obj.Name,...
+                  align,outcome)));
+            saveas(fig,fullfile(norm_avg_fig_dir,...
+               sprintf('%s_%s-%s_Average-Normalized-Spike-Rates.png',obj.Name,...
                   align,outcome)));
             delete(fig);
          end
@@ -749,6 +888,74 @@ classdef rat < handle
                [obj.Data.(align).(outcome).varData;...
                 val,t(v_idx)];
          end
+         
+      end
+      
+      % Load channel mask
+      function loadChannelMask(obj)
+         
+         % Iterate if object is an array
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               loadChannelMask(obj(ii));
+            end
+            return;
+         end
+         
+         % Parse path and filename
+         channel_mask_loc = defaults.rat('channel_mask_loc');
+         pname = fullfile(pwd,channel_mask_loc);
+         if exist(pname,'dir')==0
+            error('Invalid Channel Mask path (%s does not exist)',channel_mask_loc);
+         end
+         fname = fullfile(pname,sprintf('%s_ChannelMask.mat',obj.Name));
+         if exist(fname,'file')==0
+            fprintf(1,'Rat Channel Mask file not found. Parsing from first child BLOCK (%s).\n',...
+               obj.Children(1).Name);
+            ChannelMask = parseChannelMaskFromChild(obj);
+            save(fname,'ChannelMask');
+         else
+            in = load(fullfile(fname),'ChannelMask');
+            ChannelMask = in.ChannelMask; %#ok<*PROP>
+         end
+         
+         obj.unifyChildChannelMask(ChannelMask);
+      end
+      
+      % Parse channel mask from an indexed child rat object
+      function ChannelMask = parseChannelMaskFromChild(obj,idx)
+         if nargin < 2
+            idx = 1;
+         end
+         
+         if numel(obj) > 1
+            error('Can only parse channel mask for one rat object at a time.');
+         end
+         
+         info = obj.Children(idx).ChannelInfo;
+         if isempty(info)
+            error('ChannelInfo not yet set for %s.',obj.Children(idx).Name);
+         end
+         mask = obj.Children(idx).ChannelMask;
+         if isempty(mask)
+            obj.Children(idx).loadChannelMask;
+            mask = obj.Children(idx).ChannelMask;
+            if isempty(mask)
+               error('ChannelMask not yet set for %s.',obj.Children(idx).Name);
+            end
+         end
+         
+         chIdx = [[info.probe].',[info.channel].'];
+         ChannelMask = false(size(obj.ChannelInfo,1),1);
+         iSmallMask = 0;
+         for ii = 1:size(obj.ChannelInfo,1)
+            ChannelMask(ii) = ismember([obj.ChannelInfo(ii).probe,obj.ChannelInfo(ii).channel],chIdx,'rows');
+            if ChannelMask(ii)
+               iSmallMask = iSmallMask + 1;
+               ChannelMask(ii) = ChannelMask(ii) && mask(iSmallMask);
+            end               
+         end
+         
          
       end
       

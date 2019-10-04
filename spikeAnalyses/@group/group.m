@@ -27,7 +27,7 @@ classdef group
                obj.HasData = true;
             end
          end
-         obj.unifyjPCA(defaults.jPCA('jpca_align'));
+%          obj.unifyjPCA(defaults.jPCA('jpca_align'));
       end
       
       % Redistribute the combined PCA results to child Rat objects
@@ -342,6 +342,18 @@ classdef group
          end
       end
       
+      % Load channel mask for child rat objects
+      function loadChannelMask(obj)
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               loadChannelMask(obj(ii));
+            end
+            return;
+         end
+         
+         loadChannelMask(obj.Children);
+      end
+      
       % Run function on children Rat objects
       function runFun(obj,f)
          % Parse function handle input
@@ -484,6 +496,105 @@ classdef group
          end
       end
       
+      % Plot average rate profiles across days by group
+      function fig = plotRateAverages(obj,align,outcome)
+         if nargin < 2
+            align = defaults.block('all_events');
+         end
+         
+         if nargin < 3
+            outcome = defaults.block('outcome');
+         end
+         
+         if numel(obj) > 1
+            if nargout > 0
+               fig = [];
+               for ii = 1:numel(obj)
+                  fig = [fig; plotRateAverages(obj(ii),align,outcome)];
+               end
+               return;
+            else
+               for ii = 1:numel(obj)
+                  plotRateAverages(obj(ii),align,outcome);
+               end
+               return;
+            end
+         end
+         
+         if iscell(align)
+            if nargout > 0
+               fig = [];
+               for ik = 1:numel(align)
+                  fig = [fig; plotRateAverages(obj.Children,align{ik},outcome)];
+               end
+               return;
+            else
+               for ik = 1:numel(align)
+                  plotRateAverages(obj.Children,align{ik},outcome)
+               end
+               return;
+            end
+            
+         else
+            if nargout > 0
+               fig = plotRateAverages(obj.Children,align,outcome);
+            else
+               plotRateAverages(obj.Children,align,outcome);
+            end
+            return;
+         end
+      end
+      
+      % Plot average rate profiles across days by group
+      function fig = plotNormAverages(obj,align,outcome)
+         if nargin < 2
+            align = defaults.block('all_events');
+         end
+         
+         if nargin < 3
+            outcome = defaults.block('outcome');
+         end
+         
+         if numel(obj) > 1
+            if nargout > 0
+               fig = [];
+               for ii = 1:numel(obj)
+                  fig = [fig; plotNormAverages(obj(ii),align,outcome)];
+               end
+               return;
+            else
+               for ii = 1:numel(obj)
+                  plotNormAverages(obj(ii),align,outcome);
+               end
+               return;
+            end
+         end
+         
+         if iscell(align)
+            if nargout > 0
+               fig = [];
+               for ik = 1:numel(align)
+                  fig = [fig; plotNormAverages(obj.Children,align{ik},outcome)];
+               end
+               return;
+            else
+               for ik = 1:numel(align)
+                  plotNormAverages(obj.Children,align{ik},outcome)
+               end
+               return;
+            end
+            
+         else
+            if nargout > 0
+               fig = plotNormAverages(obj.Children,align,outcome);
+            else
+               plotNormAverages(obj.Children,align,outcome);
+            end
+            return;
+         end
+      end
+         
+         
       % Make scatter plots accounting for channel type etc
       function fig = plotScatter(obj,pc_indices)
          % Parse input

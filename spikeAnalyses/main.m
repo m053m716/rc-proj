@@ -1,4 +1,4 @@
-%% MAIN  Batch for main RC analysis functions (to stay organized)
+%% MAIN  -- Deprecated -- Batch for main RC analysis functions (to stay organized)
 %
 %  This was written after the RC paper was rejected by Journal of
 %  Neurophysiology. 

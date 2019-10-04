@@ -180,8 +180,8 @@ classdef block < handle
          t = vec(1:(end-1)) + mode(diff(vec))/2;
          outpath = obj.getPathTo('spikerate');
          
-         [~,idx] = unique(behaviorData.Grasp);
-         behaviorData = behaviorData(idx,:); % ensure only unique grasps
+%          [~,idx] = unique(behaviorData.Grasp);
+%          behaviorData = behaviorData(idx,:); % ensure only unique grasps
          
          for iE = 1:numel(EVENT)
             for iA = 1:size(ALIGN,1)
@@ -287,7 +287,7 @@ classdef block < handle
          toc;
       end
       
-      % Return rate data and associated metadata
+      % Return spike rate data and associated metadata
       function [avgRate,channelInfo] = getAvgSpikeRate(obj,align,outcome,ch)
          if nargin < 4
             ch = nan;
@@ -365,6 +365,113 @@ classdef block < handle
             end
          end
 
+      end
+      
+      % Return (normalized) spike rate data and associated metadata
+      function [avgRate,channelInfo] = getAvgNormRate(obj,align,outcome,ch)
+         if nargin < 4
+            ch = nan;
+         end
+         if nargin < 3
+            outcome = 'Successful'; % 'Successful' or 'Unsuccessful' or 'All'
+         end
+         if nargin < 2
+            align = 'Grasp'; % 'Grasp' or 'Reach'
+         end
+         
+         if numel(obj) > 1
+            avgRate = [];
+            channelInfo = [];
+            for ii = 1:numel(obj)
+               [tmpRate,tmpCI] = getAverageSpikeRate(obj(ii),align,outcome,ch);
+               avgRate = [avgRate; tmpRate]; %#ok<*AGROW>
+               channelInfo = [channelInfo; tmpCI];
+            end
+            return;
+         end
+         
+         if isnan(ch)
+            ch = 1:numel(obj.ChannelInfo);
+         end
+         
+         obj = obj([obj.HasData]);
+         avgRate = [];
+         channelInfo = [];
+         
+
+         avgRate = nan(numel(ch),numel(obj.T));
+         channelInfo = [];
+         idx = 0;
+         for iCh = ch
+            idx = idx + 1;
+            channelInfo = [channelInfo; obj.ChannelInfo(iCh)];
+            if obj.ChannelMask(iCh)
+               if isfield(obj.Data,align)
+                  if isfield(obj.Data.(align),outcome)
+                     x = obj.Data.(align).(outcome).rate(:,:,iCh);
+                  else
+                     fprintf('No %s rate extracted for %s alignment for block %s. Extracting...\n',...
+                        outcome,align,obj.Name);
+                     obj.updateSpikeRateData(align,outcome);
+                     if ~isfield(obj.Data.(align),outcome)
+                        continue;
+                     end
+                     x = obj.Data.(align).(outcome).rate(:,:,iCh);
+                  end
+               else
+                  fprintf('No %s rate extracted for block %s. Extracting...\n',...
+                        align,obj.Name);
+                  obj.updateSpikeRateData(align,outcome);
+                  if ~isfield(obj.Data,align)
+                     continue;
+                  elseif ~isfield(obj.Data.(align),outcome)
+                     continue;
+                  end
+                  x = obj.Data.(align).(outcome).rate(:,:,iCh);
+               end
+
+               avgRate(idx,:) = obj.doSmoothNorm(x);
+            end
+         end
+
+      end
+      
+      % Get "rates" for a specific area
+      function x = getAreaRate(obj,area,align,outcome)
+         if nargin < 3
+            align = defaults.jPCA('jpca_align');
+         end
+         
+         if numel(obj) > 1
+            error('Only meant for single objects, not array.');
+         end
+         
+         if nargin < 4
+            if isempty(obj.Data.(align).Successful.rate)
+               x = obj.Data.(align).Unsuccessful.rate(:,:,obj.ChannelMask);
+            elseif isempty(obj.Data.(align).Unsuccessful.rate)
+               x = obj.Data.(align).Successful.rate(:,:,obj.ChannelMask);
+            elseif isempty(obj.Data.(align).Successful.rate) && ...
+                  isempty(obj.Data.(align).Unsuccessful.rate)
+               fprintf(1,'No rate data in %s. Unified jPCA not possible.\n',obj.Name);
+               Projection = [];
+               Summary = [];
+               return;
+            else
+               x = cat(1,...
+                  obj.Data.(align).Successful.rate(:,:,obj.ChannelMask),...
+                  obj.Data.(align).Unsuccessful.rate(:,:,obj.ChannelMask));
+            end
+         else
+            x = obj.Data.(align).(outcome).rate(:,:,obj.ChannelMask);
+            
+         end
+         
+         if strcmpi(area,'RFA') || strcmpi(area,'CFA')
+            ch_idx = contains({obj.ChannelInfo(obj.ChannelMask).area},area);
+            x = x(:,:,ch_idx);
+         end
+         
       end
       
       % Return the channel-wise spike rate statistics for this recording
@@ -786,12 +893,17 @@ classdef block < handle
          
          in = load(fname,'behaviorData');
          if isfield(in,'behaviorData')
+%             behaviorData = in.behaviorData(...
+%                ~isnan(in.behaviorData.Outcome) & ...
+%                ~isinf(in.behaviorData.Reach) & ...
+%                ~isnan(in.behaviorData.Reach) & ...
+%                ~isinf(in.behaviorData.Grasp) & ...
+%                ~isnan(in.behaviorData.Grasp),:);
             behaviorData = in.behaviorData(...
                ~isnan(in.behaviorData.Outcome) & ...
-               ~isinf(in.behaviorData.Reach) & ...
                ~isnan(in.behaviorData.Reach) & ...
-               ~isinf(in.behaviorData.Grasp) & ...
                ~isnan(in.behaviorData.Grasp),:);
+            obj.HasData = true;
          else
             behaviorData = [];
          end
@@ -1561,35 +1673,6 @@ classdef block < handle
             
       end
       
-      function x = getAreaRate(obj,area,align)
-         if nargin < 3
-            align = defaults.jPCA('jpca_align');
-         end
-         
-         if numel(obj) > 1
-            error('Only meant for single objects, not array.');
-         end
-         if isempty(obj.Data.(align).Successful.rate)
-            x = obj.Data.(align).Unsuccessful.rate(:,:,obj.ChannelMask);
-         elseif isempty(obj.Data.(align).Unsuccessful.rate)
-            x = obj.Data.(align).Successful.rate(:,:,obj.ChannelMask);
-         elseif isempty(obj.Data.(align).Successful.rate) && ...
-               isempty(obj.Data.(align).Unsuccessful.rate)
-            fprintf(1,'No rate data in %s. Unified jPCA not possible.\n',obj.Name);
-            Projection = [];
-            Summary = [];
-            return;
-         else
-            x = cat(1,...
-               obj.Data.(align).Successful.rate(:,:,obj.ChannelMask),...
-               obj.Data.(align).Unsuccessful.rate(:,:,obj.ChannelMask));
-         end
-         if strcmpi(area,'RFA') || strcmpi(area,'CFA')
-            ch_idx = contains({obj.ChannelInfo(obj.ChannelMask).area},area);
-            x = x(:,:,ch_idx);
-         end
-      end
-      
       % Do jPCA on "warped" rates
       function [Projection,Summary] = jPCA_warped(obj,outcome)
          if nargin < 2
@@ -1712,6 +1795,49 @@ classdef block < handle
          p_channel = obj.Parent.ChannelInfo(ch).channel;
          
          iCh = find((ch_probe==p_probe) & (ch_channel==p_channel),1,'first');
+      end
+      
+      % Plot the average normalized spike rate for a given
+      % alignment/outcome combination
+      function ax = plotAverageChannelRate(obj,align,outcome)
+         if nargin < 3
+            outcome = defaults.block('outcome');
+         end
+         
+         if nargin < 2
+            align = defaults.jPCA('jpca_align');
+         end
+         
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               figure('Name',sprintf('%s-%s-%s Average Rate',...
+                  obj(ii).Name,align,outcome));
+               plotAverageChannelRate(obj(ii),align,outcome);
+            end
+            if nargout > 0
+               warning('Cannot return axes array for block array argument.');
+               ax = [];
+            end
+            return;
+         end
+         
+         ax = gca;
+         ax.NextPlot = 'add';
+         ax.XLim = defaults.block('x_lim');
+         ax.YLim = defaults.block('y_lim');
+         
+         area = defaults.block('area_opts');
+         col = defaults.block('area_color');
+         t = obj.T * 1e3;
+         for ii = 1:numel(area)
+            x = getAreaRate(obj,area{ii},align,outcome);
+            y = obj.doSmoothNorm(x);
+            z = squeeze(mean(y,1));
+            plot(ax,t,z,'Color',col{ii},'LineWidth',1.5);
+         end
+         
+         xlabel('Time (ms)','Color','k','FontName','Arial','FontSize',14);
+         ylabel('Spike Rate','Color','k','FontName','Arial','FontSize',14);
       end
       
       % Reset channel-wise metadata
@@ -2045,7 +2171,7 @@ classdef block < handle
          obj.Data.Pellet.n = nan(nTotal,1);
          obj.Data.Outcome = nan(nTotal,1);
          
-         if nargin < 3
+         if (nargin < 3) && (~obj.HasData)
             fprintf(1,'-->\tMissing _Scoring file: %s\n',obj.Name);
          else
             fprintf(1,'Mismatch between number of spike rate trials (%g) and behaviorData (%g) for %s.\n',...
@@ -2076,7 +2202,7 @@ classdef block < handle
          fname = fullfile(obj.Folder,obj.Name,...
             [obj.Name spike_analyses_folder],...
             [obj.Name spike_rate_smoother align '_' outcome '.mat']);
-         if exist(fname,'file')==0
+         if (exist(fname,'file')==0) && (~obj.HasData)
             fprintf(1,'No such file: %s\n',fname);
             obj.Data.(align).(outcome).rate = [];
             return;
@@ -2159,6 +2285,7 @@ classdef block < handle
    end
    
    methods (Access = public, Static = true)
+      % Static function to apply LPF and down-sample for jPCA
       function [y,t_out] = applyLPF2Rate(x,t_in,doNorm)
          if nargin < 3
             doNorm = true;
@@ -2184,7 +2311,11 @@ classdef block < handle
                   y(ii,:,iCh) = decimate(filtfilt(b,a,tmp),r);
                end
             end
-            t_out = linspace(t_in(1)*1e3,t_in(end)*1e3,size(y,2));
+            if nargin > 1
+               t_out = linspace(t_in(1)*1e3,t_in(end)*1e3,size(y,2));
+            else
+               t_out = defaults.experiment('t')*1e3;
+            end
          else
             switch numel(size(x))
                case 2
@@ -2200,10 +2331,16 @@ classdef block < handle
                otherwise
                   error('Invalid number of dimensions for x (%g).',numel(size(x)));
             end
-            t_out = t_in;
+            if nargin > 1
+               t_out = t_in;
+            else
+               t_out = defaults.experiment('t')*1e3;
+            end
          end
       end
       
+      % Static function to apply time warning based on "anchor" behavioral
+      % events -- that analysis didn't work well
       function [y,times,labels] = applyTimeWarping(x,t,outcome,d_ts)
          if nargin < 3
             outcome = ones(size(x,1),1);
@@ -2237,6 +2374,28 @@ classdef block < handle
          times(isnan(times(:,1)),:) = [];
          y = y(:,warp_params.trim:(end-warp_params.trim+1),:);
          times = times(:,warp_params.trim:(end-warp_params.trim+1));
+      end
+      
+      % Static function to apply "smoothing" (lowpass filter) and
+      % normalization (square-root transform & mean-subtraction)
+      function y = doSmoothNorm(x)
+         filter_order = defaults.block('lpf_order');
+         fs = defaults.block('fs');
+         cutoff_freq = defaults.block('lpf_fc');
+         if ~isnan(cutoff_freq)
+            [b,a] = butter(filter_order,cutoff_freq/(fs/2),'low');
+         end
+         pre_trial_norm = defaults.block('pre_trial_norm');
+         
+         mu = mean(x,1); 
+
+         if isnan(cutoff_freq)
+            z = mu;
+         else
+            z = filtfilt(b,a,mu);
+         end
+         z = sqrt(abs(x)) .* sign(x);
+         y =  z - mean(z(:,pre_trial_norm,:),2);
       end
       
    end

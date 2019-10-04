@@ -94,8 +94,12 @@ while v.bIdx <= numel(v.block)
       v.bIdx = v.bIdx + 1;
       save(FNAME,'-struct','v');
       
-      str = questdlg(sprintf('Score next trial (%s)?',v.block(v.bIdx).name),...
-         'Continue scoring?','Yes','No','Yes');
+      if v.bIdx <= numel(v.block)
+         str = questdlg(sprintf('Score next trial (%s)?',v.block(v.bIdx).name),...
+            'Continue scoring?','Yes','No','Yes');
+      else
+         str = 'Yes';
+      end
       tmp = repmat('\b',1,50);
       fprintf(1,[tmp '%03g/%03g complete.\n->\tTotal scoring time: %s\n'],...
          ii,numel(v.block),tStr);

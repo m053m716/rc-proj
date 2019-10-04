@@ -20,7 +20,8 @@ function param = block(name)
 %% CHANGE THESE
 p = struct;          % All field names should be lower-case
 p.lpf_order = 4;     % Rate lowpass filter (butterworth) order
-p.lpf_fc = 3;        % Rate lowpass filter cutoff frequency
+p.lpf_fc = 60;       % Rate lowpass filter cutoff frequency
+% p.lpf_fc = nan;
 p.fs = 24414.0625;   % Sampling frequency for acquisition
 
 % Name of excel file with behavior data scored by Andrea
@@ -46,12 +47,11 @@ p.alignment = defaults.jPCA('jpca_align');
 p.all_alignments = {'Successful',1;...
                     'Unsuccessful',0;...
                     'All',[0,1]};
-p.all_events = {'Reach','Grasp'};
+p.all_events = {'Reach','Grasp','Support','Complete'};
 p.outcome = 'Successful';
-p.do_spike_rate_extraction = true;
-% p.do_spike_rate_extraction = false;
+% p.do_spike_rate_extraction = true;
+p.do_spike_rate_extraction = false;
 p.run_jpca_on_construction = defaults.jPCA('run_jpca_on_construction');
-
 
 % % worthless "warp rates" parameters... deprecated
 % p.warp.pre_reach = 350;  % ms
@@ -66,6 +66,11 @@ p.pre_trial_norm = 1:500; % sample indices
 p.behavior_vid_loc = 'K:\Rat\Video\BilateralReach\RC';
 
 p.frame_snaps_loc = 'behavior-snapshots';
+
+p.area_opts = {'RFA','CFA'};
+p.area_color = {'b','r'};
+p.x_lim = [-1250 750];
+p.y_lim = [-3.0 3.0];
 
 %% PARSE OUTPUT
 if ismember(lower(name),fieldnames(p))
