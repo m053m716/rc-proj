@@ -76,6 +76,7 @@ classdef block < handle
          
          % Add data to block object
          if doSpikeRateExtraction
+
             fprintf(1,'Doing spike rate extraction for %s...\n',obj.Name);
             behaviorData = obj.loadBehaviorData;
             if isempty(behaviorData)
@@ -85,10 +86,19 @@ classdef block < handle
             obj.doSpikeBinning(behaviorData);            
             obj.doBinSmoothing;
             fprintf(1,'Rate extraction for %s complete.\n\n',obj.Name);
+
          end
          updateBehaviorData(obj);
-         updateSpikeRateData(obj,align,'Successful');
-         updateSpikeRateData(obj,align,'Unsuccessful');
+         
+         o = defaults.block('all_outcomes');
+         e = defaults.block('all_events');
+         for iE = 1:numel(e)
+            for iO = 1:numel(o)
+               updateSpikeRateData(obj,e{iE},o{iO});
+            end
+         end
+%          updateSpikeRateData(obj,align,'Successful');
+%          updateSpikeRateData(obj,align,'Unsuccessful');
          
          if runJPCAonConstruction
             jPCA(obj);
@@ -96,7 +106,7 @@ classdef block < handle
             jPCA_unsuccessful(obj);
             
          end
-         getChannelwiseRateStats(obj,align,'Successful');
+%          getChannelwiseRateStats(obj,align,'Successful');
          
       end
 
@@ -121,21 +131,27 @@ classdef block < handle
          
          for iE = 1:numel(EVENT)
             for iA = 1:size(ALIGN,1)
-               [data,t] = obj.loadBinnedSpikes(EVENT{iE},ALIGN{iA,1},W); %#ok<ASGLU>
-               if isempty(data)
-                  continue;
-               end
-               for iCh = 1:numel(obj.ChannelInfo)
-                  data(:,:,iCh) = sqrt(max(fastsmooth(data(:,:,iCh),w,'pg',1,1)./mode(diff(obj.T)),0));
-               end
                savename = sprintf(...
                   '%s_SpikeRate%03gms_%s_%s.mat',obj.Name,w,...
                   EVENT{iE},ALIGN{iA,1});
-               if exist(outpath,'dir')==0
-                  mkdir(outpath);
+               
+               if (exist(fullfile(outpath,savename),'file')==0) || ...
+                     defaults.block('overwrite_old_spike_data')
+               
+                  [data,t] = obj.loadBinnedSpikes(EVENT{iE},ALIGN{iA,1},W); %#ok<ASGLU>
+                  if isempty(data)
+                     continue;
+                  end
+                  for iCh = 1:numel(obj.ChannelInfo)
+                     data(:,:,iCh) = sqrt(max(fastsmooth(data(:,:,iCh),w,'pg',1,1)./mode(diff(obj.T)),0));
+                  end
+
+                  if exist(outpath,'dir')==0
+                     mkdir(outpath);
+                  end
+                  save(fullfile(outpath,savename),'data','t');
+                  fprintf(1,'-->\tSaved %s\n',savename);
                end
-               save(fullfile(outpath,savename),'data','t');
-               fprintf(1,'-->\tSaved %s\n',savename);
             end
          end
          
@@ -179,30 +195,43 @@ classdef block < handle
          vec = start_stop_bin(1):w:start_stop_bin(2);      
          t = vec(1:(end-1)) + mode(diff(vec))/2;
          outpath = obj.getPathTo('spikerate');
-         
+         if exist(outpath,'dir')==0
+            mkdir(outpath);
+         end
 %          [~,idx] = unique(behaviorData.Grasp);
 %          behaviorData = behaviorData(idx,:); % ensure only unique grasps
          
          for iE = 1:numel(EVENT)
             for iA = 1:size(ALIGN,1)
-               ts = behaviorData.(EVENT{iE})(...
-                     ismember(behaviorData.Outcome,ALIGN{iA,2}));
-               data = zeros(numel(ts),numel(vec)-1,numel(obj.ChannelInfo));
-               for iCh = 1:numel(obj.ChannelInfo)
-                  spike_ts = obj.loadSpikes(iCh);
-                  for iTrial = 1:numel(ts)
-                     ds = (spike_ts - ts(iTrial))*1e3; % ms
-                     data(iTrial,:,iCh) = histcounts(ds,vec);
-                  end
-               end
+               
+               
                savename = sprintf(...
                   '%s_BinnedSpikes%03gms_%s_%s.mat',obj.Name,w,...
                   EVENT{iE},ALIGN{iA,1});
-               if exist(outpath,'dir')==0
-                  mkdir(outpath);
+               
+               
+               if (exist(fullfile(outpath,savename),'file')==0) || ...
+                     defaults.block('overwrite_old_spike_data')
+                  
+                  ts = behaviorData.(EVENT{iE})(...
+                     ismember(behaviorData.Outcome,ALIGN{iA,2}));
+                  data = zeros(numel(ts),numel(vec)-1,numel(obj.ChannelInfo));
+                  for iCh = 1:numel(obj.ChannelInfo)
+                     spike_ts = obj.loadSpikes(iCh);
+                     for iTrial = 1:numel(ts)
+                        ds = (spike_ts - ts(iTrial))*1e3; % ms
+                        data(iTrial,:,iCh) = histcounts(ds,vec);
+                     end
+                  end
+
+
+                  save(fullfile(outpath,savename),'data','t');
+                  fprintf(1,'-->\tSaved %s\n',savename);
+                  
                end
-               save(fullfile(outpath,savename),'data','t');
-               fprintf(1,'-->\tSaved %s\n',savename);
+               
+               
+               
             end
          end
          
@@ -684,6 +713,34 @@ classdef block < handle
          Projection = field_out.Projection;
          Summary = field_out.Summary;
          
+      end
+      
+      % Get median offset latency (ms) between two behaviors
+      function offset = getOffsetLatency(obj,align1,align2)
+         if numel(obj) > 1
+            error('Method only works on scalar objects.');
+         end
+         
+         if nargin < 3
+            align2 = defaults.block('alignment');
+         end
+         
+         if nargin < 2
+            error('Must specify a comparator alignment: (Reach, Grasp, Support, Complete)');
+         end
+         
+         
+         if ~ismember(align1,{'Reach','Grasp','Support','Complete'})
+            error('Invalid alignment. Must specify from: (Reach, Grasp, Support, Complete)');
+         end
+         
+         b = loadBehaviorData(obj);
+         idx = ~isinf(b.(align1)) & ~isnan(b.(align1)) & ...
+               ~isinf(b.(align2)) & ~isnan(b.(align2));
+         a1 = b.(align1)(idx);
+         a2 = b.(align2)(idx);
+         
+         offset = median(a1 - a2) * 1e3; % return in milliseconds
       end
       
       % Returns phase data struct from primary jPCA plane projection
@@ -1821,14 +1878,21 @@ classdef block < handle
             return;
          end
          
+         xl = defaults.block('x_lim');
+         yl = defaults.block('y_lim');
+         
          ax = gca;
          ax.NextPlot = 'add';
-         ax.XLim = defaults.block('x_lim');
-         ax.YLim = defaults.block('y_lim');
+         ax.XLim = xl;
+         ax.YLim = yl;
          
          area = defaults.block('area_opts');
          col = defaults.block('area_color');
-         t = obj.T * 1e3;
+         
+         
+         offset = obj.getOffsetLatency(align,defaults.block('alignment'));
+         
+         t = obj.T * 1e3 + offset;
          for ii = 1:numel(area)
             x = getAreaRate(obj,area{ii},align,outcome);
             y = obj.doSmoothNorm(x);
@@ -1836,8 +1900,46 @@ classdef block < handle
             plot(ax,t,z,'Color',col{ii},'LineWidth',1.5);
          end
          
+         e_col = defaults.block('event_color');
+         e = defaults.block('all_events');
+         
+         l = line([offset,offset],yl,'Color',e_col{ismember(e,align)},...
+            'LineStyle','--','LineWidth',2);
+         
+         h = get(ax,'Children');
+         legend([h([2,end-1]); l],[area, ...
+            sprintf('Median %s offset',align)],'Location','NorthWest');
+         
          xlabel('Time (ms)','Color','k','FontName','Arial','FontSize',14);
          ylabel('Spike Rate','Color','k','FontName','Arial','FontSize',14);
+      end
+      
+      % Plot all alignments of a given outcome as subplots for this block
+      function fig = plotAllAlignmentsRate(obj,outcome)
+         if nargin < 2
+            outcome = defaults.block('outcome');
+         end
+         
+         if numel(obj) > 1
+            fig = [];
+            for ii = 1:numel(obj)
+               fig = [fig; plotAllAlignmentsRate(obj(ii),outcome)];
+            end
+            return;
+         end
+         
+         fig = figure('Name',sprintf('%s-%s All Alignment Average Rate',...
+            obj.Name,outcome),...
+            'Color','w',...
+            'Units','Normalized',...
+            'Position',[0.4 0.1 0.45 0.8]);
+         
+         a = defaults.block('all_events');
+         for ii = 1:numel(a)
+            subplot(numel(a),1,ii);
+            obj.plotAverageChannelRate(a{ii},outcome);
+            title(a{ii},'Color','k','FontName','Arial','FontSize',16);
+         end
       end
       
       % Reset channel-wise metadata

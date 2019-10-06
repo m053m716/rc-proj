@@ -48,9 +48,12 @@ p.all_alignments = {'Successful',1;...
                     'Unsuccessful',0;...
                     'All',[0,1]};
 p.all_events = {'Reach','Grasp','Support','Complete'};
+p.event_color = {[0.1 0.1 0.7],[0 0 0],[0.8 0.1 0.8],[0.7 0.8 0.1]};
+p.all_outcomes = {'Successful','Unsuccessful','All'};
 p.outcome = 'Successful';
-% p.do_spike_rate_extraction = true;
-p.do_spike_rate_extraction = false;
+% p.do_spike_rate_extraction = false;
+p.do_spike_rate_extraction = true;
+p.overwrite_old_spike_data = false;
 p.run_jpca_on_construction = defaults.jPCA('run_jpca_on_construction');
 
 % % worthless "warp rates" parameters... deprecated
