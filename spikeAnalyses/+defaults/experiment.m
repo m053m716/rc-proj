@@ -10,7 +10,7 @@ function param = experiment(name)
 %%
 p = struct;
 p.t = linspace(-1.9995,0.9995,3000); % Times (sec) for recording bins
-p.tank = 'P:\Extracted_Data_To_Move\Rat\TDTRat';
+p.tank = 'P:\Rat\BilateralReach\RC';
 
 if ismember(lower(name),fieldnames(p))
    param = p.(lower(name));

@@ -61,11 +61,13 @@ classdef rat < handle
          fprintf(1,'-------------------------------------------------\n');
          findChildren(obj,align,extractSpikeRate,runJPCA);
          if (defaults.rat('suppress_data_curation'))
-            obj.ChannelMask = obj.Children(1).ChannelMask;
+%             obj.ChannelMask = obj.Children(1).ChannelMask;
+            obj.loadChannelMask;
          else
             fig = dataScreeningUI(obj);
             waitfor(fig);
          end
+         
          fprintf(1,'-------------------------------------------------\n');
          fprintf(1,'\t\t\t\t\t%s --> %g sec\n\n',obj.Name,round(toc(ratTic)));
       end
@@ -181,6 +183,73 @@ classdef rat < handle
             ax(iCh).YLim = defaults.rat('y_lim_screening');
          end
          
+      end
+      
+      % Export down-sampled rate data for dPCA. If no output argument is
+      % specified, then files are saved in the default location from
+      % defaults.dPCA.
+      function [X,t] = export_dPCA(obj)
+         % Parse array input
+         if numel(obj) > 1
+            if nargout < 1
+               for ii = 1:numel(obj)
+                  export_dPCA(obj(ii));
+               end
+            else
+               X = cell(numel(obj),1);
+               for ii = 1:numel(obj)
+                  [X{ii},t] = export_dPCA(obj(ii)); % t always the same
+               end
+            end
+            return;
+         end
+         
+         p = defaults.dPCA;
+         addpath(p.local_repo_loc);
+         
+         [normRatesCell,t] = format_dPCA(obj.Children);
+         normRatesCell(cellfun(@(x)isempty(x),normRatesCell,'UniformOutput',true)) = [];
+         nTrialMax = max(cellfun(@(x)size(x,5),normRatesCell,...
+                           'UniformOutput',true));
+         nChannel = sum(obj.ChannelMask);
+         nDay = numel(normRatesCell);               
+         nTs = numel(t);
+         
+         X = nan(nChannel,nDay,3,nTs,nTrialMax);
+         for ii = 1:nDay
+            X(:,ii,:,:,1:size(normRatesCell{ii},5)) = normRatesCell{ii};            
+         end       
+         
+         % If no output argument, save data in array X
+         if nargout < 1
+            fname = fullfile(p.path,sprintf(p.fname,obj.Name));
+            save(fname,'X','t','-v7.3');
+         end
+      end
+      
+      % Returns table of stats for all child Block objects where each row
+      % is a reach trial. Essentially is behaviorData of each child object,
+      % with appended metadata for each child object.
+      function T = exportTrialStats(obj)
+         if numel(obj) > 1
+            T = [];
+            for ii = 1:numel(obj)
+               T = [T; exportTrialStats(obj(ii))];
+            end
+            return;
+         end
+         
+         T = exportTrialStats(obj.Children);
+         
+         % Extend variable descriptors to an additional metadata field
+         ud = T.Properties.UserData;
+         vd = T.Properties.VariableDescriptions;
+         Rat = repmat(categorical({obj.Name}),size(T,1),1);
+         
+         T = [table(Rat), T];
+         T.Properties.Description = 'Concatenated Trial Metadata';
+         T.Properties.UserData = [nan(1,1), ud];
+         T.Properties.VariableDescriptions = ['rat name', vd];
       end
       
       % Export "unified" jPCA trial projections from all days
@@ -394,6 +463,24 @@ classdef rat < handle
          end
       end
       
+      % Return the path to rat-related folder
+      function path = getPathTo(obj,dataType)
+         if numel(obj) > 1
+            error('This method only applies to scalar Rat objects.');
+         end
+         switch dataType
+            case {'dPCA','dpca'}
+               path = defaults.dPCA('path');
+            case {'Rat','rat','home','Home'}
+               path = obj.Folder;
+            case {'analysis','analyses','Analysis','Analyses','output','Output'}   
+               path = fullfile(obj.Folder,sprintf('%s_analyses',obj.Name));
+            otherwise
+               path = [];
+               fprintf(1,'%s is an unknown value for ''dataType'' input.\n',dataType);
+         end
+      end
+      
       % Return phase information for jPCA
       function phaseData = getPhase(obj,align,outcome,area)
          if nargin < 4
@@ -512,6 +599,32 @@ classdef rat < handle
             [Projection,Summary] = jPCA_suppress(obj.Children,suppressed_area,active_area,align,outcome,doReProject);
          else
             jPCA_suppress(obj.Children,suppressed_area,active_area,align,outcome,doReProject);
+         end
+      end
+      
+      % Load "by-day" dPCA-formatted rates
+      function [X,t] = load_dPCA(obj)
+         if numel(obj) > 1
+            X = cell(numel(obj),1);
+            for ii = 1:numel(obj)
+               [X{ii},t] = load_dPCA(obj(ii)); % t is always the same
+            end
+            return;
+         end
+         p = obj.getPathTo('dPCA');
+         f = defaults.dPCA('fname');
+         X = [];
+         fname = fullfile(p,sprintf(f,obj.Name));
+         if exist(fname,'file')==0
+            fprintf(1,'Missing dPCA file: %s\n',fname);
+            return;
+         end
+         in = load(fname,'X','t');
+         if isfield(in,'X')
+            X = in.X;
+            t = in.t;
+         else
+            fprintf(1,'%s dPCA missing variable: ''X'' (contains spike rates).\n',obj.Name);
          end
       end
       
@@ -761,12 +874,9 @@ classdef rat < handle
          for ii = 1:numel(obj.Children)
           
             % Superimpose FILTERED rate traces on the channel axes
-            x = getAvgNormRate(obj.Children(ii),align,outcome);
-            % Here, add option to filter using parameters from RAT
-            if ~isnan(cutoff_freq)
-               y = filtfilt(b,a,x); 
-            else
-               y = x; % default
+            [x,~,t] = getAvgNormRate(obj.Children(ii),align,outcome);
+            if isempty(t)
+               continue;
             end
             
             for iCh = 1:nAxes  
@@ -775,8 +885,8 @@ classdef rat < handle
                   continue;
                end
                plot(ax(iCh),...
-                  obj.Children(ii).T*1e3,... % convert to ms
-                  y(ch,:),...                % plot filtered trace
+                  t,...                      
+                  x(ch,:),...                % plot filtered trace
                   'Color',cm(idx(ii),:),...  % color by day
                   'LineWidth',2.25-(ii/numel(obj.Children)),...
                   'UserData',[iCh,ii]);
@@ -830,6 +940,88 @@ classdef rat < handle
          end
       end
       
+      % Run dPCA analysis for Rat object or object array
+      function out = run_dPCA(obj)
+         % NOTE: code below is adapted from dPCA repository code
+         %       dpca_demo.m, which was graciously provided by the
+         %       machenslab github at github.com/machenslab/dPCA
+         
+         if numel(obj) > 1
+            out = cell(numel(obj),1);
+            for ii = 1:numel(obj)
+               out{ii} = run_dPCA(obj(ii));
+            end
+            return;
+         end
+         addpath(defaults.dPCA('local_repo_loc'));
+         [firingRates,time] = load_dPCA(obj);
+         firingRatesAverage = nanmean(firingRates,5);
+         
+         combinedParams = defaults.dPCA('combinedParams');
+         margNames = defaults.dPCA('margNames');
+         margColours = defaults.dPCA('margColours');
+         timeEvents = 0;
+         
+         %% Step 1: PCA of the dataset
+         X = firingRatesAverage(:,:);
+         X = bsxfun(@minus, X, mean(X,2));
+
+         [W,~,~] = svd(X, 'econ');
+         W = W(:,1:20);
+
+         % computing explained variance
+         explVar = dpca_explainedVariance(firingRatesAverage, W, W, ...
+             'combinedParams', combinedParams);
+
+         % a bit more informative plotting
+         dpca_plot(firingRatesAverage, W, W, @dpca_plot_default, ...
+             'explainedVar', explVar, ...
+             'time', time,                        ...
+             'timeEvents', timeEvents,               ...
+             'marginalizationNames', margNames, ...
+             'marginalizationColours', margColours,...
+             'figName',sprintf('%s: PCA',obj.Name),...
+             'figPos',[0.1+0.01*randn(1) 0.1+0.01*randn(1) 0.4 0.8]);
+          
+         %% Step 2: PCA in each marginalization separately
+         dpca_perMarginalization(firingRatesAverage, @dpca_plot_default, ...
+            'combinedParams', combinedParams);
+         
+         %% Step 3: dPCA without regularization and ignoring noise covariance
+
+         % This is the core function.
+         % W is the decoder, V is the encoder (ordered by explained variance),
+         % whichMarg is an array that tells you which component comes from which
+         % marginalization
+
+         [W,V,whichMarg] = dpca(firingRatesAverage, 20, ...
+             'combinedParams', combinedParams);
+
+         explVar = dpca_explainedVariance(firingRatesAverage, W, V, ...
+             'combinedParams', combinedParams);
+
+         dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
+             'explainedVar', explVar, ...
+             'marginalizationNames', margNames, ...
+             'marginalizationColours', margColours, ...
+             'whichMarg', whichMarg,                 ...
+             'time', time,                        ...
+             'timeEvents', timeEvents,               ...
+             'timeMarginalization', 3, ...
+             'legendSubplot', 16,...
+             'figName',sprintf('%s: dPCA',obj.Name),...
+             'figPos',[0.5+0.01*randn(1) 0.1+0.01*randn(1) 0.4 0.8]);
+          
+          out = struct;
+          out.W = W;
+          out.V = V;
+          out.whichMarg = whichMarg;
+          out.explVar = explVar;
+          
+          fprintf(1,'dPCA completed: %s\n',obj.Name);
+         
+      end
+      
       % Run function on children Block objects
       function runFun(obj,f)
          if isa(f,'function_handle')
@@ -844,6 +1036,19 @@ classdef rat < handle
                   f,obj.Children(ii).Name);
             end
          end
+      end
+      
+      % Set "AllDaysScore" for child Block ojects
+      function setAllDaysScore(obj,score)
+         if numel(obj) > 1
+            error('This method is only for scalar Rat objects.');
+         end
+         
+         if numel(score) ~= numel(obj.Children)
+            error('Must have an element of score for each child block object.');
+         end
+         
+         setAllDaysScore(obj.Children,score);
       end
       
       % Set Parent group
@@ -1013,6 +1218,33 @@ classdef rat < handle
             numel(obj.Children));
          % Project data for children BLOCK objects
          jPCA_unified_project(obj.Children,align,area,Summary);
+      end
+      
+      % Update Folder property of this and children objects
+      function updateFolder(obj,newFolder)
+         if nargin < 2
+            fprintf(1,'Must specify second argument (newFolder; updateFolder method).\n');
+            return;
+         end
+         
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               updateFolder(obj(ii),newFolder);
+            end
+            return;
+         end
+         
+         putative_objloc = fullfile(newFolder,obj.Name); 
+         if exist(putative_objloc,'dir')==0
+            warning('%s does not exist. %s Folder property not updated.',...
+               putative_objloc,obj.Name);
+            return;
+         else
+            obj.Folder = newFolder;
+         end
+         
+         % Update all Child blocks as well
+         updateFolder(obj.Children,putative_objloc);
       end
    end
    

@@ -1,4 +1,4 @@
-classdef group
+classdef group < handle
    %GROUP organizes all data for an experimental group in RC project
    
    properties (GetAccess = public, SetAccess = private)
@@ -9,6 +9,12 @@ classdef group
    
    properties (GetAccess = public, SetAccess = private, Hidden = true)
       HasData = false;  % Do any of the rats have data associated?
+      
+      % Flags for concatenated stats tables
+      HasTrialStats = false;
+      HasChannelStats = false;
+      HasRatStats = false;
+      HasSessionStats = false;
    end
    
    properties (Access = public, Hidden = true)
@@ -54,6 +60,125 @@ classdef group
          end
          
          assignDivergenceData(obj.Children,T);
+      end
+      
+      % Export statistics (as a spreadsheet) for individual channels.  Each
+      % row of output spreadsheet (name in defaults.group) corresponds to
+      % statistics for a single recording channel, for a single recording
+      % session. Only exports spreadsheet if no output argument is 
+      % specified.
+      function T = exportChannelStats(obj)
+         if numel(obj) > 1
+            T = [];
+            for ii = 1:numel(obj)
+               obj(ii).Data.ChannelStats = exportChannelStats(obj(ii));
+               obj(ii).HasChannelStats = true;
+               T = [T; obj(ii).Data.ChannelStats];
+            end
+            if nargout < 1
+               fname = defaults.group('channel_export_spreadsheet');
+               writetable(T,fname);
+            end
+            return;
+         end
+      end
+      
+      % Export down-sampled rate data for dPCA. If no output argument is
+      % specified, then files are saved in the default location from
+      % defaults.dPCA.
+      function [X,t] = export_dPCA(obj)
+         % Parse array input
+         if numel(obj) > 1
+            if nargout < 1
+               for ii = 1:numel(obj)
+                  export_dPCA(obj(ii));
+               end
+            else
+               X = cell(numel(obj),1);
+               for ii = 1:numel(obj)
+                  [X{ii},t] = export_dPCA(obj(ii)); % t always the same
+               end
+            end
+            return;
+         end
+         
+         if nargout < 1
+            export_dPCA(obj.Children);
+         else
+            [X,t] = export_dPCA(obj.Children);
+         end
+      end
+      
+%       % Export statistics (as a spreadsheet) for individual rats. Each
+%       % row of output spreadsheet (name in defaults.group) corresponds to
+%       % statistics for a single rat. Only exports spreadsheet if no output 
+%       % argument is specified.
+%       function T = exportRatStats(obj)
+%          if numel(obj) > 1
+%             T = [];
+%             for ii = 1:numel(obj)
+%                obj(ii).Data.RatStats = exportRatStats(obj(ii));
+%                obj(ii).HasRatStats = true;
+%                T = [T; obj(ii).Data.RatStats];
+%             end
+%             if nargout < 1
+%                fname = defaults.group('rat_export_spreadsheet');
+%                writetable(T,fname);
+%             end
+%             return;
+%          end
+%       end
+            
+%       % Export statistics (as a spreadsheet) for individual sessions. Each
+%       % row of output spreadsheet (name in defaults.group) corresponds to
+%       % statistics for a single recording session. Only exports spreadsheet
+%       % if no output argument is specified.
+%       function T = exportSessionStats(obj)
+%          if numel(obj) > 1
+%             T = [];
+%             for ii = 1:numel(obj)
+%                obj(ii).Data.SessionStats = exportSessionStats(obj(ii));
+%                obj(ii).HasSessionStats = true;
+%                T = [T; obj(ii).Data.SessionStats];
+%             end
+%             if nargout < 1
+%                fname = defaults.group('session_export_spreadsheet');
+%                writetable(T,fname);
+%             end
+%             return;
+%          end
+%       end
+      
+      % Export statistics (as a spreadsheet) for individual trials. Each
+      % row of output spreadsheet (name in defaults.group) corresponds to
+      % statistics for a single reaching trial. Only exports spreadsheet
+      % if no output argument is specified.
+      function T = exportTrialStats(obj)
+         if numel(obj) > 1
+            T = [];
+            for ii = 1:numel(obj)
+               T = [T; exportTrialStats(obj(ii))];
+               obj(ii).HasTrialStats = true;
+            end
+            if nargout < 1
+               fname = defaults.group('trial_export_spreadsheet');
+               writetable(T,fname);
+            end
+            return;
+         end
+         
+         T = exportTrialStats(obj.Children);
+         
+         % Extend variable descriptors to an additional metadata field
+         ud = T.Properties.UserData;
+         vd = T.Properties.VariableDescriptions;
+         Group = repmat(categorical({obj.Name}),size(T,1),1);
+         
+         T = [table(Group), T];
+         T.Properties.Description = 'Concatenated Trial Metadata';
+         T.Properties.UserData = [nan(1,1), ud];
+         T.Properties.VariableDescriptions = ['experimental group', vd];
+         obj.Data.TrialStats = T;
       end
       
       % Export "unified" jPCA trial projections from all days
@@ -354,72 +479,6 @@ classdef group
          loadChannelMask(obj.Children);
       end
       
-      % Run function on children Rat objects
-      function runFun(obj,f)
-         % Parse function handle input
-         if isa(f,'function_handle')
-            f = char(f); 
-         end
-         
-         % Handle array input
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               runFun(obj(ii),f);
-            end
-            return;
-         end
-         
-         for ii = 1:numel(obj.Children)
-            if ismethod(obj.Children(ii),f)
-               obj.Children(ii).(f);
-            else
-               obj.Children(ii).runFun(f);
-            end
-         end
-      end
-      
-      % Break into subgroups
-      function subGroupArray = splitSubGroups(obj,groupNameArray,groupIndices)
-         if nargin < 2
-            groupNameArray = inputdlg(repmat({'Group Names:'},4,1),...
-               'Set Group Name(s)',1,...
-               {'Ischemia';'Intact';'';''});
-            groupNameArray = groupNameArray(~cellfun(@isempty,groupNameArray));
-            if isempty(groupNameArray)
-               subGroupArray = [];
-               return;
-            end
-         end
-         if nargin < 3
-            groupIndices = cell(size(groupNameArray));
-            str = getRatNames(obj);
-            indices = 1:numel(str);
-            for ii = 1:numel(groupIndices)
-               [idx,clickedOK] = listdlg('PromptString',...
-                   sprintf('Select group %g (%s)',ii,groupNameArray{ii}),...
-                   'SelectionMode','multiple',...
-                   'ListString',str);
-               if clickedOK==0
-                  disp('Subgroup creation canceled.');
-                  subGroupArray = [];
-                  return;
-               end
-               str(idx) = [];
-               groupIndices{ii} = indices(idx);
-               indices(idx) = [];
-            end
-         end
-         
-         subGroupArray = [];
-         for ii = 1:numel(groupIndices)
-            subGroupArray = [subGroupArray; group(groupNameArray{ii},...
-               obj.Children(groupIndices{ii}))];
-            subGroupArray(ii).p = obj.p;
-            subGroupArray(ii).pct = obj.pct;
-         end
-         
-      end
-      
       % Concatenate all rate and do decomposition on it
       function [x,coeff,score,latent,channelInfo,pc_idx] = pca(obj,doPlots)
          if nargin < 2
@@ -593,8 +652,91 @@ classdef group
             return;
          end
       end
+      
+      % Plot behavioral performance by day
+      function fig = plotBehavior(obj,scoreType,fig)
+         if nargin < 2
+            scoreType = defaults.group('output_score');
+         end
          
+         if nargin < 3
+            fig = figure('Name','Daily Behavioral Performance',...
+               'Units','Normalized',...
+               'Color','w',...
+               'Position',[0.25+0.05*randn(1) 0.25+0.05*randn(1) 0.55 0.45]);
+         end
          
+         if ~ismember(scoreType,{'TrueScore','NeurophysScore','BehaviorScore'})
+            error('scoreType must be: ''TrueScore'', ''NeurophysScore'', or ''BehaviorScore''');
+         end         
+         
+         legText = [];
+         rat_marker = defaults.group('rat_marker');
+         rat_color = defaults.group('rat_color');
+         for iG = 1:numel(obj)
+            poDay = cell(numel(obj(iG).Children),1);
+            score = cell(numel(obj(iG).Children),1);
+            smoothedData = cell(numel(obj(iG).Children),1);
+            allDays = cell(numel(obj(iG).Children),1);
+            for ii = 1:numel(obj(iG).Children)
+               poDay{ii} = obj(iG).Children(ii).getProp('PostOpDay');
+               score{ii} = obj(iG).Children(ii).getProp(scoreType);
+
+               [smoothedData{ii},allDays{ii}] = smoothFitDays(score{ii},poDay{ii});
+               subplot(3,6,ii+(6 * iG));
+               stem(poDay{ii},score{ii}*100,...
+                  'Color','k','LineWidth',1.5,'Marker',rat_marker{ii});
+               hold on;
+               plot(allDays{ii},smoothedData{ii}*100,...
+                  'Color',rat_color.(obj(iG).Name)(ii,:),'LineWidth',2);
+               set(gca,'XColor','k');
+               set(gca,'YColor','k');
+               set(gca,'FontName','Arial');
+               set(gca,'LineWidth',1);
+               xlabel('Post-Op Day','FontName','Arial','Color','k','FontSize',12);
+               ylabel('% Successful','FontName','Arial','Color','k','FontSize',12);
+               title(obj(iG).Children(ii).Name,'FontName','Arial','Color','k','FontSize',14);
+               ylim([0 100]);
+               xlim([0 30]);
+               
+               % Associate the smoothed "AllDaysScore" with each block
+               tmp_score = smoothedData{ii}(ismember(allDays{ii},poDay{ii}));
+               obj(iG).Children(ii).setAllDaysScore(tmp_score);
+            end
+
+            plotDayVec = 4:28;
+            groupScore = nan(size(plotDayVec));
+            groupStd = nan(size(plotDayVec));
+            for ik = 1:numel(plotDayVec)
+               tmp = [];
+               for ii = 1:numel(obj(iG).Children)
+                  if ismember(plotDayVec(ik),allDays{ii})
+                     tmp = [tmp; smoothedData{ii}(allDays{ii}==plotDayVec(ik))];
+                  end
+               end
+               if ~isempty(tmp)
+                  groupScore(ik) = mean(tmp);
+                  groupStd(ik) = std(tmp);
+               end
+            end
+            
+            subplot(3,6,1:6);
+            hold on;
+            errorbar(plotDayVec,groupScore*100,groupStd*100,...
+               'Color',mean(rat_color.(obj(iG).Name),1),'LineWidth',3);
+            set(gca,'XColor','k');
+            set(gca,'YColor','k');
+            set(gca,'FontName','Arial');
+            set(gca,'LineWidth',1);
+            xlabel('Post-Op Day','FontName','Arial','Color','k','FontSize',12);
+            ylabel('% Successful','FontName','Arial','Color','k','FontSize',12);
+            title('Group Mean Score','FontName','Arial','Color','k','FontSize',14);
+            ylim([0 100]);
+            legText = [legText; {obj(iG).Name}];
+            legend(legText,'Location','NorthWest');
+         end
+      end
+      
       % Make scatter plots accounting for channel type etc
       function fig = plotScatter(obj,pc_indices)
          % Parse input
@@ -701,6 +843,86 @@ classdef group
          end
       end
       
+      % Run function on children Rat objects
+      function runFun(obj,f)
+         % Parse function handle input
+         if isa(f,'function_handle')
+            f = char(f); 
+         end
+         
+         % Handle array input
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               runFun(obj(ii),f);
+            end
+            return;
+         end
+         
+         for ii = 1:numel(obj.Children)
+            if ismethod(obj.Children(ii),f)
+               obj.Children(ii).(f);
+            else
+               obj.Children(ii).runFun(f);
+            end
+         end
+      end
+      
+      % Run dPCA analysis for all children Rat objects
+      function out = run_dPCA(obj)
+         if numel(obj) > 1
+            out = struct;
+            maintic = tic;
+            for ii = 1:numel(obj)
+               out.(obj(ii).Name) = obj(ii).run_dPCA;
+            end
+            toc(maintic);
+            return;
+         end
+         out = run_dPCA(obj.Children);
+      end
+      
+      % Break into subgroups
+      function subGroupArray = splitSubGroups(obj,groupNameArray,groupIndices)
+         if nargin < 2
+            groupNameArray = inputdlg(repmat({'Group Names:'},4,1),...
+               'Set Group Name(s)',1,...
+               {'Ischemia';'Intact';'';''});
+            groupNameArray = groupNameArray(~cellfun(@isempty,groupNameArray));
+            if isempty(groupNameArray)
+               subGroupArray = [];
+               return;
+            end
+         end
+         if nargin < 3
+            groupIndices = cell(size(groupNameArray));
+            str = getRatNames(obj);
+            indices = 1:numel(str);
+            for ii = 1:numel(groupIndices)
+               [idx,clickedOK] = listdlg('PromptString',...
+                   sprintf('Select group %g (%s)',ii,groupNameArray{ii}),...
+                   'SelectionMode','multiple',...
+                   'ListString',str);
+               if clickedOK==0
+                  disp('Subgroup creation canceled.');
+                  subGroupArray = [];
+                  return;
+               end
+               str(idx) = [];
+               groupIndices{ii} = indices(idx);
+               indices(idx) = [];
+            end
+         end
+         
+         subGroupArray = [];
+         for ii = 1:numel(groupIndices)
+            subGroupArray = [subGroupArray; group(groupNameArray{ii},...
+               obj.Children(groupIndices{ii}))];
+            subGroupArray(ii).p = obj.p;
+            subGroupArray(ii).pct = obj.pct;
+         end
+         
+      end
+      
       % Recover jPCA weights for channels using trials from all days
       function unifyjPCA(obj,align,area)
          % Parse alignment
@@ -721,6 +943,24 @@ classdef group
             return;
          end
          unifyjPCA(obj.Children,align,area);
+      end
+      
+      % Update Folder property of this and children objects
+      function updateFolder(obj,newFolder)
+         if nargin < 2
+            fprintf(1,'Must specify second argument (newFolder; updateFolder method).\n');
+            return;
+         end
+         
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               updateFolder(obj(ii),newFolder);
+            end
+            return;
+         end
+         
+         % Update all ratObj Children
+         updateFolder(obj.Children,newFolder);
       end
       
       % Update all child rate data

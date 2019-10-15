@@ -19,7 +19,7 @@ p = struct; % All field names should be lower-case
 p.decimation_factor = 10;  % Amount to decimate time-series for PCA
 p.min_pca_var = 90;        % Minimum % of variance for PCs to explain
 % p.output_score = 'NeurophysScore'; % options are 'BehaviorScore' or 'NeurophysScore'
-p.output_score = 'BehaviorScore';
+p.output_score = 'TrueScore';
 p.rat_marker = {'o','*','square','x','v','hexagram'};
 p.rat_color = struct(...
    'All',[...
@@ -53,6 +53,12 @@ p.area_color = defaults.block('area_color');
 
 % p.w_avg_dp_thresh = 0.90; % threshold for weighted-average trials
 p.w_avg_dp_thresh = 0;
+
+% Export filenames
+p.session_export_spreadsheet = 'Stats-By-Session.xlsx';
+p.channel_export_spreadsheet = 'Stats-By-Channel.xlsx';
+p.rat_export_spreadsheet = 'Stats-By-Rat.xlsx';
+p.trial_export_spreadsheet = 'Stats-By-Trial.xlsx';
 
 %% PARSE OUTPUT
 if ismember(lower(name),fieldnames(p))

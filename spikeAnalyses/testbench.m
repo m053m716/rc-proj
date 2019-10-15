@@ -21,8 +21,9 @@ ratArray = [];
 for ii = 1:numel(RAT) % ~ 2 minutes (have to manually score though)
 % for ii = 9:numel(RAT) % debug for RC-30 issue with data_screening_UI
    ratArray = [ratArray; rat(fullfile(...
-      'P:\Extracted_Data_To_Move\Rat\TDTRat',RAT{ii}))]; %#ok<*AGROW>
+      'P:\Rat\BilateralReach\RC',RAT{ii}))]; %#ok<*AGROW>
 end
+toc(maintic);
 
 %% SPLIT AND SAVE DATA AND CONDITIONAL SUB-GROUPS
 gData = [group('Ischemia',ratArray([1:4,8:9]));
@@ -30,7 +31,13 @@ gData = [group('Ischemia',ratArray([1:4,8:9]));
 s  = defaults.jPCA('jpca_start_stop_times');
 align = defaults.jPCA('jpca_align');
 objName = sprintf('ObjectData_%gms_to_%gms_%s.mat',s(1),s(2),align);
+save(objName,'gData','-v7.3');
 
+%% EXPORT AGGREGATE SUCCESSFUL RATE STATISTICS
+stats = getChannelwiseRateStats(gData,'Grasp','Successful');
+writetable(stats,'RateStats.xls');
+
+%% DO jPCA STUFF
 if ~defaults.block('run_jpca_on_construction')
    jPCA_tic = tic;
    jPCA(gData,align);

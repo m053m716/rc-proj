@@ -19,9 +19,11 @@ if iscell(ratName)
       fig = [];
       if nargout > 0
          fig = [fig; plotCrossDayChannelActivations(stats,propName,ratName{ii})]; %#ok<*AGROW>
+      else
+         plotCrossDayChannelActivations(stats,propName,ratName{ii});
       end
-      return;
    end
+   return;
 end
 
 %%

@@ -8,13 +8,15 @@ classdef block < handle
       Date           % Date of recording (char)
       BehaviorScore  % Behavior Performance (AP Scoring)
       NeurophysScore % Behavior Performance (By Neurophys Trial Category)
+      TrueScore = nan% Behavior Performance (By Neurophys Advanced Scoring)
       ChannelInfo    % Information for each recording channel
       Data           % Data struct
       T              % Time (sec)
    end
    
    properties (Access = private)
-      Folder          % Full TANK folder
+      Folder          % Full ANIMAL folder
+      AllDaysScore
    end
    
    properties (Access = public, Hidden = true)
@@ -85,6 +87,7 @@ classdef block < handle
             end
             obj.doSpikeBinning(behaviorData);            
             obj.doBinSmoothing;
+            obj.doRateDownsample;
             fprintf(1,'Rate extraction for %s complete.\n\n',obj.Name);
 
          end
@@ -110,6 +113,26 @@ classdef block < handle
          
       end
 
+      % To handle case where obj.behaviorData is referenced accidentally 
+      % instead of using loadbehaviorData method.
+      function [b,flag] = behaviorData(obj)
+         flag = true(size(obj));
+         if numel(obj) > 1
+            
+            b = [];
+            for ii = 1:numel(obj)
+               [tmp,flag(ii)] = behaviorData(obj(ii));
+               b = [b; tmp];
+            end
+         end
+         
+         b = loadBehaviorData(obj);
+         if isempty(b)
+            flag = false;
+         end
+         
+      end
+      
       % Remove "Outlier" status
       function clearOutlier(obj)
          if obj.IsOutlier
@@ -237,6 +260,59 @@ classdef block < handle
          
       end
       
+      % Downsample the smoothed/normalized spike rates (and save)
+      function doRateDownsample(obj)
+         n_ds_bin_edges = defaults.block('n_ds_bin_edges');
+         r_ds = defaults.block('r_ds');
+         
+         w = defaults.block('spike_smoother_w');
+         fStr_in = '%s_SpikeRate%03gms_%s_%s.mat';
+         fStr_out = '%s_NormSpikeRate%03gms_%s_%s_ds.mat';
+         o = defaults.block('all_outcomes');
+         e = defaults.block('all_events');
+         for iO = 1:numel(o)
+            for iE = 1:numel(e)
+               % Skip if there is no file to decimate
+               str = sprintf(fStr_in,obj.Name,w,e{iE},o{iO});
+               fName_In = fullfile(obj.getPathTo('rate'),str);
+               if exist(fName_In,'file')==0
+                  continue;
+               end
+               
+               % Skip if it's already been extracted
+               str = sprintf(fStr_out,obj.Name,w,e{iE},o{iO});
+               fName_Out = fullfile(obj.getPathTo('rate'),str);
+               if exist(fName_Out,'file')~=0
+                  continue;
+               else
+                  fprintf(1,'Extracting %s...\n',fName_Out);
+               end
+               in = load(fName_In,'data','t');
+               if isfield(in,'t')
+                  if ~isempty(in.t)
+                     out.t = linspace(in.t(1),in.t(end),n_ds_bin_edges);
+                  else
+                     out.t = linspace(obj.T(1),obj.T(end),n_ds_bin_edges);
+                  end
+               else
+                  out.t = linspace(obj.T(1),obj.T(end),n_ds_bin_edges);
+               end
+               
+               data = obj.doSmoothNorm(in.data);
+               out.data = zeros(size(data,1),n_ds_bin_edges,size(data,3));
+               for ii = 1:size(data,1)
+                  for ik = 1:size(data,3)
+                     out.data(ii,:,ik) = decimate(data(ii,:,ik),r_ds);
+                  end
+               end
+               save(fName_Out,'-struct','out');
+                                                            
+            end
+         end
+         
+                  
+      end
+      
       % Export jPCA movie for RFA-only and CFA-only rotations
       function export_jPCA_RFA_CFA_movie(obj,align,outcome)
          if nargin < 3
@@ -314,6 +390,100 @@ classdef block < handle
          jPCA.export_jPCA_movie(rMV,rmoviename);
          clear rMV
          toc;
+      end
+      
+      % Returns table of stats for all child Block objects where each row
+      % is a reach trial. Essentially is behaviorData of each child object,
+      % with appended metadata for each child object.
+      function T = exportTrialStats(obj)
+         if numel(obj) > 1
+            T = [];
+            for ii = 1:numel(obj)
+               T = [T; exportTrialStats(obj(ii))];
+            end
+            return;
+         end
+         
+         
+         
+         T = [];
+         behaviorData = obj.loadBehaviorData;
+         
+         if isempty(behaviorData)
+            return;
+         end
+         
+         N = size(behaviorData,1);
+         Name = repmat(categorical({obj.Name}),N,1);
+         PostOpDay = repmat(obj.PostOpDay,N,1);
+         Date = repmat(datetime(obj.Date),N,1);
+         
+         T = [table(Name,PostOpDay,Date),behaviorData];
+         T.Properties.Description = 'Concatenated Trial Metadata';
+         T.Properties.UserData = [nan(1,3), behaviorData.Properties.UserData];
+         T.Properties.VariableDescriptions = defaults.block(...
+            'trial_stats_var_descriptions');
+      end
+      
+      % Format down-sampled rate data for dPCA
+      function [X,t] = format_dPCA(obj)
+         % Parse array input
+         if numel(obj) > 1
+            X = cell(numel(obj),1);
+            for ii = 1:numel(obj)
+               [X{ii},t] = format_dPCA(obj(ii)); % t is always the same
+            end
+            return;
+         end
+         
+         p = defaults.dPCA;
+         addpath(p.local_repo_loc);
+         
+         X = [];
+         t = [];
+         
+         [g,flag_exists,flag_isempty] = obj.getRate('Grasp','All');
+         if (~flag_exists) || (flag_isempty)
+            fprintf(1,'No grasp rate data in %s.\n',obj.Name);
+            return;
+         end
+         
+         % Get reduced number of timesteps
+         t = obj.Data.Grasp.All.t;
+         t_idx = (t >= p.t_start) & (t <= p.t_stop);
+         t = t(t_idx);
+         
+         g = g(:,t_idx,:);
+         % Three outcomes: 
+         % iPP_succ (pellet present, successful);
+         % iPP_unsucc (pellet present, unsuccessful); 
+         % iPA_unsucc (pellet absent, unsuccessful)
+         iPP_succ = find(obj.Data.Outcome);
+         nTrial = numel(iPP_succ);
+         iPP_unsucc = find(~obj.Data.Outcome & obj.Data.Pellet.present);
+         nTrial = [nTrial, numel(iPP_unsucc)];
+         iPA_unsucc = find(~obj.Data.Pellet.present);
+         nTrial = [nTrial, numel(iPA_unsucc)];
+         trialIndex = {iPP_succ,iPP_unsucc,iPA_unsucc};
+         nTrialMax = max(nTrial);
+         
+         if any(nTrial < 1)
+            X = []; 
+            return;
+         end
+         
+         % # neurons x 1 (day) x 3 (outcomes) x # timesteps (sum(t_idx)) x
+         % # trials
+         X = nan(size(g,3),1,3,size(g,2),nTrialMax);
+         for iNeu = 1:size(g,3)
+            for iOutcome = 1:numel(nTrial)
+               for iTrial = 1:nTrial(iOutcome)
+                  idx = trialIndex{iOutcome}(iTrial);
+                  X(iNeu,1,iOutcome,:,iTrial) = g(idx,:,iNeu);
+               end               
+            end
+         end
+            
       end
       
       % Return spike rate data and associated metadata
@@ -397,7 +567,7 @@ classdef block < handle
       end
       
       % Return (normalized) spike rate data and associated metadata
-      function [avgRate,channelInfo] = getAvgNormRate(obj,align,outcome,ch)
+      function [avgRate,channelInfo,t] = getAvgNormRate(obj,align,outcome,ch)
          if nargin < 4
             ch = nan;
          end
@@ -412,7 +582,7 @@ classdef block < handle
             avgRate = [];
             channelInfo = [];
             for ii = 1:numel(obj)
-               [tmpRate,tmpCI] = getAverageSpikeRate(obj(ii),align,outcome,ch);
+               [tmpRate,tmpCI,t] = getAverageSpikeRate(obj(ii),align,outcome,ch);
                avgRate = [avgRate; tmpRate]; %#ok<*AGROW>
                channelInfo = [channelInfo; tmpCI];
             end
@@ -426,40 +596,56 @@ classdef block < handle
          obj = obj([obj.HasData]);
          avgRate = [];
          channelInfo = [];
+         t = [];
+         
+         if isfield(obj.Data,align)
+            if isfield(obj.Data.(align),outcome)
+               if isfield(obj.Data.(align).(outcome),'t')
+                  t = obj.Data.(align).(outcome).t;
+               else
+                  fprintf('No %s trials for %s alignment for block %s.\n',...
+                     outcome,align,obj.Name);
+                  return;
+               end
+            else
+               fprintf('No %s rate extracted for %s alignment for block %s. Extracting...\n',...
+                  outcome,align,obj.Name);
+               obj.updateSpikeRateData(align,outcome);
+               if ~isfield(obj.Data.(align),outcome)
+                  fprintf('Invalid field for %s: %s\n',obj.Name,outcome);
+                  return;
+               end
+            end
+         else
+            obj.updateSpikeRateData(align,outcome);
+            if ~isfield(obj.Data,align)
+               fprintf('Invalid field for %s: %s\n',obj.Name,align);
+               return;
+            elseif ~isfield(obj.Data.(align),outcome)
+               fprintf('Invalid field for %s: %s\n',obj.Name,outcome);
+               return;
+            else
+               t = obj.Data.(align).(outcome).t;
+            end
+         end
+         
+         if ~isempty(t)
+            if max(abs(t) < 10)
+               t = t.*1e3; % Scale if it is not already scaled to ms
+            end
+         end
          
 
-         avgRate = nan(numel(ch),numel(obj.T));
+         avgRate = nan(numel(ch),numel(t));
          channelInfo = [];
          idx = 0;
+         fs = defaults.block('fs') / defaults.block('r_ds');
          for iCh = ch
             idx = idx + 1;
             channelInfo = [channelInfo; obj.ChannelInfo(iCh)];
             if obj.ChannelMask(iCh)
-               if isfield(obj.Data,align)
-                  if isfield(obj.Data.(align),outcome)
-                     x = obj.Data.(align).(outcome).rate(:,:,iCh);
-                  else
-                     fprintf('No %s rate extracted for %s alignment for block %s. Extracting...\n',...
-                        outcome,align,obj.Name);
-                     obj.updateSpikeRateData(align,outcome);
-                     if ~isfield(obj.Data.(align),outcome)
-                        continue;
-                     end
-                     x = obj.Data.(align).(outcome).rate(:,:,iCh);
-                  end
-               else
-                  fprintf('No %s rate extracted for block %s. Extracting...\n',...
-                        align,obj.Name);
-                  obj.updateSpikeRateData(align,outcome);
-                  if ~isfield(obj.Data,align)
-                     continue;
-                  elseif ~isfield(obj.Data.(align),outcome)
-                     continue;
-                  end
-                  x = obj.Data.(align).(outcome).rate(:,:,iCh);
-               end
-
-               avgRate(idx,:) = obj.doSmoothNorm(x);
+               x = obj.Data.(align).(outcome).rate(:,:,iCh);
+               avgRate(idx,:) = obj.doSmoothOnly(x,fs);
             end
          end
 
@@ -532,6 +718,7 @@ classdef block < handle
             fprintf(1,'%s: missing rate for %s.\n',obj.Name,field_expr);
             return;
          end
+         t = obj.Data.(align).(outcome).t;
          
          % Do some rearranging of data
          file = {obj.ChannelInfo.file}.';
@@ -542,22 +729,24 @@ classdef block < handle
          area = {obj.ChannelInfo.area}.';
          
          mu = squeeze(mean(x,1)); % result: nTimestep x nChannel array
-         [mu,t] = obj.applyLPF2Rate(mu,obj.T*1e3,false);
-         start_stop = defaults.jPCA('jpca_start_stop_times');
-         idx = (t >= start_stop(1)) & (t <= start_stop(2));
-         mu = mu(idx,:);
-         t = t(idx);
+%          [mu,t] = obj.applyLPF2Rate(mu,obj.T*1e3,false);
+%          start_stop = defaults.jPCA('jpca_start_stop_times');
+%          idx = (t >= start_stop(1)) & (t <= start_stop(2));
+%          mu = mu(idx,:);
+%          t = t(idx);
          
          [maxRate,tMaxRate] = max(mu,[],1);
          [minRate,tMinRate] = min(mu,[],1);
          
          % Get correct orientation/format         
-         maxRate = num2cell((sqrt(abs(max(maxRate,eps)./mode(diff(obj.T))))).');
+%          maxRate = num2cell((sqrt(abs(max(maxRate,eps)./mode(diff(obj.T))))).');
+         maxRate = num2cell(maxRate.');
          tMaxRate = num2cell(t(tMaxRate).');
-         minRate = num2cell(sqrt(abs((max(minRate,eps)./mode(diff(obj.T))))).');
+%          minRate = num2cell(sqrt(abs((max(minRate,eps)./mode(diff(obj.T))))).');
+         minRate = num2cell(minRate.');
          tMinRate = num2cell(t(tMinRate).');
-         muRate = num2cell(mean(abs(sqrt(max(mu,eps)./mode(diff(obj.T)))),1).');
-         medRate = num2cell(median(abs(sqrt(max(mu,eps)./mode(diff(obj.T)))),1).');
+%          muRate = num2cell(mean(abs(sqrt(max(mu,eps)./mode(diff(obj.T)))),1).');
+%          medRate = num2cell(median(abs(sqrt(max(mu,eps)./mode(diff(obj.T)))),1).');
          
          % For 20ms kernel:
 %          c = 0.3;
@@ -566,8 +755,8 @@ classdef block < handle
          c = 0.109;
          e = 0.000;
          
-         x = sqrt(abs(max(x./mode(diff(obj.T)),eps)));
-         stdRate = num2cell(sqrt(mean(squeeze(var(x(:,idx,:),[],1)),1).'));
+%          x = sqrt(abs(max(x./mode(diff(obj.T)),eps)));
+%          stdRate = num2cell(sqrt(mean(squeeze(var(x(:,idx,:),[],1)),1).'));
          NV = squeeze(c * (e + sum((x - mean(x,1)).^2,1)./(size(x,1)-1))./(c*e + mean(x,1)));
 %          NV = obj.applyLPF2Rate(NV,obj.T,false).';
          NV = NV.';
@@ -576,6 +765,7 @@ classdef block < handle
          
          NV = mat2cell(NV,ones(1,size(NV,1)),size(NV,2));
          dNV = num2cell(dNV);
+         normRate = mat2cell(mu.',ones(1,numel(maxRate)),numel(t));
          
          
          tmp = struct(...
@@ -589,9 +779,7 @@ classdef block < handle
             'tMaxRate',tMaxRate,...
             'minRate',minRate,...
             'tMinRate',tMinRate,...
-            'muRate',muRate,...
-            'medRate',medRate,...
-            'stdRate',stdRate,...
+            'normRate',normRate,...
             'dNV',dNV,...
             'NV',NV);
          
@@ -804,8 +992,7 @@ classdef block < handle
             case 'tank'
                path = defaults.experiment('tank');
             case 'block'
-               path = fullfile(obj.getPathTo('Tank'),...
-                  obj.Name(1:5),obj.Name);
+               path = fullfile(obj.Folder,obj.Name);
             case {'digital','scoring','alignment','align'}
                path = fullfile(obj.getPathTo('block'),...
                   [obj.Name '_Digital']);
@@ -834,6 +1021,48 @@ classdef block < handle
                out = [out; {obj(ii).(propName)}];
             end
          end
+      end
+      
+      % Returns rate for a given field configuration, if it exists
+      function [rate,flag_exists,flag_isempty] = getRate(obj,align,outcome,area)
+         if numel(obj) > 1
+            rate = cell(numel(obj),1);
+            flag_exists = false(numel(obj),1);
+            flag_isempty = false(numel(obj),1);
+            for ii = 1:numel(obj)
+               switch nargin
+                  case 4
+                     [rate{ii},flag_exists(ii),flag_isempty(ii)] = ...
+                        obj(ii).getRate(align,outcome,area);
+                  case 3
+                     [rate{ii},flag_exists(ii),flag_isempty(ii)] = ...
+                        obj(ii).getRate(align,outcome);
+                  case 2
+                     [rate{ii},flag_exists(ii),flag_isempty(ii)] = ...
+                        obj(ii).getRate(align);
+                  otherwise
+                     error('Invalid number of input arguments (%g).',nargin);
+               end
+            end
+            return;
+         end
+         
+         switch nargin
+            case 4
+               field_expr = sprintf('Data.%s.%s.%s.rate',align,outcome,area);
+            case 3
+               field_expr = sprintf('Data.%s.%s.rate',align,outcome);
+            case 2
+               field_expr = sprintf('Data.%s.rate',align);
+            otherwise
+               error('Invalid number of input arguments (%g).',nargin);
+         end
+         
+         [rate,flag_exists,flag_isempty] = parseStruct(obj.Data,field_expr);
+         if (flag_exists) && (~flag_isempty)
+            rate = rate(:,:,obj.ChannelMask);
+         end
+         
       end
       
       % Return "unified" property (from parent)
@@ -950,18 +1179,20 @@ classdef block < handle
          
          in = load(fname,'behaviorData');
          if isfield(in,'behaviorData')
-%             behaviorData = in.behaviorData(...
-%                ~isnan(in.behaviorData.Outcome) & ...
-%                ~isinf(in.behaviorData.Reach) & ...
-%                ~isnan(in.behaviorData.Reach) & ...
-%                ~isinf(in.behaviorData.Grasp) & ...
-%                ~isnan(in.behaviorData.Grasp),:);
             behaviorData = in.behaviorData(...
                ~isnan(in.behaviorData.Outcome) & ...
                ~isnan(in.behaviorData.Reach) & ...
                ~isnan(in.behaviorData.Grasp),:);
+            iBad = isnan(behaviorData.PelletPresent);
+            if any(iBad)
+               iPresent = iBad & behaviorData.Outcome;
+               iAbsent = iBad & ~behaviorData.Outcome;
+               behaviorData.PelletPresent(iPresent) = 1;
+               behaviorData.PelletPresent(iAbsent) = 0;
+            end
             obj.HasData = true;
          else
+            fprintf(1,'Scoring file found, but no behaviorData table (%s)\n',obj.Name);
             behaviorData = [];
          end
       end
@@ -1981,6 +2212,25 @@ classdef block < handle
          end
       end
       
+      % Set "AllDaysScore" property
+      function setAllDaysScore(obj,score)
+         if nargin < 2
+            error('Not enough input arguments.');
+         end
+         
+         if numel(obj) > 1
+            if numel(obj) ~= numel(score)
+               error('Each element of score must correspond to a block object.');
+            end
+            for ii = 1:numel(obj)
+               setAllDaysScore(obj(ii),score(ii));
+            end
+            return;
+         end
+         
+         obj.AllDaysScore = score;
+      end
+      
       % Set channel masking
       function isGoodChannel = setChannelMask(obj,chIdx,isGoodChannel)
          if isempty(obj.ChannelMask)
@@ -2200,8 +2450,14 @@ classdef block < handle
             obj.NeurophysScore = nSuccess/nTotal;
          end
          
-         behaviorData = obj.loadBehaviorData;
+         behaviorData = obj.loadBehaviorData;         
          if ~isempty(behaviorData)
+            x = behaviorData(~isnan(behaviorData.PelletPresent),:);
+            if nTotal == 0
+               obj.TrueScore = nan;
+            else
+               obj.TrueScore = nSuccess/(nTotal - sum(~x.PelletPresent));
+            end            
             
             b = behaviorData(~isnan(behaviorData.Outcome) & ...
                ~isinf(behaviorData.(align)) & ...
@@ -2256,14 +2512,38 @@ classdef block < handle
          
       end
       
+      % Update the Folder (path)
+      function updateFolder(obj,newFolder)
+         if nargin < 2
+            fprintf(1,'Must specify second argument (newFolder; updateFolder method).\n');
+            return;
+         end
+         
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               updateFolder(obj(ii),newFolder);
+            end
+            return;
+         end
+         
+         putative_objloc = fullfile(newFolder,obj.Name); 
+         if exist(putative_objloc,'dir')==0
+            warning('%s does not exist. %s Folder property not updated.',...
+               putative_objloc,obj.Name);
+            return;
+         else
+            obj.Folder = newFolder;
+         end
+      end
+      
       % Update behavior information with nans or corresponding timestamps
       function updateNaNBehavior(obj,nTotal,b)
          if isempty(nTotal)
-            [obj.Data.Grasp.t,iGrasp,~] = unique(b.Grasp);
-            obj.Data.Reach.t = b.Reach(iGrasp);
-            obj.Data.Pellet.present = b.PelletPresent(iGrasp);
-            obj.Data.Pellet.n = b.Pellets(iGrasp);
-            obj.Data.Outcome = b.Outcome(iGrasp);
+            obj.Data.Grasp.t = b.Grasp;
+            obj.Data.Reach.t = b.Reach;
+            obj.Data.Pellet.present = b.PelletPresent;
+            obj.Data.Pellet.n = b.Pellets;
+            obj.Data.Outcome = b.Outcome;
             return;   
          end
          
@@ -2300,21 +2580,38 @@ classdef block < handle
          end
          
          spike_analyses_folder = defaults.block('spike_analyses_folder');
-         spike_rate_smoother = defaults.block('spike_rate_smoother');
+%          spike_rate_smoother = defaults.block('spike_rate_smoother');
+         norm_spike_rate_tag = defaults.block('norm_spike_rate_tag');
          fname = fullfile(obj.Folder,obj.Name,...
             [obj.Name spike_analyses_folder],...
-            [obj.Name spike_rate_smoother align '_' outcome '.mat']);
+            [obj.Name norm_spike_rate_tag align '_' outcome '_ds.mat']);
          if (exist(fname,'file')==0) && (~obj.HasData)
+            fprintf(1,'No such file: %s\n',fname);
+            obj.Data.(align).(outcome).rate = [];
+            return;
+         elseif exist(fname,'file')==0
             fprintf(1,'No such file: %s\n',fname);
             obj.Data.(align).(outcome).rate = [];
             return;
          else
             fprintf('Updating %s-%s rate data for %s...\n',outcome,align,obj.Name);
-            in = load(fname,'data');
+            in = load(fname,'data','t');
             if nargin == 3
+%                obj.Data.(align) = struct; % In case it needs to be overwritten
+%                obj.Data.(align).(outcome) = struct;
                obj.Data.(align).(outcome).rate = in.data;
-            else
+               if isfield(in,'t')
+                  obj.Data.(align).(outcome).t = in.t;
+               else
+                  obj.Data.(align).(outcome).t = linspace(min(obj.T),max(obj.T),size(in.data,2));
+               end
+            else % For old versions
                obj.Data.rate = in.data;
+               if isfield(in,'t')
+                  obj.Data.t = in.t;
+               else
+                  obj.Data.t = linspace(min(obj.T),max(obj.T),size(in.data,2));
+               end
             end
             obj.HasData = true;
             flag = true;
@@ -2498,6 +2795,26 @@ classdef block < handle
          end
          z = sqrt(abs(x)) .* sign(x);
          y =  z - mean(z(:,pre_trial_norm,:),2);
+      end
+      
+      % Static function to apply "smoothing" (lowpass filter)
+      function y = doSmoothOnly(x,fs)
+         filter_order = defaults.block('lpf_order');
+         if nargin < 2
+            fs = defaults.block('fs');
+         end
+         cutoff_freq = defaults.block('lpf_fc');
+         if ~isnan(cutoff_freq)
+            [b,a] = butter(filter_order,cutoff_freq/(fs/2),'low');
+         end
+         
+         mu = mean(x,1).'; 
+
+         if isnan(cutoff_freq)
+            y = mu.';
+         else
+            y = filtfilt(b,a,mu).';
+         end
       end
       
    end
