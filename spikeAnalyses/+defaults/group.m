@@ -46,7 +46,7 @@ p.rat_color = struct(...
       0.10  0.10  0.75;    % RC-21
       0.15  0.15  0.80]);  % RC-43
       
-p.somatotopy_pca_behavior_fig_dir = 'somatotopy-pca-behavior-scatters';
+p.somatotopy_pca_behavior_fig_dir = 'somatotopy-pca-behavior-scatters-new';
 p.icms_opts = {'PF','DF'};
 p.area_opts = defaults.block('area_opts');
 p.area_color = defaults.block('area_color');

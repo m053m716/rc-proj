@@ -1,4 +1,4 @@
-function cm = load_cm(name)
+function [cm,nColorOpts] = load_cm(name)
 %% DEFAULTS.LOAD_CM  Loads a colormap
 %
 %  cm = DEFAULTS.LOAD_CM; % Load 'hotcold' default colormap
@@ -25,5 +25,7 @@ if ~isfield(in,'cm')
 else
    cm = in.cm;
 end
+
+nColorOpts = 31; % Set this to be at least as large as max. post-op day in any rat
 
 end

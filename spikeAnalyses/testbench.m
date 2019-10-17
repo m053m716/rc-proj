@@ -37,30 +37,6 @@ save(objName,'gData','-v7.3');
 stats = getChannelwiseRateStats(gData,'Grasp','Successful');
 writetable(stats,'RateStats.xls');
 
-%% DO jPCA STUFF
-if ~defaults.block('run_jpca_on_construction')
-   jPCA_tic = tic;
-   jPCA(gData,align);
-   jPCA_All(gData,align);
-   jPCA_suppress(gData,'RFA',align,'Successful');
-   jPCA_All(gData,align,'CFA');
-   jPCA_suppress(gData,'CFA',align,'Successful');
-   jPCA_All(gData,align,'RFA');
-   unifyjPCA(gData,align);
-   fprintf(1,'jPCA complete (%s sec elapsed).\n',round(toc(jPCA_tic)));
-end
-save(objName,'gData','-v7.3');
-clear s objName ratArray ii RAT
-
-% load('ObjectData_-400ms_to_600ms_Grasp.mat');
-
-
-%% MAKE INDIVIDUAL MOVIES
-J = getProp(gData,'Data');
-
-for iJ = 1:size(J,1)
-   export_single_day_phase_movies(J,iJ,'Grasp','All');
-end
 
 %% GET AND ASSIGN DIVERGENCE DATA
 J = getjPCA(gData,'Grasp','All','Unified.Full');

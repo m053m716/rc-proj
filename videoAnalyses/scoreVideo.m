@@ -62,6 +62,7 @@ VARS = {'Trial',...
         'Complete',...      % First frame when paw comes back into the box
         'Pellets',...   % # pellets present
         'PelletPresent',... % Is there a pellet in front of the RAT?
+        'Stereotyped',... % Is this a stereotyped trial?
         'Outcome',...   % Did the rat carry the pellet into the box?
         'Forelimb'};    % Which handedness is the rat?
 
@@ -76,7 +77,7 @@ VARS = {'Trial',...
 %     is given to that particular variable in the HOTKEYS function at the
 %     bottom of this file...
 
-VAR_TYPE = [0,1,1,1,1,2,3,4,5]; % must have same number of elements as VARS
+VAR_TYPE = [0,1,1,1,1,2,3,3,4,5]; % must have same number of elements as VARS
                               % options: 
                               % -> 0: Trial "onset" guess
                               % -> 1: Timestamps
@@ -306,6 +307,12 @@ behaviorInfoObj.setUserID(USER);
    function hotKey(~,evt,v,b)
       t = v.tVid;
       switch evt.Key
+         case 'comma' % not a stereotyped trial (default)
+            setValue(b,'Stereotyped',0);
+            
+         case 'period' % set as stereotyped trial
+            setValue(b,'Stereotyped',1);
+            
          case 't' % set reach frame
             setValue(b,'Reach',t);
             

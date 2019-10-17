@@ -25,6 +25,7 @@ classdef block < handle
       HasWarpData = false  % Flag to specify if rate data has been warped
       HasWarpedjPCA = false% Flag to specify if "warped jPCA" has been done
       HasDivergenceData = false; % Flag to specify if data comparing succ/unsucc trials in phase space is present
+      dPCA_include = false; % Flag to specify if used in dPCA array
       IsOutlier = false    % Flag to specify that recording is outlier
       HasBases = false     % Flag to specify if bases were assigned from PC
       coeff                % Full matrix of PCA-defined basis vectors (columns)
@@ -262,25 +263,28 @@ classdef block < handle
       
       % Downsample the smoothed/normalized spike rates (and save)
       function doRateDownsample(obj)
+
          n_ds_bin_edges = defaults.block('n_ds_bin_edges');
          r_ds = defaults.block('r_ds');
          
-         w = defaults.block('spike_smoother_w');
-         fStr_in = '%s_SpikeRate%03gms_%s_%s.mat';
-         fStr_out = '%s_NormSpikeRate%03gms_%s_%s_ds.mat';
+         pre_trial_norm = defaults.block('pre_trial_norm');
+         spike_rate_smoother = defaults.block('spike_rate_smoother');
+         norm_spike_rate_tag = defaults.block('norm_spike_rate_tag');
+         fStr_in = defaults.block('fname_orig_rate');
+         fStr_out = defaults.block('fname_ds_rate');
          o = defaults.block('all_outcomes');
          e = defaults.block('all_events');
          for iO = 1:numel(o)
             for iE = 1:numel(e)
                % Skip if there is no file to decimate
-               str = sprintf(fStr_in,obj.Name,w,e{iE},o{iO});
+               str = sprintf(fStr_in,obj.Name,spike_rate_smoother,e{iE},o{iO});
                fName_In = fullfile(obj.getPathTo('rate'),str);
                if exist(fName_In,'file')==0
                   continue;
                end
                
                % Skip if it's already been extracted
-               str = sprintf(fStr_out,obj.Name,w,e{iE},o{iO});
+               str = sprintf(fStr_out,obj.Name,norm_spike_rate_tag,e{iE},o{iO},r_ds);
                fName_Out = fullfile(obj.getPathTo('rate'),str);
                if exist(fName_Out,'file')~=0
                   continue;
@@ -298,7 +302,11 @@ classdef block < handle
                   out.t = linspace(obj.T(1),obj.T(end),n_ds_bin_edges);
                end
                
-               data = obj.doSmoothNorm(in.data);
+               if (max(abs(out.t)) < 10)
+                  out.t = out.t * 1e3;
+               end
+               
+               data = obj.doSmoothNorm(in.data,pre_trial_norm);
                out.data = zeros(size(data,1),n_ds_bin_edges,size(data,3));
                for ii = 1:size(data,1)
                   for ik = 1:size(data,3)
@@ -425,13 +433,19 @@ classdef block < handle
             'trial_stats_var_descriptions');
       end
       
-      % Format down-sampled rate data for dPCA
-      function [X,t] = format_dPCA(obj)
+      % Format down-sampled rate data for dPCA, wherein the days are used
+      % as different stimuli (S) and outcomes (successful or unsuccessful
+      % when pellet is present, unsuccessful when pellet is absent) are
+      % used as decision (D). Other parts are formatted similarly to the
+      % Romo et al dataset referenced in the dPCA toolkit.
+      function [X,t,trialNum] = format_dPCA_days_are_stimuli(obj)
          % Parse array input
          if numel(obj) > 1
             X = cell(numel(obj),1);
+            trialNum = [];
             for ii = 1:numel(obj)
-               [X{ii},t] = format_dPCA(obj(ii)); % t is always the same
+               [X{ii},t,trialNum_tmp] = format_dPCA_days_are_stimuli(obj(ii)); % t is always the same
+               trialNum = cat(2,trialNum,trialNum_tmp);
             end
             return;
          end
@@ -441,6 +455,7 @@ classdef block < handle
          
          X = [];
          t = [];
+         trialNum = [];
          
          [g,flag_exists,flag_isempty] = obj.getRate('Grasp','All');
          if (~flag_exists) || (flag_isempty)
@@ -467,6 +482,13 @@ classdef block < handle
          trialIndex = {iPP_succ,iPP_unsucc,iPA_unsucc};
          nTrialMax = max(nTrial);
          
+         N = size(g,3);
+         
+         trialNum = nan(N,1,3);
+         for ii = 1:N
+            trialNum(ii,:,:) = nTrial;
+         end
+         
          if any(nTrial < 1)
             X = []; 
             return;
@@ -474,7 +496,7 @@ classdef block < handle
          
          % # neurons x 1 (day) x 3 (outcomes) x # timesteps (sum(t_idx)) x
          % # trials
-         X = nan(size(g,3),1,3,size(g,2),nTrialMax);
+         X = nan(N,1,3,size(g,2),nTrialMax);
          for iNeu = 1:size(g,3)
             for iOutcome = 1:numel(nTrial)
                for iTrial = 1:nTrial(iOutcome)
@@ -482,6 +504,122 @@ classdef block < handle
                   X(iNeu,1,iOutcome,:,iTrial) = g(idx,:,iNeu);
                end               
             end
+         end
+            
+      end
+      
+      % Format down-sampled rate data for dPCA, wherein the "stimulus" is
+      % whether the pellet was present or absent, and the "decision" is
+      % whether he did a secondary reach or not.
+      function [X,t,trialNum] = format_dPCA_pellet_present_absent(obj)
+         % Parse array input
+         if numel(obj) > 1
+            X = cell(numel(obj),1);
+            trialNum = [];
+            for ii = 1:numel(obj)
+               [X{ii},t,trialNum_tmp] = format_dPCA_pellet_present_absent(obj(ii)); % t is always the same
+               trialNum = cat(2,trialNum,trialNum_tmp);
+            end
+            return;
+         end
+         
+         p = defaults.dPCA;
+         addpath(p.local_repo_loc);
+         
+         X = [];
+         t = [];
+         trialNum = [];
+         
+         [r,flag_exists,flag_isempty,t] = obj.getRate('Reach','All');
+         if (~flag_exists) || (flag_isempty)
+            fprintf(1,'No reach rate data in %s.\n',obj.Name);
+            return;
+         end
+         
+         [g,flag_exists,flag_isempty] = obj.getRate('Grasp','All');
+         if (~flag_exists) || (flag_isempty)
+            fprintf(1,'No grasp rate data in %s.\n',obj.Name);
+            return;
+         end       
+         
+         % Get reduced number of timesteps
+         t_idx_r = (t >= p.t_start_reach) & (t <= p.t_stop_reach);
+         tr = t(t_idx_r);
+         r = r(:,t_idx_r,:);
+         t_idx_g = (t >= p.t_start_grasp) & (t <= p.t_stop_grasp);
+         tg = t(t_idx_g);
+         g = g(:,t_idx_g,:);
+         
+         % Get median offset latency and then add this to the time vector
+         offset = obj.getOffsetLatency('Grasp','Reach');
+         
+         % This part is for visualization purposes
+         if offset < (p.t_stop_reach - p.t_start_grasp)
+            offset = p.t_stop_reach - p.t_start_grasp + mode(diff(t));
+         end
+         t = [tr, (tg + offset)];
+         
+         % Get alignment on behavioral trials
+         b = obj.behaviorData;
+         
+         iGrasp = ~isinf(b.Grasp);
+         iReach = ~isinf(b.Reach);
+         
+         % Make a matrix to match and concatenate reach/grasp together
+         x = nan(size(b,1),size(r,2)+size(g,2),size(r,3));
+         for ii = 1:size(b,1)
+            if (iReach(ii) && iGrasp(ii))
+               x(ii,:,:) = cat(2,r(ii,:,:),g(ii,:,:));
+            end
+         end
+         iDiscard = isnan(x(:,1,1));
+         
+         % Discard
+         x(iDiscard,:,:) = [];
+         b(iDiscard,:) = [];
+         
+         % 4 conditions: 
+         % pp_complete (pellet present, complete trial)
+         % pp_flail (pellet present, flail)
+         % pa_complete (pellet absent, complete trial)
+         % pa_flail (pellet absent, flail)
+         
+         pp = b.PelletPresent + 1; % pellet present: 2 = present, 1 = absent
+         cf = ~isinf(b.Complete)+1; % complete/flail: 2 = complete, 1 = flail
+         
+         nTrial = [sum(~b.PelletPresent & isinf(b.Complete)), ...
+            sum(~b.PelletPresent & ~isinf(b.Complete)); ...
+            sum(b.PelletPresent & isinf(b.Complete)), ...
+            sum(b.PelletPresent & ~isinf(b.Complete))];
+         
+         nTrialMax = max(max(nTrial));         
+         
+         N = size(x,3);
+         trialNum = nan(N,2,2);
+         for ii = 1:N
+            trialNum(ii,:,:) = nTrial;
+         end
+         
+         if any(nTrial < 1)
+            X = []; 
+            return;
+         end
+         
+         % # neurons x 2 (absent/present) x 2 (complete/not) x 40 ts x
+         % # trials
+         X = nan(N,numel(unique(pp)),numel(unique(cf)),size(x,2),nTrialMax);
+         k = zeros(2,2);
+         for iNeu = 1:size(g,3)
+            for ii = 1:size(b,1)
+               k(pp(ii),cf(ii)) = k(pp(ii),cf(ii)) + 1;
+               X(iNeu,pp(ii),cf(ii),:,k(pp(ii),cf(ii))) = x(ii,:,iNeu);
+            end               
+         end
+         
+         % If no output argument, save data in array X
+         if nargout < 1
+            fname = fullfile(p.path,sprintf(p.fname_pell,obj.Name));
+            save(fname,'X','t','trialNum','-v7.3');
          end
             
       end
@@ -630,7 +768,7 @@ classdef block < handle
          end
          
          if ~isempty(t)
-            if max(abs(t) < 10)
+            if (max(abs(t)) < 10)
                t = t.*1e3; % Scale if it is not already scaled to ms
             end
          end
@@ -1001,10 +1139,14 @@ classdef block < handle
                   [obj.Name '_wav-sneo_CAR_Spikes']);
             case {'rate','spikerate','rates','spikebins','bins','binnedspikes'}
                path = fullfile(obj.getPathTo('block'),...
-                  [obj.Name '_SpikeAnalyses']);
+                  [obj.Name defaults.block('spike_analyses_folder')]);
             case {'vid','video','behaviorvid','rcvids','vids','videos','dlc'}
                behavior_vid_loc = defaults.block('behavior_vid_loc');
                path = fullfile(behavior_vid_loc);
+            case {'dpca','demixing'}
+               path = defaults.dPCA('path');
+            case {'dpca-repo','dpca-code'}
+               path = defaults.dPCA('local_repo_loc');
             otherwise
                fprintf(1,'Unrecognized type: %s.\n',dataType);
                path = [];
@@ -1024,21 +1166,46 @@ classdef block < handle
       end
       
       % Returns rate for a given field configuration, if it exists
-      function [rate,flag_exists,flag_isempty] = getRate(obj,align,outcome,area)
+      % 
+      %  -> inclusionStruct : Struct that tells what other elements
+      %                          need to be present (based on behaviorData)
+      %                          for a given trial to be included (in
+      %                          addition to the align, outcome, and area)
+      %
+      %                 Usage:
+      %                 iS = struct;
+      %                 iS.Include = {'Grasp','PelletPresent'};
+      %                 iS.Exclude = {'Complete','Support'};
+      %                 rate = getRate(obj,'Reach','All','Full',iS);
+      %
+      function [rate,flag_exists,flag_isempty,t,labels] = getRate(obj,align,outcome,area,inclusionStruct)         
+         % Parse input
+         if nargin < 4
+            area = 'Full';
+         elseif isempty(area)
+            area = 'Full';
+         elseif isnan(area(1))
+            area = 'Full';
+         end
+         
          if numel(obj) > 1
             rate = cell(numel(obj),1);
             flag_exists = false(numel(obj),1);
             flag_isempty = false(numel(obj),1);
+            labels = cell(numel(obj),1);
             for ii = 1:numel(obj)
                switch nargin
+                  case 5
+                     [rate{ii},flag_exists(ii),flag_isempty(ii),t,labels{ii}] = ...
+                        obj(ii).getRate(align,outcome,area,inclusionStruct);                    
                   case 4
-                     [rate{ii},flag_exists(ii),flag_isempty(ii)] = ...
+                     [rate{ii},flag_exists(ii),flag_isempty(ii),t,labels{ii}] = ...
                         obj(ii).getRate(align,outcome,area);
                   case 3
-                     [rate{ii},flag_exists(ii),flag_isempty(ii)] = ...
+                     [rate{ii},flag_exists(ii),flag_isempty(ii),t,labels{ii}] = ...
                         obj(ii).getRate(align,outcome);
                   case 2
-                     [rate{ii},flag_exists(ii),flag_isempty(ii)] = ...
+                     [rate{ii},flag_exists(ii),flag_isempty(ii),t,labels{ii}] = ...
                         obj(ii).getRate(align);
                   otherwise
                      error('Invalid number of input arguments (%g).',nargin);
@@ -1048,19 +1215,94 @@ classdef block < handle
          end
          
          switch nargin
+            case 5
+               field_expr_rate = sprintf('Data.%s.%s.rate',align,outcome);
+               field_expr_t = sprintf('Data.%s.%s.t',align,outcome);
             case 4
-               field_expr = sprintf('Data.%s.%s.%s.rate',align,outcome,area);
+               field_expr_rate = sprintf('Data.%s.%s.rate',align,outcome);
+               field_expr_t = sprintf('Data.%s.%s.t',align,outcome);
             case 3
-               field_expr = sprintf('Data.%s.%s.rate',align,outcome);
+               field_expr_rate = sprintf('Data.%s.%s.rate',align,outcome);
+               field_expr_t = sprintf('Data.%s.%s.t',align,outcome);
             case 2
-               field_expr = sprintf('Data.%s.rate',align);
+               field_expr_rate = sprintf('Data.%s.rate',align);
+               field_expr_t = sprintf('Data.%s.t',align);
             otherwise
                error('Invalid number of input arguments (%g).',nargin);
          end
+         labels = [];
          
-         [rate,flag_exists,flag_isempty] = parseStruct(obj.Data,field_expr);
+         [rate,flag_exists,flag_isempty] = parseStruct(obj.Data,field_expr_rate);
+         t = parseStruct(obj.Data,field_expr_t);
+         
+         if (nargin > 4) && flag_exists && (~flag_isempty)
+            b = obj.behaviorData;
+            idx = ~isinf(b.(align));
+            b = b(idx,:);
+            
+            if strcmpi(outcome,'Successful')
+               idx = logical(b.Outcome);
+               b = b(idx,:);
+            elseif strcmpi(outcome,'Unsuccessful')
+               idx = ~logical(b.Outcome);
+               b = b(idx,:);
+            end
+            idx = true(size(b,1),1);
+            labels = b.Outcome+1;
+            
+            if isfield(inclusionStruct,'Include')
+               for ii = 1:numel(inclusionStruct.Include)
+                  switch b.Properties.UserData(ismember(b.Properties.VariableNames,inclusionStruct.Include{ii}))
+                     case 1
+                        idx = idx & (~isinf(b.(inclusionStruct.Include{ii})));
+                     case 3
+                        idx = idx & logical(b.(inclusionStruct.Include{ii}));
+                     otherwise
+                        continue;
+                  end
+                  
+               end
+            end
+            
+            if isfield(inclusionStruct,'Exclude')
+               for ii = 1:numel(inclusionStruct.Exclude)
+                  switch b.Properties.UserData(ismember(b.Properties.VariableNames,inclusionStruct.Exclude{ii}))
+                     case 1
+                        idx = idx & (isinf(b.(inclusionStruct.Exclude{ii})));
+                     case 3
+                        idx = idx & ~logical(b.(inclusionStruct.Exclude{ii}));
+                     otherwise
+                        continue;
+                  end
+                  
+               end
+            end
+            
+            labels = labels(idx);
+            rate = rate(idx,:,:);
+            flag_isempty = isempty(rate);
+         end
+         
          if (flag_exists) && (~flag_isempty)
+            if nargin < 3
+               labels = parseStruct(obj.Data,'Data.Outcome')+1;
+            elseif (nargin < 5) && (nargin >= 3)
+               switch outcome
+                  case 'Unsuccessful'
+                     labels = ones(size(rate,1),1);
+                  case 'Successful'
+                     labels = ones(size(rate,1),1)+1;
+                  otherwise
+                     labels = parseStruct(obj.Data,'Data.Outcome')+1;
+               end
+            end
             rate = rate(:,:,obj.ChannelMask);
+            if nargin >= 4
+               if strcmpi(area,'RFA') || strcmpi(area,'CFA')
+                  ch_idx = contains({obj.ChannelInfo(obj.ChannelMask).area},area);
+                  rate = rate(:,:,ch_idx);
+               end
+            end
          end
          
       end
@@ -1140,115 +1382,6 @@ classdef block < handle
 
       end
       
-      % Load the channel mask
-      function loadChannelMask(obj)
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               loadChannelMask(obj(ii));
-            end
-            return;
-         end
-         
-         pname = obj.getPathTo('ChannelMask');
-         fname = fullfile(pname,sprintf('%s_ChannelMask.mat',obj.Name));
-         if exist(fname,'file')==0
-            fprintf(1,'No such file: %s\n',fname);
-            fprintf(1,'-->\tAll ChannelMask values for %s set to TRUE.\n',obj.Name);
-            obj.ChannelMask = true(size(obj.ChannelInfo));
-         elseif ~defaults.rat('suppress_data_curation')
-            obj.ChannelMask = true(size(obj.ChannelInfo));
-         else
-            in = load(fname,'ChannelMask');
-            if isfield(in,'ChannelMask')
-               obj.ChannelMask = in.ChannelMask;
-            else
-               obj.ChannelMask = true(size(obj.ChannelInfo));
-            end
-         end
-      end
-      
-      % Load behavior scoring file
-      function behaviorData = loadBehaviorData(obj)
-         path = obj.getPathTo('scoring');
-         fname = fullfile(path,[obj.Name '_Scoring.mat']);
-         if exist(fname,'file')==0
-            behaviorData = [];
-            fprintf(1,'No such file: %s\n',[obj.Name '_Scoring.mat']);
-            return;
-         end
-         
-         in = load(fname,'behaviorData');
-         if isfield(in,'behaviorData')
-            behaviorData = in.behaviorData(...
-               ~isnan(in.behaviorData.Outcome) & ...
-               ~isnan(in.behaviorData.Reach) & ...
-               ~isnan(in.behaviorData.Grasp),:);
-            iBad = isnan(behaviorData.PelletPresent);
-            if any(iBad)
-               iPresent = iBad & behaviorData.Outcome;
-               iAbsent = iBad & ~behaviorData.Outcome;
-               behaviorData.PelletPresent(iPresent) = 1;
-               behaviorData.PelletPresent(iAbsent) = 0;
-            end
-            obj.HasData = true;
-         else
-            fprintf(1,'Scoring file found, but no behaviorData table (%s)\n',obj.Name);
-            behaviorData = [];
-         end
-      end
-      
-      % Load binned spikes
-      function [data,t] = loadBinnedSpikes(obj,align,outcome,w)
-         if nargin < 4
-            w = defaults.block('spike_bin_w');
-         end
-         
-         if nargin < 3
-            outcome = 'All';
-         end
-         
-         if nargin < 2
-            align = defaults.jPCA('jpca_align');
-         end
-         
-         path = obj.getPathTo('binnedspikes');
-         name_expr = '%s_BinnedSpikes%03gms_%s_%s.mat';
-         fname = sprintf(name_expr,obj.Name,w,align,outcome);
-         if exist(fullfile(path,fname),'file')==0
-            fprintf(1,'No such file: %s\n',fname);
-            data = [];
-            t = [];
-            return;
-         else
-            in = load(fullfile(path,fname));
-            if isfield(in,'data')
-               data = in.data;
-            else
-               data = [];
-            end
-            if isfield(in,'t')
-               t = in.t;
-            else
-               t = [];
-            end
-         end
-      end
-      
-      % Load spike times
-      function spike_ts = loadSpikes(obj,ch)
-         fs = defaults.block('fs');
-         path = obj.getPathTo('spikes');
-         fname = fullfile(path,obj.ChannelInfo(ch).file);
-         if exist(fname,'file')==0
-            spike_ts = [];
-            fprintf(1,'No such file: %s\n',obj.ChannelInfo(ch).file);
-            return;
-         else
-            in = load(fname,'peak_train');
-            spike_ts = find(in.peak_train)/fs;
-         end
-      end
-      
       % Do jPCA analysis on this recording
       function [Projection,Summary] = jPCA(obj,align)
          if nargin < 2
@@ -1278,10 +1411,17 @@ classdef block < handle
          end
          
          % Only allow SUCCESSFUL alignment for initial jPCA extraction
-         D = obj.jPCA_format(align,'Successful');
-         
+         [D,~,t] = obj.jPCA_format(align,'Successful');
+         if isempty(t)
+            Projection = [];
+            Summary = [];
+            return;
+         end
          jpca_params = defaults.jPCA('jpca_params',ones(numel(D),1));
-         analyze_times = defaults.jPCA('analyze_times');
+         jpca_params.score = obj.TrueScore;
+         start_stop_times = defaults.jPCA('jpca_start_stop_times');
+         analyze_times = t(t>=start_stop_times(1) & t<=start_stop_times(2));
+         
          if numel(D) < 3
             fprintf(1,'Too few successful %s trials for %s (%g).\n',...
                align,obj.Name,numel(D));
@@ -1291,6 +1431,7 @@ classdef block < handle
          end
          
          [Projection,Summary] = jPCA.jPCA(D,analyze_times,jpca_params);
+         Summary.outcomes = ones(numel(D),1) + 1;
          obj.Data.(align).Successful.jPCA.Full.Projection = Projection;
          obj.Data.(align).Successful.jPCA.Full.Summary = Summary;
          
@@ -1354,7 +1495,7 @@ classdef block < handle
       end
       
       % Helper function that returns the formatted rate data for jPCA
-      function [D,idx] = jPCA_format(obj,align,outcome,area)
+      function [D,idx,t] = jPCA_format(obj,align,outcome,area)
          % Initialize output
          D = [];
          idx = [];
@@ -1374,48 +1515,32 @@ classdef block < handle
          % Parse array
          if numel(obj) > 1
             for ii = 1:numel(obj)
-               [dTmp,idxTmp] = jPCA_format(obj(ii),align,outcome,area);
+               [dTmp,idxTmp,t] = jPCA_format(obj(ii),align,outcome,area);
                D = [D; dTmp];
                idx = [idx; idxTmp * ii];
             end
             return;
          end
-         
-         flag = obj.jPCA_check(align,outcome);
-         if (flag)
-            return;
-         end
-         
-         if isempty(obj.Data.(align).(outcome).rate)
-            fprintf(1,'No %s %s trials for %s.\n',outcome,align,obj.Name);
-            return
-         end
-         
-         x = obj.Data.(align).(outcome).rate(:,:,obj.ChannelMask);
-         if strcmpi(area,'RFA') || strcmpi(area,'CFA')
-            ch_idx = contains({obj.ChannelInfo(obj.ChannelMask).area},area);
-            x = x(:,:,ch_idx);
-         end
-         
-         filter_order = defaults.block('lpf_order');
-         fs = 1/((defaults.block('spike_bin_w')*1e-3));
-         cutoff_freq = defaults.block('lpf_fc');
-         if ~isnan(cutoff_freq)
-            [b,a] = butter(filter_order,cutoff_freq/(fs/2),'low');
+
+         if strcmp(outcome,'Successful')
+            iS = struct;
+            iS.Include = {'Reach','Grasp','Complete','PelletPresent'};
+            iS.Exclude = [];
+            [rate,flag_exists,flag_isempty,t] = getRate(obj,align,outcome,area,iS);
          else
-            b = nan; a = nan;
+            [rate,flag_exists,flag_isempty,t] = getRate(obj,align,outcome,area);
          end
+         if (~flag_exists) || flag_isempty
+            fprintf(1,'No %s %s (%s) rates to do jPCA for %s.\n',...
+               outcome,align,area,obj.Name);
+            t = [];
+            return;
+         end        
          
-         jpca_decimation_factor = defaults.jPCA('jpca_decimation_factor');
-         jpca_start_stop_times = defaults.jPCA('jpca_start_stop_times');         
+         start_stop_times = defaults.jPCA('jpca_start_stop_times');
+%          analyze_times = t(t>=start_stop_times(1) & t<=start_stop_times(2));
          
-         D = jPCA.format(...
-            x,...
-            obj.T*1e3,...
-            b,...
-            a,...
-            jpca_decimation_factor,...
-            jpca_start_stop_times);
+         D = jPCA.format(rate,t);
          idx = ones(numel(D),1);
       end
       
@@ -1551,21 +1676,21 @@ classdef block < handle
             return;
          end
          
-         if ~isfield(obj.Data.(align).Unsuccessful,'rate')
-            fprintf(1,'%s: missing rate for unsuccessful trials.\n',obj.Name);
-            return;
-         end
-         
          close all force;
+         Summary = [];
+         Projection = [];
          
-         x = obj.Data.(align).Unsuccessful.rate;
-         if size(x,1) < 3
-            Summary = [];
-            Projection = [];
+         [rate,flag_exists,flag_isempty,t] = obj.getRate(align,'Unsuccessful');
+         
+         if size(rate,1) < 3
             fprintf(1,'-->\tNot enough trials for unsuccessful jPCA on %s.\n',obj.Name);
             return;
-         else
-            x = x(:,:,obj.ChannelMask);
+         elseif ~flag_exists
+            fprintf(1,'-->\tNo rates for unsuccessful jPCA on %s.\n',obj.Name);
+            return;
+         elseif flag_isempty
+            fprintf(1,'-->\tNot enough trials for unsuccessful jPCA on %s.\n',obj.Name);
+            return;
          end
          
          if obj.jPCA_check(align,'Successful','Full')
@@ -1576,7 +1701,7 @@ classdef block < handle
          end
          
          Summary = obj.Data.(align).Successful.jPCA.Full.Summary;
-         Summary.outcomes = ones(size(x,1),1)*2;
+         Summary.outcomes = ones(size(rate,1),1)*2;
          
          allTimes = Summary.allTimes;
          times = Summary.times;
@@ -1587,11 +1712,10 @@ classdef block < handle
          
          fprintf(1,'-->\tCollecting unsuccessful jPCA data for %s.\n',obj.Name);
          Projection = [];
-         for ii = 1:size(x,1)
+         for ii = 1:size(rate,1)
             Projection = [Projection, ...
                makeTrialCondition(...
-                  squeeze(x(ii,:,:)),...
-                  obj.T*1e3,...
+                  squeeze(rate(ii,:,:)),...
                   times,...
                   allTimes,...
                   PCs,...
@@ -1612,7 +1736,7 @@ classdef block < handle
                jpca_params.suppressHistograms);
          end
          Summary.circStats = circStats;
-         Summary.numTrials = size(x,1);
+         Summary.numTrials = size(rate,1);
          
          obj.Data.(align).Unsuccessful.jPCA.Full.Projection = Projection;
          obj.Data.(align).Unsuccessful.jPCA.Full.Summary = Summary;
@@ -1671,48 +1795,37 @@ classdef block < handle
             return;
          end         
          
-         if isnan(x(1))
-            if isempty(obj.Data.(align).Successful.rate)
-               x = obj.Data.(align).Unsuccessful.rate(:,:,obj.ChannelMask);
-            elseif isempty(obj.Data.(align).Unsuccessful.rate)
-               x = obj.Data.(align).Successful.rate(:,:,obj.ChannelMask);
-            elseif isempty(obj.Data.(align).Successful.rate) && ...
-                  isempty(obj.Data.(align).Unsuccessful.rate)
-               fprintf(1,'No rate data in %s. Unified jPCA not possible.\n',obj.Name);
-               Projection = [];
-               Summary = [];
-               return;
-            else
-               x = cat(1,...
-                  obj.Data.(align).Successful.rate(:,:,obj.ChannelMask),...
-                  obj.Data.(align).Unsuccessful.rate(:,:,obj.ChannelMask));
-            end
-            if strcmpi(area,'RFA') || strcmpi(area,'CFA')
-               ch_idx = contains({obj.ChannelInfo(obj.ChannelMask).area},area);
-               x = x(:,:,ch_idx);
-            end
-            
+
+         includeStruct = struct;
+         includeStruct.Include = {'PelletPresent'};            
+         [x,flag_exists,flag_isempty,t,labels] = obj.getRate(align,'All',area,includeStruct);
+         Summary.outcomes = labels;
+         if ~flag_exists
+            Summary = [];
+            Projection = [];
+            fprintf(1,'No rates extracted for %s: %s-%s\n',obj.Name,align,area);
+            return;
+         elseif flag_isempty
+            Summary = [];
+            Projection = [];
+            fprintf(1,'No trials for %s: %s-%s\n',obj.Name,align,area);
+            return;
          end
+
          
-         if size(x,1)<3
+         if size(x,1) < 2
             Summary = [];
             Projection = [];
             fprintf(1,'-->\tNot enough trials for unified jPCA on %s.\n',obj.Name);
             return;
          end
+
          
-         
-         % Need to re-assign outcomes depending on state
-         Summary.outcomes = ...
-            [ones(size(obj.Data.(align).Successful.rate,1),1);...
-             ones(size(obj.Data.(align).Unsuccessful.rate,1),1)*2];
-         
-         if ~isfield(Summary,'allTimes')
-            Projection = [];
-            fprintf(1,'%s: missing Summary.\n',obj.Name);
-            return;
+         if exist('t','var')==0
+            allTimes = Summary.allTimes;
+         else
+            allTimes = t;
          end
-         allTimes = Summary.allTimes;
          times = Summary.times;
          jPCs_highD = Summary.jPCs_highD;
          PCs = Summary.PCs;
@@ -1724,7 +1837,6 @@ classdef block < handle
             Projection = [Projection, ...
                makeTrialCondition(...
                   squeeze(x(ii,:,:)),...
-                  obj.T*1e3,...
                   times,...
                   allTimes,...
                   PCs,...
@@ -1899,10 +2011,9 @@ classdef block < handle
                obj.jPCA_save_previews(align,outcome,active_area);
             end
          elseif strcmpi(outcome,'Successful')
-            D = obj.jPCA_format(align,'Successful',active_area);
+            [D,~,t] = obj.jPCA_format(align,'Successful',active_area);
             
             jpca_params = defaults.jPCA('jpca_params',ones(numel(D),1));
-            analyze_times = defaults.jPCA('analyze_times');
             if numel(D) < 3
                fprintf(1,'Too few successful %s trials for %s (%g).\n',...
                   align,obj.Name,numel(D));
@@ -1910,6 +2021,9 @@ classdef block < handle
                Summary = [];
                return;
             end
+            
+            start_stop_times = defaults.jPCA('jpca_start_stop_times');
+            analyze_times = t(t>=start_stop_times(1) & t<=start_stop_times(2));
 
             [Projection,Summary] = jPCA.jPCA(D,analyze_times,jpca_params);
             obj.Data.(align).Successful.jPCA.(active_area).Projection = Projection;
@@ -2061,6 +2175,143 @@ classdef block < handle
          toc;
       end
       
+      % Load the channel mask
+      function loadChannelMask(obj)
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               loadChannelMask(obj(ii));
+            end
+            return;
+         end
+         
+         pname = obj.getPathTo('ChannelMask');
+         fname = fullfile(pname,sprintf('%s_ChannelMask.mat',obj.Name));
+         if exist(fname,'file')==0
+            fprintf(1,'No such file: %s\n',fname);
+            fprintf(1,'-->\tAll ChannelMask values for %s set to TRUE.\n',obj.Name);
+            obj.ChannelMask = true(size(obj.ChannelInfo));
+         elseif ~defaults.rat('suppress_data_curation')
+            obj.ChannelMask = true(size(obj.ChannelInfo));
+         else
+            in = load(fname,'ChannelMask');
+            if isfield(in,'ChannelMask')
+               obj.ChannelMask = in.ChannelMask;
+            else
+               obj.ChannelMask = true(size(obj.ChannelInfo));
+            end
+         end
+      end
+      
+      % Load behavior scoring file
+      function behaviorData = loadBehaviorData(obj)
+         path = obj.getPathTo('scoring');
+         fname = fullfile(path,[obj.Name '_Scoring.mat']);
+         if exist(fname,'file')==0
+            behaviorData = [];
+            fprintf(1,'No such file: %s\n',[obj.Name '_Scoring.mat']);
+            return;
+         end
+         
+         in = load(fname,'behaviorData');
+         if isfield(in,'behaviorData')
+            behaviorData = in.behaviorData(...
+               ~isnan(in.behaviorData.Outcome) & ...
+               ~isnan(in.behaviorData.Reach) & ...
+               ~isnan(in.behaviorData.Grasp),:);
+            iBad = isnan(behaviorData.PelletPresent);
+            if any(iBad)
+               iPresent = iBad & behaviorData.Outcome;
+               iAbsent = iBad & ~behaviorData.Outcome;
+               behaviorData.PelletPresent(iPresent) = 1;
+               behaviorData.PelletPresent(iAbsent) = 0;
+            end
+            obj.HasData = true;
+         else
+            fprintf(1,'Scoring file found, but no behaviorData table (%s)\n',obj.Name);
+            behaviorData = [];
+         end
+      end
+      
+      % Load binned spikes
+      function [data,t] = loadBinnedSpikes(obj,align,outcome,w)
+         if nargin < 4
+            w = defaults.block('spike_bin_w');
+         end
+         
+         if nargin < 3
+            outcome = 'All';
+         end
+         
+         if nargin < 2
+            align = defaults.jPCA('jpca_align');
+         end
+         
+         path = obj.getPathTo('binnedspikes');
+         name_expr = '%s_BinnedSpikes%03gms_%s_%s.mat';
+         fname = sprintf(name_expr,obj.Name,w,align,outcome);
+         if exist(fullfile(path,fname),'file')==0
+            fprintf(1,'No such file: %s\n',fname);
+            data = [];
+            t = [];
+            return;
+         else
+            in = load(fullfile(path,fname));
+            if isfield(in,'data')
+               data = in.data;
+            else
+               data = [];
+            end
+            if isfield(in,'t')
+               t = in.t;
+            else
+               t = [];
+            end
+         end
+      end
+      
+      % Load spike times
+      function spike_ts = loadSpikes(obj,ch)
+         fs = defaults.block('fs');
+         path = obj.getPathTo('spikes');
+         fname = fullfile(path,obj.ChannelInfo(ch).file);
+         if exist(fname,'file')==0
+            spike_ts = [];
+            fprintf(1,'No such file: %s\n',obj.ChannelInfo(ch).file);
+            return;
+         else
+            in = load(fname,'peak_train');
+            spike_ts = find(in.peak_train)/fs;
+         end
+      end
+      
+       % Load "pellet" dPCA-formatted rates
+      function [X,t,trialNum] = load_dPCA_pellet_present_absent(obj)
+         if numel(obj) > 1
+            X = cell(numel(obj),1);
+            trialNum = cell(numel(obj),1);
+            for ii = 1:numels(obj)
+               [X{ii},t,trialNum{ii}] = load_dPCA(obj(ii)); % t is always the same
+            end
+            return;
+         end
+         p = obj.getPathTo('dPCA');
+         f = defaults.dPCA('fname_pell');
+         X = [];
+         fname = fullfile(p,sprintf(f,obj.Name));
+         if exist(fname,'file')==0
+            fprintf(1,'Missing dPCA file: %s\n',fname);
+            return;
+         end
+         in = load(fname,'X','t','trialNum');
+         if isfield(in,'X')
+            X = in.X;
+            t = in.t;
+            trialNum = in.trialNum;
+         else
+            fprintf(1,'%s dPCA missing variable: ''X'' (contains spike rates).\n',obj.Name);
+         end
+      end
+      
       % Set "Outlier" status
       function markOutlier(obj)
          if ~obj.IsOutlier
@@ -2123,11 +2374,19 @@ classdef block < handle
          
          offset = obj.getOffsetLatency(align,defaults.block('alignment'));
          
-         t = obj.T * 1e3 + offset;
+%          t = obj.T * 1e3 + offset;
          for ii = 1:numel(area)
-            x = getAreaRate(obj,area{ii},align,outcome);
-            y = obj.doSmoothNorm(x);
-            z = squeeze(mean(y,1));
+%             x = getAreaRate(obj,area{ii},align,outcome);
+%             y = obj.doSmoothNorm(x);
+%             z = squeeze(mean(y,1));
+            [rate,flag_exists,flag_isempty,t] = getRate(obj,align,outcome,area{ii});
+            if (~flag_exists) || (flag_isempty)
+               continue;
+            end
+            z = squeeze(mean(rate,1));
+            if (max(abs(t)) < 10)
+               t = t * 1e3;
+            end
             plot(ax,t,z,'Color',col{ii},'LineWidth',1.5);
          end
          
@@ -2189,6 +2448,155 @@ classdef block < handle
          if resetMask
             obj.loadChannelMask;
          end
+      end
+      
+      % Run dPCA analysis for Rat object or object array
+      function out = run_dPCA_pellet_present_absent(obj)
+         % NOTE: code below is adapted from dPCA repository code
+         %       dpca_demo.m, which was graciously provided by the
+         %       machenslab github at github.com/machenslab/dPCA
+         
+         if numel(obj) > 1
+            out = cell(numel(obj),1);
+            for ii = 1:numel(obj)
+               out{ii} = run_dPCA_days_are_stimuli(obj(ii));
+            end
+            return;
+         end
+         addpath(obj.getPathTo('dPCA-repo'));
+         [firingRates,time,trialNum] = load_dPCA_pellet_present_absent(obj);
+         firingRatesAverage = nanmean(firingRates,5);
+         S = size(firingRatesAverage,2);
+         
+         combinedParams = defaults.dPCA('combinedParams_pell');
+         margNames = defaults.dPCA('margNames_pell');
+         margColours = defaults.dPCA('margColours_pell');
+         timeEvents = [0,obj.getOffsetLatency('Grasp','Reach')];
+         
+         %% Step 1: PCA of the dataset
+         X = firingRatesAverage(:,:);
+         X = bsxfun(@minus, X, mean(X,2));
+
+         [W,~,~] = svd(X, 'econ');
+         W = W(:,1:20);
+
+         % computing explained variance
+         explVar = dpca_explainedVariance(firingRatesAverage, W, W, ...
+             'combinedParams', combinedParams);
+
+         % a bit more informative plotting
+         dpca_plot(firingRatesAverage, W, W, @dpca_plot_default, ...
+             'explainedVar', explVar, ...
+             'time', time,                        ...
+             'timeEvents', timeEvents,               ...
+             'marginalizationNames', margNames, ...
+             'marginalizationColours', margColours,...
+             'figName',sprintf('%s: PCA',obj.Name),...
+             'figPos',[0.1+0.01*randn(1) 0.1+0.01*randn(1) 0.4 0.8]);
+          
+         %% Step 4: dPCA with regularization
+
+         % This function takes some minutes to run. It will save the computations 
+         % in a .mat file with a given name. Once computed, you can simply load 
+         % lambdas out of this file:
+         %   load('tmp_optimalLambdas.mat', 'optimalLambda')
+
+         % Please note that this now includes noise covariance matrix Cnoise which
+         % tends to provide substantial regularization by itself (even with lambda set
+         % to zero).
+
+         optimalLambda = dpca_optimizeLambda(firingRatesAverage, firingRates, trialNum, ...
+             'combinedParams', combinedParams, ...
+             'simultaneous', true, ...
+             'numRep', 2, ...  % increase this number to ~10 for better accuracy
+             'filename', 'tmp_optimalLambdas.mat');
+
+         Cnoise = dpca_getNoiseCovariance(firingRatesAverage, ...
+             firingRates, trialNum, 'simultaneous', true);
+
+         [W,V,whichMarg] = dpca(firingRatesAverage, 20, ...
+             'combinedParams', combinedParams, ...
+             'lambda', optimalLambda, ...
+             'Cnoise', Cnoise);
+
+         explVar = dpca_explainedVariance(firingRatesAverage, W, V, ...
+             'combinedParams', combinedParams, ...
+             'Cnoise', Cnoise, 'numOfTrials', trialNum);   
+          
+%          dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
+%              'numCompToShow',15,...
+%              'explainedVar', explVar, ...
+%              'marginalizationNames', margNames, ...
+%              'marginalizationColours', margColours, ...
+%              'whichMarg', whichMarg,                 ...
+%              'time', time,                        ...
+%              'timeEvents', timeEvents,               ...
+%              'timeMarginalization', 3, ...
+%              'legendSubplot', 16,...
+%              'figName',sprintf('%s: dPCA',obj.Name),...
+%              'figPos',[0.5+0.01*randn(1) 0.1+0.01*randn(1) 0.4 0.8]);
+%         decodingClasses = {...
+%            [(1:S)' (1:S)'],...
+%            repmat(1:2, [S 1]), ...
+%            [], ...
+%            [(1:S)' (S+(1:S))']};
+%   
+%         accuracy = dpca_classificationAccuracy(firingRatesAverage, firingRates, trialNum, ...
+%              'lambda', optimalLambda, ...
+%              'combinedParams', combinedParams, ...
+%              'decodingClasses', [], ...
+%              'simultaneous', true, ...
+%              'numRep', 5, ...        % increase to 100
+%              'filename', 'tmp_classification_accuracy.mat');
+% 
+%         dpca_classificationPlot(accuracy, [], [], [], decodingClasses)
+% 
+%         accuracyShuffle = dpca_classificationShuffled(firingRates, trialNum, ...
+%              'lambda', optimalLambda, ...
+%              'combinedParams', combinedParams, ...
+%              'decodingClasses', [], ...
+%              'simultaneous', true, ...
+%              'numRep', 5, ...        % increase to 100
+%              'numShuffles', 20, ...  % increase to 100 (takes a lot of time)
+%              'filename', 'tmp_classification_accuracy.mat');
+% 
+%         dpca_classificationPlot(accuracy, [], accuracyShuffle, [], decodingClasses)
+% 
+%         componentsSignif = dpca_signifComponents(accuracy, accuracyShuffle, whichMarg);
+% 
+%         dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
+%              'explainedVar', explVar, ...
+%              'marginalizationNames', margNames, ...
+%              'marginalizationColours', margColours, ...
+%              'whichMarg', whichMarg,                 ...
+%              'time', time,                        ...
+%              'timeEvents', timeEvents,               ...
+%              'timeMarginalization', 3,           ...
+%              'legendSubplot', 16,                ...
+%              'componentsSignif', componentsSignif,...
+%              'figName',sprintf('%s: regularized classified dPCA',obj.Name),...
+%              'figPos',[0.1+0.01*randn(1) 0.1+0.01*randn(1) 0.8 0.8]);
+          
+          
+         out = struct;
+         out.firingRatesAverage = firingRatesAverage;
+         out.time = time;
+         out.trialNum = trialNum;
+         
+         out.W = W;
+         out.V = V;
+         out.whichMarg = whichMarg;
+         out.explVar = explVar;
+         out.Cnoise = Cnoise;
+         out.optimalLambda = optimalLambda;
+%          out.accuracy = accuracy;
+%          out.accuracyShuffle = accuracyShuffle;
+%          out.decodingClasses = decodingClasses;
+%          out.componentsSignif = componentsSignif;
+         
+          
+         fprintf(1,'dPCA completed: %s\n',obj.Name);
+         
       end
       
       % Save the current channel masking
@@ -2287,6 +2695,20 @@ classdef block < handle
          else
             fprintf(1,'%s is an invalid parent class for block object.\n',...
                class(p));
+         end
+      end
+      
+      % Set property for an ARRAY of block objects
+      function setProp(obj,propName,propVal)
+         if numel(obj) ~= numel(propVal)
+            error('Number of elements in BLOCK array (%g) must match number of elements in ''propVal'' argument (%g).',numel(obj),numel(propVal));
+         end
+         if ~isprop(obj,propName)
+            error('Invalid BLOCK property: %s',propName);
+         end
+         
+         for ii = 1:numel(obj)
+            obj(ii).(propName) = propVal(ii);
          end
       end
       
@@ -2579,12 +3001,12 @@ classdef block < handle
             return;
          end
          
-         spike_analyses_folder = defaults.block('spike_analyses_folder');
-%          spike_rate_smoother = defaults.block('spike_rate_smoother');
          norm_spike_rate_tag = defaults.block('norm_spike_rate_tag');
-         fname = fullfile(obj.Folder,obj.Name,...
-            [obj.Name spike_analyses_folder],...
-            [obj.Name norm_spike_rate_tag align '_' outcome '_ds.mat']);
+         fname_ds_rate = defaults.block('fname_ds_rate');
+         r_ds = defaults.block('r_ds');
+         
+         fname = fullfile(obj.getPathTo('rate'),sprintf(fname_ds_rate,...
+            obj.Name,norm_spike_rate_tag,align,outcome,r_ds));
          if (exist(fname,'file')==0) && (~obj.HasData)
             fprintf(1,'No such file: %s\n',fname);
             obj.Data.(align).(outcome).rate = [];
@@ -2777,24 +3199,30 @@ classdef block < handle
       
       % Static function to apply "smoothing" (lowpass filter) and
       % normalization (square-root transform & mean-subtraction)
-      function y = doSmoothNorm(x)
+      function y = doSmoothNorm(x,idx)
+         if nargin < 2
+            idx = defaults.block('pre_trial_norm_ds');
+         end
+         
          filter_order = defaults.block('lpf_order');
          fs = defaults.block('fs');
          cutoff_freq = defaults.block('lpf_fc');
          if ~isnan(cutoff_freq)
             [b,a] = butter(filter_order,cutoff_freq/(fs/2),'low');
          end
-         pre_trial_norm = defaults.block('pre_trial_norm');
-         
-         mu = mean(x,1); 
 
-         if isnan(cutoff_freq)
-            z = mu;
-         else
-            z = filtfilt(b,a,mu);
-         end
          z = sqrt(abs(x)) .* sign(x);
-         y =  z - mean(z(:,pre_trial_norm,:),2);
+         z = z - mean(z(:,idx,:),2);
+         if isnan(cutoff_freq)
+            y = z;
+         else
+            y = nan(size(z));
+            for iZ = 1:size(z,3)
+               for iT = 1:size(z,1)
+                  y(iT,:,iZ) = filtfilt(b,a,z(iT,:,iZ));
+               end
+            end
+         end
       end
       
       % Static function to apply "smoothing" (lowpass filter)
@@ -2816,6 +3244,8 @@ classdef block < handle
             y = filtfilt(b,a,mu).';
          end
       end
+      
+      
       
    end
    

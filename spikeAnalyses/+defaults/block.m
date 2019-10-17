@@ -20,8 +20,7 @@ function param = block(name)
 %% CHANGE THESE
 p = struct;          % All field names should be lower-case
 p.lpf_order = 4;     % Rate lowpass filter (butterworth) order
-p.lpf_fc = 60;       % Rate lowpass filter cutoff frequency
-% p.lpf_fc = nan;
+p.lpf_fc = 100;      % Lowpass filter cutoff frequency
 p.fs = 24414.0625;   % Sampling frequency for acquisition
 
 % Name of excel file with behavior data scored by Andrea
@@ -42,11 +41,14 @@ p.spike_analyses_folder = '_SpikeAnalyses';
 p.start_stop_bin = [-2000 1000]; % ms
 p.spike_bin_w = 1; % ms
 p.spike_smoother_w = 30; % ms
-p.n_ds_bin_edges = 60; % From [-2000 1000] this yields bin size of 100 ms
-p.r_ds = 50; % Factor to decimate spike rate by
+p.n_ds_bin_edges = 100; % From [-2000 1000] this yields bin size of 30 ms
+% Factor to decimate spike rate by:
+p.r_ds = round((p.start_stop_bin(2) - p.start_stop_bin(1))/p.spike_bin_w/p.n_ds_bin_edges); 
 p.spike_rate_smoother = sprintf('_SpikeRate%03gms_',p.spike_smoother_w);
 p.norm_spike_rate_tag = sprintf('_NormSpikeRate%03gms_',p.spike_smoother_w);
-p.alignment = defaults.jPCA('jpca_align');
+p.fname_orig_rate = '%s%s%s_%s.mat';
+p.fname_ds_rate = '%s%s%s_%s_ds-%gx.mat';
+p.alignment = 'Grasp';
 p.all_alignments = {'Successful',1;...
                     'Unsuccessful',0;...
                     'All',[0,1]};
@@ -55,9 +57,8 @@ p.event_color = {[0.1 0.1 0.7],[0 0 0],[0.8 0.1 0.8],[0.7 0.8 0.1]};
 p.all_outcomes = {'Successful','Unsuccessful','All'};
 p.outcome = 'Successful';
 p.do_spike_rate_extraction = false;
-% p.do_spike_rate_extraction = true;
 p.overwrite_old_spike_data = false;
-p.run_jpca_on_construction = defaults.jPCA('run_jpca_on_construction');
+p.run_jpca_on_construction = false;
 
 % % worthless "warp rates" parameters... deprecated
 % p.warp.pre_reach = 350;  % ms
@@ -67,6 +68,7 @@ p.run_jpca_on_construction = defaults.jPCA('run_jpca_on_construction');
 
 % samples to use for normalizing individual trial rates per channel
 p.pre_trial_norm = 1:500; % sample indices
+p.pre_trial_norm_ds = p.pre_trial_norm(1):round(p.pre_trial_norm(end)/p.r_ds);
 
 % location of behavioral videos on lab server
 p.behavior_vid_loc = 'K:\Rat\Video\BilateralReach\RC';

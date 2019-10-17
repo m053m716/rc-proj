@@ -163,7 +163,7 @@ end
 
 %% figure out which times to analyze and make masks
 %
-analyzeIndices = ismember(round(Data(1).times), analyzeTimes);
+analyzeIndices = ismember(round(Data(1).times), round(analyzeTimes));
 if size(analyzeIndices,1) == 1
    analyzeIndices = analyzeIndices';  % orientation matters for the repmat below
 end

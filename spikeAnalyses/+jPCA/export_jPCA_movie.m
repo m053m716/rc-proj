@@ -30,6 +30,7 @@ for iV = 1:2:numel(varargin)
 end
 jpca_start_stop_times = defaults.jPCA('jpca_start_stop_times');
 lpf_fc = defaults.block('lpf_fc');
+fc = defaults.jPCA('fc');
 if iscell(MV)
    if numel(MV)~=numel(moviename)
       if iscell(moviename)
@@ -41,17 +42,17 @@ if iscell(MV)
          ext = '.MP4';
       end
       for ii = 1:numel(MV)
-         moviename = fullfile(pname,sprintf('%s_jPCA-Plane-%g_%gms_to_%gms%s_%gHzFc',...
-            fname,ii,jpca_start_stop_times(1),jpca_start_stop_times(2),ext),lpf_fc);
+         moviename = fullfile(pname,sprintf('%s_jPCA-Plane-%g_%gms_to_%gms_%gHzFcRate_%gHzjPCA%s',...
+            fname,ii,jpca_start_stop_times(1),jpca_start_stop_times(2),lpf_fc,fc,ext));
          jPCA.export_jPCA_movie(MV{ii},moviename,'FS',FS);
       end
    else
       for ii = 1:numel(MV)
          [pname,fname,ext]= fileparts(moviename{ii});
          jPCA.export_jPCA_movie(MV{ii},...
-            fullfile(pname,sprintf('%s_jPCA-Plane-%g_%gms_to_%gms_%gHzFc%s',...
+            fullfile(pname,sprintf('%s_jPCA-Plane-%g_%gms_to_%gms_%gHzFcRate_%gHzjPCA%s',...
             fname,ii,jpca_start_stop_times(1),...
-            jpca_start_stop_times(2),lpf_fc,ext)),'FS',FS);
+            jpca_start_stop_times(2),lpf_fc,fc,ext)),'FS',FS);
       end
    end
    
@@ -67,8 +68,8 @@ else
       [pname,fname,ext] = fileparts(moviename);
       
       if ~contains(fname,'_jPCA-Plane-')
-         fname = sprintf('%s_jPCA-Plane-1_%gms_to_%gms_%gHzFc',...
-            fname,jpca_start_stop_times(1),jpca_start_stop_times(2),lpf_fc);
+         fname = sprintf('%s_jPCA-Plane-1_%gms_to_%gms_%gHzFcRate_%gHzjPCA',...
+            fname,jpca_start_stop_times(1),jpca_start_stop_times(2),lpf_fc,fc);
       end
       if isempty(ext)
          moviename = fullfile(pname,[fname '.MP4']);

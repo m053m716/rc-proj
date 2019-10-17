@@ -298,8 +298,8 @@ for pindex = 1:length(planes2plot)
          htmp = htmp(htmpIdx,:);
       else
          iC = conditionLabels;
-         htmp = [0 1 1;
-                 1 0 1];
+         htmp = [0.6 0.6 0.6;
+                 0.4 0.4 1.0];
            
       end
 %       if isempty(htmp)
@@ -325,7 +325,7 @@ for pindex = 1:length(planes2plot)
    
    %% Plot the rosette itself
    if reusePlot == 0
-      jPCA.blankFigure(axLim);
+      [~,axLim] = jPCA.blankFigure(axLim);
    else
       cla;
    end

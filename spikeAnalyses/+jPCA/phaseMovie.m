@@ -36,8 +36,15 @@ end
 % PLANE
 % Plot the first plane (eigenvalue-wise) unless asked to do otherwise
 frameParams.planes2plot = 1;
+if strcmpi(movieParams.rankType,'varCapt')
+   [~,Summary.sortIndices] = sort(Summary.varCaptEachPlane,'descend');
+else
+   Summary.sortIndices = 1:numel(Summary.varCaptEachPlane);
+end
+
 if isfield(movieParams,'plane2plot')
    if numel(movieParams.plane2plot) > 1
+      
       MV = cell(numel(movieParams.plane2plot),1);
       for ii = 1:numel(MV)
          mp = movieParams;

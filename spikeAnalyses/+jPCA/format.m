@@ -1,4 +1,4 @@
-function Data = format(X,times,b,a,jpca_decimation_factor,jpca_start_stop_times)
+function Data = format(X,times,b,a,jpca_decimation_factor,jpca_start_stop_times,do_pre_trial_norm)
 %% JPCA.FORMAT Convert data to jPCA format (and default parameters struct)
 %
 %  Data = format(X,times,b,a,jpca_decimation_factor,jpca_start_stop_times)
@@ -46,6 +46,10 @@ function Data = format(X,times,b,a,jpca_decimation_factor,jpca_start_stop_times)
 
 
 %% PARSE INPUT
+if nargin < 7
+   do_pre_trial_norm = false;
+end
+
 if nargin < 6
    jpca_start_stop_times = nan;
 end
@@ -55,18 +59,19 @@ if nargin < 5
 end
 
 if nargin < 4
-   a = nan;
+   a = defaults.jPCA('a');
 end
 
 if nargin < 3
-   b = nan;
+   b = defaults.jPCA('b');
 end
 
 %% OPTIONALLY APPLY FILTERING
-pre_trial_norm = defaults.block('pre_trial_norm');
-X = sqrt(abs(X));
-X = (X - mean(X(:,pre_trial_norm,:),2))./(std(X(:,pre_trial_norm,:),[],2)+1);
-
+if do_pre_trial_norm
+   pre_trial_norm = defaults.block('pre_trial_norm');
+   X = sqrt(abs(X));
+   X = (X - mean(X(:,pre_trial_norm,:),2))./(std(X(:,pre_trial_norm,:),[],2)+1);
+end
 
 if isnan(b(1)) || isnan(a(1)) % If filter coefficients not present, skip filter
    Y = X;

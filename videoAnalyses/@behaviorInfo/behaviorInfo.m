@@ -591,10 +591,16 @@ classdef behaviorInfo < handle
          X = table2array(obj.behaviorData(:,2:end));
          nextTrial = find(any(isnan(X),2),1,'first');
          
-         % If it can't find any NaN entries, its already been fully scored.
-         % Default to final trial to indicate that.
+%          % If it can't find any NaN entries, its already been fully scored.
+%          % Default to final trial to indicate that.
+%          if isempty(nextTrial)
+%             nextTrial = size(obj.behaviorData,1);
+%          end
+
+         % 2019-10-15: Change this to initialize to first trial to
+         % facilitate appending the 'Stereotyped' tag to trials.
          if isempty(nextTrial)
-            nextTrial = size(obj.behaviorData,1);
+            nextTrial = 1;
          end
       end
       

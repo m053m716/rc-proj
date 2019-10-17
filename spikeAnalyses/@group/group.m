@@ -85,69 +85,60 @@ classdef group < handle
       
       % Export down-sampled rate data for dPCA. If no output argument is
       % specified, then files are saved in the default location from
-      % defaults.dPCA.
-      function [X,t] = export_dPCA(obj)
+      % defaults.dPCA. In this version, days are stimuli and successful or
+      % unsuccessful outcome is the decision.
+      function [X,t,trialNum] = export_dPCA_days_are_stimuli(obj)
          % Parse array input
          if numel(obj) > 1
             if nargout < 1
                for ii = 1:numel(obj)
-                  export_dPCA(obj(ii));
+                  export_dPCA_days_are_stimuli(obj(ii));
                end
             else
                X = cell(numel(obj),1);
+               trialNum = cell(numel(obj),1);
                for ii = 1:numel(obj)
-                  [X{ii},t] = export_dPCA(obj(ii)); % t always the same
+                  [X{ii},t,trialNum{ii}] = export_dPCA_days_are_stimuli(obj(ii)); % t always the same
                end
             end
             return;
          end
          
          if nargout < 1
-            export_dPCA(obj.Children);
+            export_dPCA_days_are_stimuli(obj.Children);
          else
-            [X,t] = export_dPCA(obj.Children);
+            [X,t,trialNum] = export_dPCA_days_are_stimuli(obj.Children);
          end
       end
       
-%       % Export statistics (as a spreadsheet) for individual rats. Each
-%       % row of output spreadsheet (name in defaults.group) corresponds to
-%       % statistics for a single rat. Only exports spreadsheet if no output 
-%       % argument is specified.
-%       function T = exportRatStats(obj)
-%          if numel(obj) > 1
-%             T = [];
-%             for ii = 1:numel(obj)
-%                obj(ii).Data.RatStats = exportRatStats(obj(ii));
-%                obj(ii).HasRatStats = true;
-%                T = [T; obj(ii).Data.RatStats];
-%             end
-%             if nargout < 1
-%                fname = defaults.group('rat_export_spreadsheet');
-%                writetable(T,fname);
-%             end
-%             return;
-%          end
-%       end
-            
-%       % Export statistics (as a spreadsheet) for individual sessions. Each
-%       % row of output spreadsheet (name in defaults.group) corresponds to
-%       % statistics for a single recording session. Only exports spreadsheet
-%       % if no output argument is specified.
-%       function T = exportSessionStats(obj)
-%          if numel(obj) > 1
-%             T = [];
-%             for ii = 1:numel(obj)
-%                obj(ii).Data.SessionStats = exportSessionStats(obj(ii));
-%                obj(ii).HasSessionStats = true;
-%                T = [T; obj(ii).Data.SessionStats];
-%             end
-%             if nargout < 1
-%                fname = defaults.group('session_export_spreadsheet');
-%                writetable(T,fname);
-%             end
-%             return;
-%          end
-%       end
+      % Export down-sampled rate data for dPCA. If no output argument is
+      % specified, then files are saved in the default location from
+      % defaults.dPCA. In this version, pellet presence or absence is the
+      % stimulus and the decision is to complete or continue a second
+      % reach.
+      function [X,t,trialNum] = export_dPCA_pellet_present_absent(obj)
+         % Parse array input
+         if numel(obj) > 1
+            if nargout < 1
+               for ii = 1:numel(obj)
+                  export_dPCA_pellet_present_absent(obj(ii));
+               end
+            else
+               X = cell(numel(obj),1);
+               trialNum = cell(numel(obj),1);
+               for ii = 1:numel(obj)
+                  [X{ii},t,trialNum{ii}] = export_dPCA_pellet_present_absent(obj(ii)); % t always the same
+               end
+            end
+            return;
+         end
+         
+         if nargout < 1
+            export_dPCA_pellet_present_absent(obj.Children);
+         else
+            [X,t,trialNum] = export_dPCA_pellet_present_absent(obj.Children);
+         end
+      end
       
       % Export statistics (as a spreadsheet) for individual trials. Each
       % row of output spreadsheet (name in defaults.group) corresponds to
@@ -432,16 +423,16 @@ classdef group < handle
       end
       
       % Shortcut for jPCA_suppress runFun
-      function [Projection,Summary] = jPCA_suppress(obj,suppressed_area,active_area,align,outcome,doReProject)
-         if nargin < 6
+      function [Projection,Summary] = jPCA_suppress(obj,active_area,align,outcome,doReProject)
+         if nargin < 5
             doReProject = false;
          end
          
-         if nargin < 5
+         if nargin < 4
             outcome = 'All';
          end
          
-         if nargin < 4
+         if nargin < 3
             align = 'Grasp';
          end
          
@@ -450,20 +441,20 @@ classdef group < handle
                Projection = cell(numel(obj),1);
                Summary = cell(numel(obj),1);
                for ii = 1:numel(obj)
-                  [Projection{ii},Summary{ii}] = jPCA_suppress(obj(ii),suppressed_area,active_area,align,outcome,doReProject);
+                  [Projection{ii},Summary{ii}] = jPCA_suppress(obj(ii),active_area,align,outcome,doReProject);
                end
             else
                for ii = 1:numel(obj)
-                  jPCA_suppress(obj(ii),suppressed_area,active_area,align,outcome,doReProject);
+                  jPCA_suppress(obj(ii),active_area,align,outcome,doReProject);
                end
             end
             return;
          end
          
          if nargout > 1
-            [Projection,Summary] = jPCA_suppress(obj.Children,suppressed_area,active_area,align,outcome,doReProject);
+            [Projection,Summary] = jPCA_suppress(obj.Children,active_area,align,outcome,doReProject);
          else
-            jPCA_suppress(obj.Children,suppressed_area,active_area,align,outcome,doReProject);
+            jPCA_suppress(obj.Children,active_area,align,outcome,doReProject);
          end
       end
       
@@ -868,17 +859,17 @@ classdef group < handle
       end
       
       % Run dPCA analysis for all children Rat objects
-      function out = run_dPCA(obj)
+      function out = run_dPCA_days_are_stimuli(obj)
          if numel(obj) > 1
             out = struct;
             maintic = tic;
             for ii = 1:numel(obj)
-               out.(obj(ii).Name) = obj(ii).run_dPCA;
+               out.(obj(ii).Name) = obj(ii).run_dPCA_days_are_stimuli;
             end
             toc(maintic);
             return;
          end
-         out = run_dPCA(obj.Children);
+         out = run_dPCA_days_are_stimuli(obj.Children);
       end
       
       % Break into subgroups

@@ -187,18 +187,20 @@ classdef rat < handle
       
       % Export down-sampled rate data for dPCA. If no output argument is
       % specified, then files are saved in the default location from
-      % defaults.dPCA.
-      function [X,t] = export_dPCA(obj)
+      % defaults.dPCA. In this version, days are stimuli and successful or
+      % unsuccessful retrieval are the decision.
+      function [X,t,trialNum] = export_dPCA_days_are_stimuli(obj)
          % Parse array input
          if numel(obj) > 1
             if nargout < 1
                for ii = 1:numel(obj)
-                  export_dPCA(obj(ii));
+                  export_dPCA_days_are_stimuli(obj(ii));
                end
             else
                X = cell(numel(obj),1);
+               trialNum = cell(numel(obj),1);
                for ii = 1:numel(obj)
-                  [X{ii},t] = export_dPCA(obj(ii)); % t always the same
+                  [X{ii},t,trialNum{ii}] = export_dPCA_days_are_stimuli(obj(ii)); % t always the same
                end
             end
             return;
@@ -207,8 +209,12 @@ classdef rat < handle
          p = defaults.dPCA;
          addpath(p.local_repo_loc);
          
-         [normRatesCell,t] = format_dPCA(obj.Children);
-         normRatesCell(cellfun(@(x)isempty(x),normRatesCell,'UniformOutput',true)) = [];
+         [normRatesCell,t,trialNum] = format_dPCA_days_are_stimuli(obj.Children);
+         removeBlock = cellfun(@(x)isempty(x),normRatesCell,'UniformOutput',true);
+         normRatesCell(removeBlock) = [];
+         trialNum(:,removeBlock,:) = [];
+         setProp(obj.Children,'dPCA_include',removeBlock);
+         
          nTrialMax = max(cellfun(@(x)size(x,5),normRatesCell,...
                            'UniformOutput',true));
          nChannel = sum(obj.ChannelMask);
@@ -223,8 +229,32 @@ classdef rat < handle
          % If no output argument, save data in array X
          if nargout < 1
             fname = fullfile(p.path,sprintf(p.fname,obj.Name));
-            save(fname,'X','t','-v7.3');
+            save(fname,'X','t','trialNum','-v7.3');
          end
+      end
+      
+      % Export down-sampled rate data for dPCA. If no output argument is
+      % specified, then files are saved in the default location from
+      % defaults.dPCA. in this version, pellet presence is the stimulus and
+      % the decision is whether to do a secondary reach or not.
+      function [X,t,trialNum] = export_dPCA_pellet_present_absent(obj)
+         % Parse array input
+         if numel(obj) > 1
+            if nargout < 1
+               for ii = 1:numel(obj)
+                  export_dPCA_pellet_present_absent(obj(ii));
+               end
+            else
+               X = cell(numel(obj),1);
+               trialNum = cell(numel(obj),1);
+               for ii = 1:numel(obj)
+                  [X{ii},t,trialNum{ii}] = export_dPCA_pellet_present_absent(obj(ii)); % t always the same
+               end
+            end
+            return;
+         end
+         
+         [X,t,trialNum] = format_dPCA_pellet_present_absent(obj.Children);
       end
       
       % Returns table of stats for all child Block objects where each row
@@ -567,16 +597,16 @@ classdef rat < handle
       end
       
       % Shortcut for jPCA_suppress runFun
-      function [Projection,Summary] = jPCA_suppress(obj,suppressed_area,active_area,align,outcome,doReProject)
-         if nargin < 6
+      function [Projection,Summary] = jPCA_suppress(obj,active_area,align,outcome,doReProject)
+         if nargin < 5
             doReProject = false;
          end
          
-         if nargin < 5
+         if nargin < 4
             outcome = 'All';
          end
          
-         if nargin < 4
+         if nargin < 3
             align = 'Grasp';
          end
          
@@ -585,29 +615,30 @@ classdef rat < handle
                Projection = cell(numel(obj),1);
                Summary = cell(numel(obj),1);
                for ii = 1:numel(obj)
-                  [Projection{ii},Summary{ii}] = jPCA_suppress(obj(ii),suppressed_area,active_area,align,outcome,doReProject);
+                  [Projection{ii},Summary{ii}] = jPCA_suppress(obj(ii),active_area,align,outcome,doReProject);
                end
             else
                for ii = 1:numel(obj)
-                  jPCA_suppress(obj(ii),suppressed_area,active_area,align,outcome,doReProject);
+                  jPCA_suppress(obj(ii),active_area,align,outcome,doReProject);
                end
             end
             return;
          end
          
          if nargout > 1
-            [Projection,Summary] = jPCA_suppress(obj.Children,suppressed_area,active_area,align,outcome,doReProject);
+            [Projection,Summary] = jPCA_suppress(obj.Children,active_area,align,outcome,doReProject);
          else
-            jPCA_suppress(obj.Children,suppressed_area,active_area,align,outcome,doReProject);
+            jPCA_suppress(obj.Children,active_area,align,outcome,doReProject);
          end
       end
       
       % Load "by-day" dPCA-formatted rates
-      function [X,t] = load_dPCA(obj)
+      function [X,t,trialNum] = load_dPCA(obj)
          if numel(obj) > 1
             X = cell(numel(obj),1);
+            trialNum = cell(numel(obj),1);
             for ii = 1:numel(obj)
-               [X{ii},t] = load_dPCA(obj(ii)); % t is always the same
+               [X{ii},t,trialNum{ii}] = load_dPCA(obj(ii)); % t is always the same
             end
             return;
          end
@@ -619,10 +650,11 @@ classdef rat < handle
             fprintf(1,'Missing dPCA file: %s\n',fname);
             return;
          end
-         in = load(fname,'X','t');
+         in = load(fname,'X','t','trialNum');
          if isfield(in,'X')
             X = in.X;
             t = in.t;
+            trialNum = in.trialNum;
          else
             fprintf(1,'%s dPCA missing variable: ''X'' (contains spike rates).\n',obj.Name);
          end
@@ -822,63 +854,62 @@ classdef rat < handle
                   'Color','w');
          
          nAxes = numel(obj.ChannelInfo);
-         ax = uiPanelizeAxes(fig,nAxes);
+         nDays = numel(obj.Children);
+         total_rate_avg_subplots = defaults.rat('total_rate_avg_subplots');
+         legPlot = defaults.rat('rate_avg_leg_subplot');
+         
+         ax = uiPanelizeAxes(fig,total_rate_avg_subplots);
+         
+         % Assumption is that there is a maximum of 32 channels to plot
+         % Assume that legend subplot goes on the last axes
+         for iCh = (nAxes+1):(total_rate_avg_subplots-1)
+            delete(ax(iCh));
+         end
          
          
          % Parse parameters for coloring lines, smoothing plots
-         cm = defaults.load_cm;
-         idx = round(linspace(1,size(cm,1),numel(obj.Children)));
-         filter_order = defaults.rat('lpf_order');
-         fs = defaults.rat('fs');
-         cutoff_freq = defaults.rat('lpf_fc');
-         if ~isnan(cutoff_freq)
-            [b,a] = butter(filter_order,cutoff_freq/(fs/2),'low');
-         end
+         [cm,nColorOpts] = defaults.load_cm;
          
+         idx = round(linspace(1,size(cm,1),nColorOpts));        
          
          % Make a separate axes for each channel
-         
-         
-         
          for iCh = 1:nAxes
-            ax(iCh).NextPlot = 'add';
-            ax(iCh).UserData = iCh;
-            
-            if obj.ChannelMask(iCh)
-               ax(iCh).Color = 'w';
-               ax(iCh).XColor = 'k';
-               ax(iCh).YColor = 'k';
-            else
-               ax(iCh).Color = 'k';
-               ax(iCh).XColor = 'w';
-               ax(iCh).YColor = 'w';               
-            end
-            
-            str = sprintf('%s-%s-%s',obj.ChannelInfo(iCh).ml,...
-               obj.ChannelInfo(iCh).icms,...
-               obj.ChannelInfo(iCh).area);
-            ax(iCh).Title.String = str;
-            ax(iCh).Title.FontName = 'Arial';
-            ax(iCh).Title.FontSize = 14;
-            ax(iCh).Title.Color = 'k';
-            ax(iCh).XLim = defaults.rat('x_lim_norm');
-            ax(iCh).YLim = defaults.rat('y_lim_norm');
-%             legText = [];
-%             legText = [legText;...
-%                   {sprintf('D%02g',obj.Children(ii).PostOpDay)}];            
-%             legend(ax(iCh),legText,'Location','NorthWest');
-            
-         end
-            
+            ax(iCh) = obj.createRateAxes(obj.ChannelMask(iCh),...
+               obj.ChannelInfo(iCh),ax(iCh));           
+         end   
          
-         for ii = 1:numel(obj.Children)
-          
+         ax(legPlot).NextPlot = 'add';
+         ax(legPlot).XLim = [0 nColorOpts+1];
+         ax(legPlot).YLim = [0 2.5];
+         ax(legPlot).XColor = 'k';
+         ax(legPlot).YColor = 'w';
+         ax(legPlot).FontName = 'Arial';  
+         ax(legPlot).FontSize = 10;
+         ax(legPlot).LineWidth = 1.5;
+         ax(legPlot).YAxisLocation = 'right';
+         
+         % Shift legend axes over a little bit and make it wider while
+         % squishing it slightly in the vertical direction:
+         p = ax(legPlot).Position;
+         ax(legPlot).Position = p + [-2.75 * p(3),  0.33 * p(4),...
+                                      2.5 * p(3), -0.33 * p(4)];
+         xlabel(ax(legPlot),'Post-Op Day',...
+            'FontSize',14,'Color','k',...
+            'FontName','Arial','FontWeight','bold');
+         ylabel(ax(legPlot),'Relative Modulation',...
+            'FontSize',12,'Color','k',...
+            'FontName','Arial');
+         
+         for ii = 1:nDays
             % Superimpose FILTERED rate traces on the channel axes
             [x,~,t] = getAvgNormRate(obj.Children(ii),align,outcome);
             if isempty(t)
                continue;
             end
+            poDay = obj.Children(ii).PostOpDay;
             
+            % Get average "peak modulation" across channels for the legend
+            chMod = nanmean(max(abs(x),[],2));
             for iCh = 1:nAxes  
                ch = obj.Children(ii).matchChannel(iCh);
                if isempty(ch)
@@ -886,14 +917,31 @@ classdef rat < handle
                end
                plot(ax(iCh),...
                   t,...                      
-                  x(ch,:),...                % plot filtered trace
-                  'Color',cm(idx(ii),:),...  % color by day
-                  'LineWidth',2.25-(ii/numel(obj.Children)),...
+                  x(ch,:),...                   % plot filtered trace
+                  'Color',cm(idx(poDay),:),...  % color by day
+                  'LineWidth',2.25-(poDay/numel(idx)),...
                   'UserData',[iCh,ii]);
             end
+            str = sprintf('D%02g',poDay);
+%             plot(ax(legPlot),[-0.5 0.5]+poDay,[1 1],...
+%                'Color',cm(idx(poDay),:),...  % color by day
+%                'LineWidth',2.25-(poDay/numel(idx)),...
+%                'Tag',str,...
+%                'UserData',[legPlot,ii]);
+            bar(ax(legPlot),poDay,chMod,1,...
+               'EdgeColor','none',...
+               'FaceColor',cm(idx(poDay),:),...
+               'Tag',str,...
+               'UserData',[legPlot,ii]);
             
-
          end
+         
+%          lgd = legend(ax(legPlot),legText,...
+%             'Location','north',...
+%             'Orientation','horizontal');
+%          title(lgd,'Post-Operative Day','Color','k','FontName','Arial');
+%          lgd.FontSize = 10;
+%          lgd.TextColor = 'black';
          
          if nargout < 1
             norm_avg_fig_dir = fullfile(pwd,...
@@ -941,7 +989,7 @@ classdef rat < handle
       end
       
       % Run dPCA analysis for Rat object or object array
-      function out = run_dPCA(obj)
+      function out = run_dPCA_days_are_stimuli(obj)
          % NOTE: code below is adapted from dPCA repository code
          %       dpca_demo.m, which was graciously provided by the
          %       machenslab github at github.com/machenslab/dPCA
@@ -949,13 +997,14 @@ classdef rat < handle
          if numel(obj) > 1
             out = cell(numel(obj),1);
             for ii = 1:numel(obj)
-               out{ii} = run_dPCA(obj(ii));
+               out{ii} = run_dPCA_days_are_stimuli(obj(ii));
             end
             return;
          end
          addpath(defaults.dPCA('local_repo_loc'));
-         [firingRates,time] = load_dPCA(obj);
+         [firingRates,time,trialNum] = load_dPCA(obj);
          firingRatesAverage = nanmean(firingRates,5);
+         S = size(firingRatesAverage,2);
          
          combinedParams = defaults.dPCA('combinedParams');
          margNames = defaults.dPCA('margNames');
@@ -983,42 +1032,133 @@ classdef rat < handle
              'figName',sprintf('%s: PCA',obj.Name),...
              'figPos',[0.1+0.01*randn(1) 0.1+0.01*randn(1) 0.4 0.8]);
           
-         %% Step 2: PCA in each marginalization separately
-         dpca_perMarginalization(firingRatesAverage, @dpca_plot_default, ...
-            'combinedParams', combinedParams);
-         
-         %% Step 3: dPCA without regularization and ignoring noise covariance
+%          %% Step 2: PCA in each marginalization separately
+%          dpca_perMarginalization(firingRatesAverage, @dpca_plot_default, ...
+%             'combinedParams', combinedParams);
+%          
+%          %% Step 3: dPCA without regularization and ignoring noise covariance
+% 
+%          % This is the core function.
+%          % W is the decoder, V is the encoder (ordered by explained variance),
+%          % whichMarg is an array that tells you which component comes from which
+%          % marginalization
+% 
+%          [W,V,whichMarg] = dpca(firingRatesAverage, 20, ...
+%              'combinedParams', combinedParams);
+% 
+%          explVar = dpca_explainedVariance(firingRatesAverage, W, V, ...
+%              'combinedParams', combinedParams);
+% 
+%          dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
+%              'explainedVar', explVar, ...
+%              'marginalizationNames', margNames, ...
+%              'marginalizationColours', margColours, ...
+%              'whichMarg', whichMarg,                 ...
+%              'time', time,                        ...
+%              'timeEvents', timeEvents,               ...
+%              'timeMarginalization', 3, ...
+%              'legendSubplot', 16,...
+%              'figName',sprintf('%s: dPCA',obj.Name),...
+%              'figPos',[0.5+0.01*randn(1) 0.1+0.01*randn(1) 0.4 0.8]);
+%           
+         %% Step 4: dPCA with regularization
 
-         % This is the core function.
-         % W is the decoder, V is the encoder (ordered by explained variance),
-         % whichMarg is an array that tells you which component comes from which
-         % marginalization
+         % This function takes some minutes to run. It will save the computations 
+         % in a .mat file with a given name. Once computed, you can simply load 
+         % lambdas out of this file:
+         %   load('tmp_optimalLambdas.mat', 'optimalLambda')
+
+         % Please note that this now includes noise covariance matrix Cnoise which
+         % tends to provide substantial regularization by itself (even with lambda set
+         % to zero).
+
+         optimalLambda = dpca_optimizeLambda(firingRatesAverage, firingRates, trialNum, ...
+             'combinedParams', combinedParams, ...
+             'simultaneous', true, ...
+             'numRep', 2, ...  % increase this number to ~10 for better accuracy
+             'filename', 'tmp_optimalLambdas.mat');
+
+         Cnoise = dpca_getNoiseCovariance(firingRatesAverage, ...
+             firingRates, trialNum, 'simultaneous', true);
 
          [W,V,whichMarg] = dpca(firingRatesAverage, 20, ...
-             'combinedParams', combinedParams);
+             'combinedParams', combinedParams, ...
+             'lambda', optimalLambda, ...
+             'Cnoise', Cnoise);
 
          explVar = dpca_explainedVariance(firingRatesAverage, W, V, ...
-             'combinedParams', combinedParams);
+             'combinedParams', combinedParams, ...
+             'Cnoise', Cnoise, 'numOfTrials', trialNum);
 
-         dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
+%          dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
+%              'explainedVar', explVar, ...
+%              'marginalizationNames', margNames, ...
+%              'marginalizationColours', margColours, ...
+%              'whichMarg', whichMarg,                 ...
+%              'time', time,                        ...
+%              'timeEvents', timeEvents,               ...
+%              'timeMarginalization', 3,           ...
+%              'legendSubplot', 16,...
+%              'figName',sprintf('%s: regularized dPCA',obj.Name),...
+%              'figPos',[0.1+0.01*randn(1) 0.1+0.01*randn(1) 0.8 0.8]);
+         
+          
+          
+        decodingClasses = {...
+           [(1:S)' (1:S)' (1:S)'],...
+           repmat(1:3, [S 1]), ...
+           [], ...
+           [(1:S)' (S+(1:S))' (2*S+(1:S))']};
+  
+        accuracy = dpca_classificationAccuracy(firingRatesAverage, firingRates, trialNum, ...
+             'lambda', optimalLambda, ...
+             'combinedParams', combinedParams, ...
+             'decodingClasses', decodingClasses, ...
+             'simultaneous', true, ...
+             'numRep', 5, ...        % increase to 100
+             'filename', 'tmp_classification_accuracy.mat');
+
+        dpca_classificationPlot(accuracy, [], [], [], decodingClasses)
+
+        accuracyShuffle = dpca_classificationShuffled(firingRates, trialNum, ...
+             'lambda', optimalLambda, ...
+             'combinedParams', combinedParams, ...
+             'decodingClasses', decodingClasses, ...
+             'simultaneous', true, ...
+             'numRep', 5, ...        % increase to 100
+             'numShuffles', 20, ...  % increase to 100 (takes a lot of time)
+             'filename', 'tmp_classification_accuracy.mat');
+
+        dpca_classificationPlot(accuracy, [], accuracyShuffle, [], decodingClasses)
+
+        componentsSignif = dpca_signifComponents(accuracy, accuracyShuffle, whichMarg);
+
+        dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
              'explainedVar', explVar, ...
              'marginalizationNames', margNames, ...
              'marginalizationColours', margColours, ...
              'whichMarg', whichMarg,                 ...
              'time', time,                        ...
              'timeEvents', timeEvents,               ...
-             'timeMarginalization', 3, ...
-             'legendSubplot', 16,...
-             'figName',sprintf('%s: dPCA',obj.Name),...
-             'figPos',[0.5+0.01*randn(1) 0.1+0.01*randn(1) 0.4 0.8]);
+             'timeMarginalization', 3,           ...
+             'legendSubplot', 16,                ...
+             'componentsSignif', componentsSignif,...
+             'figName',sprintf('%s: regularized classified dPCA',obj.Name),...
+             'figPos',[0.1+0.01*randn(1) 0.1+0.01*randn(1) 0.8 0.8]);
           
-          out = struct;
-          out.W = W;
-          out.V = V;
-          out.whichMarg = whichMarg;
-          out.explVar = explVar;
           
-          fprintf(1,'dPCA completed: %s\n',obj.Name);
+         out = struct;
+         out.W = W;
+         out.V = V;
+         out.whichMarg = whichMarg;
+         out.explVar = explVar;
+         out.accuracy = accuracy;
+         out.accuracyShuffle = accuracyShuffle;
+         out.decodingClasses = decodingClasses;
+         out.componentsSignif = componentsSignif;
+         
+          
+         fprintf(1,'dPCA completed: %s\n',obj.Name);
          
       end
       
@@ -1300,9 +1440,50 @@ classdef rat < handle
    end
    
    methods (Static = true, Access = private)
+      % Brings up the dialog box for selecting path to rat
       function path = uiPathDialog()
          path = uigetdir('P:\Extracted_Data_To_Move\Rat\TDTRat',...
             'Select RAT folder');
+      end
+      
+      % Sets properties for a given axes for plotting rates
+      function ax = createRateAxes(channelmask,channelinfo,ax,xLim,yLim)
+         if nargin < 3
+            ax = gca;
+         end
+         
+         if nargin < 4
+            xLim = defaults.rat('x_lim_norm');
+         end
+         
+         if nargin < 5
+            yLim = defaults.rat('y_lim_norm');
+         end
+         
+         ax.NextPlot = 'add';
+         ax.UserData = channelinfo;
+
+         if channelmask
+            ax.Color = 'w';
+            ax.XColor = 'k';
+            ax.YColor = 'k';
+         else
+            ax.Color = 'k';
+            ax.XColor = 'w';
+            ax.YColor = 'w';               
+         end
+
+         str = sprintf('%s-%s-%s',channelinfo.ml,...
+            channelinfo.icms,...
+            channelinfo.area);
+         
+         ax.Title.String = str;
+         ax.Title.FontName = 'Arial';
+         ax.Title.FontSize = 14;
+         ax.Title.Color = 'k';
+         
+         ax.XLim = xLim;
+         ax.YLim = yLim;
       end
    end
    
