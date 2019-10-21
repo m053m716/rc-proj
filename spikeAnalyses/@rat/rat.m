@@ -5,18 +5,20 @@ classdef rat < handle
       Name           % Name of this rat
       Parent         % Parent GROUP object
       ChannelInfo    % Channel information struct
+      ChannelMask    % Masking of channels for this rat
       Children       % Children BLOCK objects
       Data           % Struct to hold RAT-level data
+      XCMean         % Cross-condition mean struct
    end
    
    properties (Access = private)
       Folder         % Location of TANK that holds rat folders
-      ChannelMask    % Masking of channels for this rat
    end
    
    properties (Access = public, Hidden = true)
       ScreeningUI       % Figure UI for screening data channels
       HasData = false;  % Flag for whether any blocks have data for rat
+      chMod  % Channel-wise modulations (a temporary variable for plotting)
    end
    
    methods (Access = public)
@@ -99,6 +101,21 @@ classdef rat < handle
          end
          setDivergenceData(obj.Children,T);
       end
+      
+      % Functions to add common plot axes
+      ax = addToAx_PlotScoreByDay(obj,ax,do_not_modify_properties);
+      
+      % Functions to add common plots to a panel container
+      p = addToTab_PlotMarginalRateByDay(obj,p,align,includeStructPlot,includeStructMarg);
+      
+      % Concatenate rates for a given condition across all children BLOCK
+      % objects, along time-axis (concatenating trials together), through
+      % days. Results in a 2D matrix.
+      X = concatChildRate(obj,align,includeStruct,area,tIdx);
+      
+      % Same as CONCATCHILDRATE but appends along trials axis as opposed to
+      % along time-axis (so that trials are maintained as a 3D tensor).
+      [X,t] = concatChildRate_trials(obj,align,includeStruct,area,tIdx);
       
       % Make a "screening" UI for marking channel masking
       function fig = dataScreeningUI(obj)
@@ -556,6 +573,8 @@ classdef rat < handle
          end
       end
       
+      [rate,t] = getSetIncludeStruct(obj,align,includeStruct,rate,t);
+      
       % Shortcut to run jPCA on all children objects
       function jPCA(obj,align)
          if nargin < 2
@@ -630,6 +649,37 @@ classdef rat < handle
          else
             jPCA_suppress(obj.Children,active_area,align,outcome,doReProject);
          end
+      end
+      
+      % Load channel mask
+      function loadChannelMask(obj)
+         
+         % Iterate if object is an array
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               loadChannelMask(obj(ii));
+            end
+            return;
+         end
+         
+         % Parse path and filename
+         channel_mask_loc = defaults.rat('channel_mask_loc');
+         pname = fullfile(pwd,channel_mask_loc);
+         if exist(pname,'dir')==0
+            error('Invalid Channel Mask path (%s does not exist)',channel_mask_loc);
+         end
+         fname = fullfile(pname,sprintf('%s_ChannelMask.mat',obj.Name));
+         if exist(fname,'file')==0
+            fprintf(1,'Rat Channel Mask file not found. Parsing from first child BLOCK (%s).\n',...
+               obj.Children(1).Name);
+            ChannelMask = parseChannelMaskFromChild(obj);
+            save(fname,'ChannelMask');
+         else
+            in = load(fullfile(fname),'ChannelMask');
+            ChannelMask = in.ChannelMask; %#ok<*PROP>
+         end
+         
+         obj.unifyChildChannelMask(ChannelMask);
       end
       
       % Load "by-day" dPCA-formatted rates
@@ -824,6 +874,8 @@ classdef rat < handle
       end
       
       % Plot rate averages across days for all channels
+      % Note that 'outcome' input argument can be specified as
+      % "includeStruct" format, to parse averages differently
       function fig = plotNormAverages(obj,align,outcome)
          if nargin < 3
             outcome = defaults.rat('batch_outcome');
@@ -846,9 +898,31 @@ classdef rat < handle
             end
             return;
          end
-            
+          
+         % Add this part to handle "includeStruct" input formatting for
+         % 'outcome' parameter
+         if isstruct(outcome)
+            includeStruct = outcome; % To keep it less-confusing
+            str = utils.parseIncludeStruct(includeStruct);
+            tmp = strsplit(str,'-');
+            outcome = tmp{1};
+            fig_str = sprintf('%s-%s: %s Normalized Average Rates',obj.Name,align,str);
+            save_str = sprintf('%s_%s__%s__Average-Normalized-Spike-Rates',obj.Name,align,str);
+            norm_avg_fig_dir = fullfile(defaults.experiment('tank'),...
+               defaults.rat('norm_avg_fig_dir'),...
+               defaults.rat('norm_includestruct_fig_dir'));
+         else
+            includeStruct = nan;
+            fig_str = sprintf('%s: %s-%s Normalized Average Rates',obj.Name,align,outcome);
+            save_str = sprintf('%s_%s-%s_Average-Normalized-Spike-Rates',obj.Name,align,outcome);
+            norm_avg_fig_dir = fullfile(defaults.experiment('tank'),...
+               defaults.rat('norm_avg_fig_dir'));
+         end
+         
+         fprintf(1,'-->\tPlotting: %s\n',fig_str);
+         
          fig = figure('Name',...
-                  sprintf('%s: %s-%s Normalized Average Rates',obj.Name,align,outcome),...
+                  fig_str,...
                   'Units','Normalized',...
                   'Position',[0.1 0.1 0.8 0.8],...
                   'Color','w');
@@ -869,92 +943,82 @@ classdef rat < handle
          
          % Parse parameters for coloring lines, smoothing plots
          [cm,nColorOpts] = defaults.load_cm;
-         
-         idx = round(linspace(1,size(cm,1),nColorOpts));        
-         
+         idx = round(linspace(1,size(cm,1),nColorOpts)); 
+
          % Make a separate axes for each channel
          for iCh = 1:nAxes
             ax(iCh) = obj.createRateAxes(obj.ChannelMask(iCh),...
                obj.ChannelInfo(iCh),ax(iCh));           
          end   
          
-         ax(legPlot).NextPlot = 'add';
-         ax(legPlot).XLim = [0 nColorOpts+1];
-         ax(legPlot).YLim = [0 2.5];
-         ax(legPlot).XColor = 'k';
-         ax(legPlot).YColor = 'w';
-         ax(legPlot).FontName = 'Arial';  
-         ax(legPlot).FontSize = 10;
-         ax(legPlot).LineWidth = 1.5;
-         ax(legPlot).YAxisLocation = 'right';
-         
          % Shift legend axes over a little bit and make it wider while
          % squishing it slightly in the vertical direction:
          p = ax(legPlot).Position;
          ax(legPlot).Position = p + [-2.75 * p(3),  0.33 * p(4),...
                                       2.5 * p(3), -0.33 * p(4)];
-         xlabel(ax(legPlot),'Post-Op Day',...
-            'FontSize',14,'Color','k',...
-            'FontName','Arial','FontWeight','bold');
-         ylabel(ax(legPlot),'Relative Modulation',...
-            'FontSize',12,'Color','k',...
-            'FontName','Arial');
-         
+         obj.chMod = zeros(nDays,1);
          for ii = 1:nDays
             % Superimpose FILTERED rate traces on the channel axes
-            [x,~,t] = getAvgNormRate(obj.Children(ii),align,outcome);
-            if isempty(t)
-               continue;
-            end
-            poDay = obj.Children(ii).PostOpDay;
+            if isstruct(includeStruct)
+               [rate,t,~,flag] = getMeanRate(obj.Children(ii),align,includeStruct,'Full',true);
+               % Skip this day if no data
+               if ~flag
+                  continue;
+               end
+               
+               x = nan(numel(obj.ChannelInfo),numel(t));
+               x(find(obj.Children(ii).ChannelMask),:) = rate.'; %#ok<*FNDSB> % Make consistent orientation
+
+            else
+               [x,~,t] = getAvgNormRate(obj.Children(ii),align,outcome,nan,true);
+               % Skip this day if no data
+               if isempty(t)
+                  continue;
+               end
+            end         
+
+            % For each post-operative day, plot each channel in the
+            % recording with the correct color
+            poDay = obj.Children(ii).PostOpDay;  
             
+            % Restrict timepoints of interest to region around the peak
+            % (for estimating channel modulations for index)
+            tss = defaults.rat('ch_mod_epoch_start_stop');
+            t_idx = (t >= tss(1)) & (t <= tss(2));
             % Get average "peak modulation" across channels for the legend
-            chMod = nanmean(max(abs(x),[],2));
+            obj.chMod(ii) = nanmean(max(x(:,t_idx),[],2) -...
+                                    min(x(:,t_idx),[],2));
             for iCh = 1:nAxes  
                ch = obj.Children(ii).matchChannel(iCh);
                if isempty(ch)
                   continue;
                end
-               plot(ax(iCh),...
-                  t,...                      
-                  x(ch,:),...                   % plot filtered trace
-                  'Color',cm(idx(poDay),:),...  % color by day
-                  'LineWidth',2.25-(poDay/numel(idx)),...
-                  'UserData',[iCh,ii]);
+               if obj.Children(ii).nTrialRecent.rate < 10
+                  plot(ax(iCh),t,x(ch,:),...                   
+                     'Color',cm(idx(poDay),:),...  % color by day
+                     'LineWidth',0.75,...
+                     'LineStyle',':',...
+                     'UserData',[iCh,ii]);
+               else
+                  plot(ax(iCh),t,x(ch,:),...                   
+                     'Color',cm(idx(poDay),:),...  % color by day
+                     'LineWidth',2.25-(poDay/numel(idx)),...
+                     'UserData',[iCh,ii]);
+               end
             end
-            str = sprintf('D%02g',poDay);
-%             plot(ax(legPlot),[-0.5 0.5]+poDay,[1 1],...
-%                'Color',cm(idx(poDay),:),...  % color by day
-%                'LineWidth',2.25-(poDay/numel(idx)),...
-%                'Tag',str,...
-%                'UserData',[legPlot,ii]);
-            bar(ax(legPlot),poDay,chMod,1,...
-               'EdgeColor','none',...
-               'FaceColor',cm(idx(poDay),:),...
-               'Tag',str,...
-               'UserData',[legPlot,ii]);
-            
          end
          
-%          lgd = legend(ax(legPlot),legText,...
-%             'Location','north',...
-%             'Orientation','horizontal');
-%          title(lgd,'Post-Operative Day','Color','k','FontName','Arial');
-%          lgd.FontSize = 10;
-%          lgd.TextColor = 'black';
+         % Make "score by day" plot
+         obj.addToAx_PlotScoreByDay(ax(legPlot));
          
          if nargout < 1
-            norm_avg_fig_dir = fullfile(pwd,...
-               defaults.rat('norm_avg_fig_dir'));
             if exist(norm_avg_fig_dir,'dir')==0
                mkdir(norm_avg_fig_dir);
             end
             savefig(fig,fullfile(norm_avg_fig_dir,...
-               sprintf('%s_%s-%s_Average-Normalized-Spike-Rates.fig',obj.Name,...
-                  align,outcome)));
+               sprintf('%s.fig',save_str)));
             saveas(fig,fullfile(norm_avg_fig_dir,...
-               sprintf('%s_%s-%s_Average-Normalized-Spike-Rates.png',obj.Name,...
-                  align,outcome)));
+               sprintf('%s.png',save_str)));
             delete(fig);
          end
          
@@ -1200,6 +1264,86 @@ classdef rat < handle
          end
       end
       
+      % Set cross condition mean for a given condition
+      function setCrossCondMean(obj,align,outcome,pellet,reach,grasp,support,complete)
+         
+         if nargin < 8
+            [align,outcome,pellet,reach,grasp,support,complete] = utils.getCrossCondKeyCombos();
+         else
+            if ~iscell(align)
+               align = {align};
+            end
+            if ~iscell(outcome)
+               outcome = {outcome};
+            end
+            if ~iscell(pellet)
+               pellet = {pellet};
+            end
+            if ~iscell(reach)
+               reach = {reach};
+            end
+            if ~iscell(grasp)
+               grasp = {grasp};
+            end
+            if ~iscell(support)
+               support = {support};
+            end
+            if ~iscell(complete)
+               complete = {complete};
+            end
+         end
+         
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               setCrossCondMean(obj(ii),align,outcome,pellet,reach,grasp,support,complete);
+            end
+            return;
+         end
+         
+         fprintf(1,'Setting cross-condition means for %s...\n',obj.Name);
+         fprintf(1,'---------------------------------------------------\n');
+         % Initialize RAT XCMean property if not already set
+         if isempty(obj.XCMean)
+            obj.XCMean = struct;
+            obj.XCMean.key = '(align).(outcome).(pellet).(reach).(grasp).(support).(complete)';
+         end         
+         
+         for iA = 1:numel(align)
+            for iO = 1:numel(outcome)
+               for iP = 1:numel(pellet)
+                  for iR = 1:numel(reach)
+                     for iG = 1:numel(grasp)
+                        for iS = 1:numel(support)
+                           for iC = 1:numel(complete)
+                              fprintf(1,'\n%s:\n',align{iA});
+                              includeStruct = utils.parseIncludeStruct(outcome{iO},...
+                                 pellet{iP},reach{iR},grasp{iG},...
+                                 support{iS},complete{iC});   
+                              obj.printCrossCondMeanStatus(includeStruct);
+                              [X,t] = obj.concatChildRate_trials(align{iA},includeStruct,'All');  
+                              if isempty(X)
+                                 continue;
+                              end
+                              xcmean = squeeze(mean(X,1));
+                              obj.XCMean.(align{iA}).(outcome{iO}).(pellet{iP}).(reach{iR}).(grasp{iG}).(support{iS}).(complete{iC}).rate = xcmean;
+                              obj.XCMean.(align{iA}).(outcome{iO}).(pellet{iP}).(reach{iR}).(grasp{iG}).(support{iS}).(complete{iC}).t = t;
+                              setCrossCondMean(obj.Children,xcmean,...
+                                 align{iA},outcome{iO},...
+                                 pellet{iP},reach{iR},grasp{iG},...
+                                 support{iS},complete{iC});  
+                           end
+                        end
+                     end
+                  end
+               end
+            end
+         end
+                  
+         
+         
+         
+      end
+      
       % Update stats re: point of max. variance
       function updateMaxVarData(obj,align,outcome)
          if nargin < 2
@@ -1234,37 +1378,6 @@ classdef rat < handle
                 val,t(v_idx)];
          end
          
-      end
-      
-      % Load channel mask
-      function loadChannelMask(obj)
-         
-         % Iterate if object is an array
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               loadChannelMask(obj(ii));
-            end
-            return;
-         end
-         
-         % Parse path and filename
-         channel_mask_loc = defaults.rat('channel_mask_loc');
-         pname = fullfile(pwd,channel_mask_loc);
-         if exist(pname,'dir')==0
-            error('Invalid Channel Mask path (%s does not exist)',channel_mask_loc);
-         end
-         fname = fullfile(pname,sprintf('%s_ChannelMask.mat',obj.Name));
-         if exist(fname,'file')==0
-            fprintf(1,'Rat Channel Mask file not found. Parsing from first child BLOCK (%s).\n',...
-               obj.Children(1).Name);
-            ChannelMask = parseChannelMaskFromChild(obj);
-            save(fname,'ChannelMask');
-         else
-            in = load(fullfile(fname),'ChannelMask');
-            ChannelMask = in.ChannelMask; %#ok<*PROP>
-         end
-         
-         obj.unifyChildChannelMask(ChannelMask);
       end
       
       % Parse channel mask from an indexed child rat object
@@ -1386,6 +1499,9 @@ classdef rat < handle
          % Update all Child blocks as well
          updateFolder(obj.Children,putative_objloc);
       end
+      
+      % "Cross" PCA
+      xPCA(obj);
    end
    
    methods (Access = private)
@@ -1437,6 +1553,31 @@ classdef rat < handle
          end
       end
       
+      % Update "channel modulation" if it is not present
+      function updateChMod(obj,align,outcome)
+         if nargin < 3
+            outcome = defaults.block('outcome');
+         end
+         
+         if nargin < 2
+            align = defaults.block('alignment');
+         end
+         
+         obj.chMod = zeros(numel(obj.Children),1);
+         for ii = 1:numel(obj.Children)
+            % Superimpose FILTERED rate traces on the channel axes
+            [x,~,t] = getAvgNormRate(obj.Children(ii),align,outcome);
+            if isempty(t)
+               continue;
+            end    
+            tss = defaults.jPCA('jpca_start_stop_times');
+            t_idx = (t >= tss(1)) & (t <= tss(2));
+            % Get average "peak modulation" across channels for the legend
+            obj.chMod(ii) = nanmean(max(x(:,t_idx),[],2) -...
+                                    min(x(:,t_idx),[],2));
+         end
+      end
+      
    end
    
    methods (Static = true, Access = private)
@@ -1484,6 +1625,28 @@ classdef rat < handle
          
          ax.XLim = xLim;
          ax.YLim = yLim;
+      end
+      
+      % Prints the current status of the cross-condition mean estimation
+      function printCrossCondMeanStatus(includeStruct)
+         fprintf(1,'-->\tInclude: ');
+         if isempty(includeStruct.Include)
+            fprintf(1,'none\n');
+         else
+            for ii = 1:numel(includeStruct.Include)
+               fprintf(1,'%s ',includeStruct.Include{ii});
+            end
+            fprintf(1,'\n');
+         end
+         fprintf(1,'-->\tExclude: ');
+         if isempty(includeStruct.Exclude)
+            fprintf(1,'none\n');
+         else
+            for ii = 1:numel(includeStruct.Exclude)
+               fprintf(1,'%s ',includeStruct.Exclude{ii});
+            end
+            fprintf(1,'\n');
+         end
       end
    end
    

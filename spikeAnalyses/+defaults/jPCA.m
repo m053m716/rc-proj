@@ -27,7 +27,7 @@ jpca_params.use_orth = false;
 jpca_params.suppressBWrosettes = true;
 jpca_params.suppressHistograms = true;
 jpca_params.suppressText = false;
-jpca_params.plotPlanEllipse = true;
+jpca_params.plotPlanEllipse = false;
 jpca_params.zeroCenters = false;
 jpca_params.zeroTime = 0;
 jpca_params.crossCondMean = true;
@@ -61,7 +61,7 @@ movie_params.arrowEdgeColor = 'k';
 movie_params.tailAlpha = nan;
 movie_params.tail = 100; % ms
 movie_params.lineWidth = 2.5;
-movie_params.plotPlanEllipse = true;
+movie_params.plotPlanEllipse = false;
 movie_params.planMarkerSize = 0;
 movie_params.arrowSize = 3.3;
 movie_params.crossCondMean = false;
@@ -102,24 +102,29 @@ end
 
 p.jpca_params = jpca_params;
 p.movie_params = movie_params;
-% p.analyze_times = -750:500; % ms
-p.analyze_times = -300:300; % ms
+p.analyze_times = -750:500; % ms
+% p.analyze_times = -200:200; % ms
 % p.analyze_times = -1200:500; % ms
 p.preview_folder = 'jpca-previews-new';
 p.video_export_base = 'jpca-vids-new';
 p.jpca_align = 'Grasp';                % 'Grasp' or 'Reach'
 p.jpca_decimation_factor = nan;
 % p.jpca_decimation_factor = 10;         % how much to down-sample
-% p.jpca_start_stop_times = [-1000 750]; % ms
-p.jpca_start_stop_times = [-300 300]; % ms
+p.jpca_start_stop_times = [-750 500]; % ms
+% p.jpca_start_stop_times = [-200 200]; % ms
 % p.jpca_start_stop_times = [-1200 500]; % ms
 % p.run_jpca_on_construction = true;
 p.run_jpca_on_construction = false;
 
 p.ord = 4;
-p.fc = 10; % Hz
+p.fc =  nan; % Hz
 p.fs = (1/(defaults.block('spike_bin_w')*1e-3))/defaults.block('r_ds');
-[p.b,p.a] = butter(p.ord,p.fc/(p.fs/2),'low'); % lowpass filter
+if ~isnan(p.fc)
+   [p.b,p.a] = butter(p.ord,p.fc/(p.fs/2),'low'); % lowpass filter
+else
+   p.b = nan;
+   p.a = nan;
+end
 
 p.rosette_xlim = [-40 40];
 p.rosette_ylim = [-40 40];

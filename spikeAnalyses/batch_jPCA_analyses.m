@@ -16,11 +16,12 @@ end
 jPCA_tic = tic;
 jPCA(gData,'Grasp');
 jPCA_All(gData,'Grasp');
-jPCA_suppress(gData,'RFA','Grasp','Successful');
-jPCA_suppress(gData,'CFA','Grasp','Successful');
 
-jPCA_All(gData,'Grasp','CFA');
-jPCA_All(gData,'Grasp','RFA');
+% % Note: jPCA "by area" is not working as intended currently (10/18/19)
+% jPCA_suppress(gData,'RFA','Grasp','Successful');
+% jPCA_suppress(gData,'CFA','Grasp','Successful');
+% jPCA_All(gData,'Grasp','CFA');
+% jPCA_All(gData,'Grasp','RFA');
 
 unifyjPCA(gData,'Grasp');
 ticTimes.extract = round(toc(jPCA_tic));
@@ -32,9 +33,9 @@ clc;
 movieTic = tic;
 J = getProp(gData,'Data');
 fprintf(1,'Exporting movies...\n\n');
-% for iJ = 1:size(J,1)
-for iJ = 35:size(J,1)
-   export_single_day_phase_movies(J,iJ,'Grasp','All','Full');
+for iJ = 1:size(J,1)
+% for iJ = 42:size(J,1)
+   export_single_day_phase_movies(J,iJ,'Grasp','Successful','Full');
 end
 fprintf(1,'\n-->\t Movie export complete!\n');
 ticTimes.movie_export = round(toc(movieTic));

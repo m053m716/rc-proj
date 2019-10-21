@@ -20,7 +20,7 @@ function param = block(name)
 %% CHANGE THESE
 p = struct;          % All field names should be lower-case
 p.lpf_order = 4;     % Rate lowpass filter (butterworth) order
-p.lpf_fc = 100;      % Lowpass filter cutoff frequency
+p.lpf_fc = nan;      % Rate lowpass filter cutoff frequency
 p.fs = 24414.0625;   % Sampling frequency for acquisition
 
 % Name of excel file with behavior data scored by Andrea

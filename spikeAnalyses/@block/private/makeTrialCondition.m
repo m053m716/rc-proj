@@ -13,6 +13,12 @@ if isempty(data)
    return;
 end
 
+if ~isnan(defaults.jPCA('fc'))
+   b = defaults.jPCA('b');
+   a = defaults.jPCA('a');
+   x = filtfilt(b,a,data);
+end
+
 c = struct(...
    'proj',{(data./norms-mu) * jPCs_highD},...
    'times',{times},...

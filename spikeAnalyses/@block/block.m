@@ -10,6 +10,7 @@ classdef block < handle
       NeurophysScore % Behavior Performance (By Neurophys Trial Category)
       TrueScore = nan% Behavior Performance (By Neurophys Advanced Scoring)
       ChannelInfo    % Information for each recording channel
+      XCMean         % Cross-Condition Mean (struct)
       Data           % Data struct
       T              % Time (sec)
    end
@@ -21,6 +22,8 @@ classdef block < handle
    
    properties (Access = public, Hidden = true)
       ChannelMask          % Flag for each channel: true if GOOD
+      HasAreaModulations = false; % Flag to set true if area modulations have been estimated
+      HasAvgNormRate = false % Flag to set true if it has returned average normalized rate data
       HasData = false      % Flag to specify if it has data in it
       HasWarpData = false  % Flag to specify if rate data has been warped
       HasWarpedjPCA = false% Flag to specify if "warped jPCA" has been done
@@ -38,6 +41,8 @@ classdef block < handle
       P                    % Projection matrix to re-express top PCs
       RMSE                 % Final value of optimizer function for rebase
       tSnap                % Time relative to behavior to "snap" a video frame, for each trial
+      chMod                % Struct with 'RFA' and 'CFA' fields that update channel modulations for those channel subsets
+      nTrialRecent         % Struct with number of trials for most-recent alignment rate export
    end
    
    methods (Access = public)
@@ -705,7 +710,11 @@ classdef block < handle
       end
       
       % Return (normalized) spike rate data and associated metadata
-      function [avgRate,channelInfo,t] = getAvgNormRate(obj,align,outcome,ch)
+      function [avgRate,channelInfo,t] = getAvgNormRate(obj,align,outcome,ch,updateAreaModulations)
+         % avgRate : Rows are channels, columns are timesteps
+         if nargin < 5
+            updateAreaModulations = false;
+         end
          if nargin < 4
             ch = nan;
          end
@@ -720,18 +729,23 @@ classdef block < handle
             avgRate = [];
             channelInfo = [];
             for ii = 1:numel(obj)
-               [tmpRate,tmpCI,t] = getAverageSpikeRate(obj(ii),align,outcome,ch);
+               [tmpRate,tmpCI,t] = getAvgNormRate(obj(ii),align,outcome,ch,updateAreaModulations);
                avgRate = [avgRate; tmpRate]; %#ok<*AGROW>
                channelInfo = [channelInfo; tmpCI];
             end
             return;
          end
          
+         if isempty(obj.nTrialRecent)
+            obj.initRecentTrialCounter;
+         end
+         obj.nTrialRecent.rate = 0;
+         
          if isnan(ch)
             ch = 1:numel(obj.ChannelInfo);
          end
          
-         obj = obj([obj.HasData]);
+         obj.HasAvgNormRate = false; % Reset flag to false each time method is run
          avgRate = [];
          channelInfo = [];
          t = [];
@@ -743,6 +757,10 @@ classdef block < handle
                else
                   fprintf('No %s trials for %s alignment for block %s.\n',...
                      outcome,align,obj.Name);
+                  if updateAreaModulations
+                     obj.HasAreaModulations = false;
+                     obj.chMod = [];
+                  end
                   return;
                end
             else
@@ -751,6 +769,10 @@ classdef block < handle
                obj.updateSpikeRateData(align,outcome);
                if ~isfield(obj.Data.(align),outcome)
                   fprintf('Invalid field for %s: %s\n',obj.Name,outcome);
+                  if updateAreaModulations
+                     obj.HasAreaModulations = false;
+                     obj.chMod = [];
+                  end
                   return;
                end
             end
@@ -758,9 +780,17 @@ classdef block < handle
             obj.updateSpikeRateData(align,outcome);
             if ~isfield(obj.Data,align)
                fprintf('Invalid field for %s: %s\n',obj.Name,align);
+               if updateAreaModulations
+                  obj.HasAreaModulations = false;
+                  obj.chMod = [];
+               end
                return;
             elseif ~isfield(obj.Data.(align),outcome)
                fprintf('Invalid field for %s: %s\n',obj.Name,outcome);
+               if updateAreaModulations
+                  obj.HasAreaModulations = false;
+                  obj.chMod = [];
+               end
                return;
             else
                t = obj.Data.(align).(outcome).t;
@@ -777,7 +807,8 @@ classdef block < handle
          avgRate = nan(numel(ch),numel(t));
          channelInfo = [];
          idx = 0;
-         fs = defaults.block('fs') / defaults.block('r_ds');
+         fs = (1/(defaults.block('spike_bin_w')*1e-3))/defaults.block('r_ds');
+
          for iCh = ch
             idx = idx + 1;
             channelInfo = [channelInfo; obj.ChannelInfo(iCh)];
@@ -785,6 +816,13 @@ classdef block < handle
                x = obj.Data.(align).(outcome).rate(:,:,iCh);
                avgRate(idx,:) = obj.doSmoothOnly(x,fs);
             end
+         end
+         
+         obj.nTrialRecent.rate = size(obj.Data.(align).(outcome).rate,1);         
+         obj.HasAvgNormRate = true; % If the method returns successfully, set to true again
+
+         if updateAreaModulations
+            obj.updateChMod(avgRate.',t,false);
          end
 
       end
@@ -956,6 +994,9 @@ classdef block < handle
          end
          
       end
+      
+      % Get cross-condition mean for a specific condition
+      xcmean = getCrossCondMean(obj,align,includeStruct,area)
       
       % Return property associated with each channel, per unmasked channel
       function  out = getPropForEachChannel(obj,propName)
@@ -1178,7 +1219,10 @@ classdef block < handle
       %                 iS.Exclude = {'Complete','Support'};
       %                 rate = getRate(obj,'Reach','All','Full',iS);
       %
-      function [rate,flag_exists,flag_isempty,t,labels] = getRate(obj,align,outcome,area,inclusionStruct)         
+      %           Rate: nTrials x nTimesteps x nChannels tensor
+      %
+      function [rate,flag_exists,flag_isempty,t,labels] = getRate(obj,align,outcome,area,includeStruct,updateAreaModulations)         
+         
          % Parse input
          if nargin < 4
             area = 'Full';
@@ -1188,6 +1232,14 @@ classdef block < handle
             area = 'Full';
          end
          
+         if nargin < 5
+            includeStruct = utils.makeIncludeStruct([],[]);
+         end
+         
+         if nargin < 6
+            updateAreaModulations = false;
+         end
+         
          if numel(obj) > 1
             rate = cell(numel(obj),1);
             flag_exists = false(numel(obj),1);
@@ -1195,9 +1247,12 @@ classdef block < handle
             labels = cell(numel(obj),1);
             for ii = 1:numel(obj)
                switch nargin
+                  case 6
+                     [rate{ii},flag_exists(ii),flag_isempty(ii),t,labels{ii}] = ...
+                        obj(ii).getRate(align,outcome,area,includeStruct,updateAreaModulations);                      
                   case 5
                      [rate{ii},flag_exists(ii),flag_isempty(ii),t,labels{ii}] = ...
-                        obj(ii).getRate(align,outcome,area,inclusionStruct);                    
+                        obj(ii).getRate(align,outcome,area,includeStruct);                    
                   case 4
                      [rate{ii},flag_exists(ii),flag_isempty(ii),t,labels{ii}] = ...
                         obj(ii).getRate(align,outcome,area);
@@ -1214,7 +1269,22 @@ classdef block < handle
             return;
          end
          
+         if obj.IsOutlier
+            fprintf(1,'%s has been marked as an outlier point. Skipped.\n',obj.Name);
+            labels = [];
+            t = [];
+            rate = [];
+            flag_exists = true;
+            flag_isempty= true;
+            obj.HasAreaModulations = false;
+            obj.chMod = [];
+            return;
+         end
+         
          switch nargin
+            case 6
+               field_expr_rate = sprintf('Data.%s.%s.rate',align,outcome);
+               field_expr_t = sprintf('Data.%s.%s.t',align,outcome);
             case 5
                field_expr_rate = sprintf('Data.%s.%s.rate',align,outcome);
                field_expr_t = sprintf('Data.%s.%s.t',align,outcome);
@@ -1235,76 +1305,221 @@ classdef block < handle
          [rate,flag_exists,flag_isempty] = parseStruct(obj.Data,field_expr_rate);
          t = parseStruct(obj.Data,field_expr_t);
          
-         if (nargin > 4) && flag_exists && (~flag_isempty)
-            b = obj.behaviorData;
-            idx = ~isinf(b.(align));
-            b = b(idx,:);
-            
-            if strcmpi(outcome,'Successful')
-               idx = logical(b.Outcome);
-               b = b(idx,:);
-            elseif strcmpi(outcome,'Unsuccessful')
-               idx = ~logical(b.Outcome);
-               b = b(idx,:);
+         if (~flag_exists) || (flag_isempty)
+            fprintf(1,'No rate for %s: %s\n',obj.Name,field_expr_rate);
+            if updateAreaModulations
+               obj.HasAreaModulations = false;
+               obj.chMod = [];
             end
-            idx = true(size(b,1),1);
-            labels = b.Outcome+1;
-            
-            if isfield(inclusionStruct,'Include')
-               for ii = 1:numel(inclusionStruct.Include)
-                  switch b.Properties.UserData(ismember(b.Properties.VariableNames,inclusionStruct.Include{ii}))
-                     case 1
-                        idx = idx & (~isinf(b.(inclusionStruct.Include{ii})));
-                     case 3
-                        idx = idx & logical(b.(inclusionStruct.Include{ii}));
-                     otherwise
-                        continue;
-                  end
-                  
-               end
-            end
-            
-            if isfield(inclusionStruct,'Exclude')
-               for ii = 1:numel(inclusionStruct.Exclude)
-                  switch b.Properties.UserData(ismember(b.Properties.VariableNames,inclusionStruct.Exclude{ii}))
-                     case 1
-                        idx = idx & (isinf(b.(inclusionStruct.Exclude{ii})));
-                     case 3
-                        idx = idx & ~logical(b.(inclusionStruct.Exclude{ii}));
-                     otherwise
-                        continue;
-                  end
-                  
-               end
-            end
-            
-            labels = labels(idx);
+            return;
+         end
+         
+         % If includeStruct has been specified as an input argument, then
+         % use it to refine what trials should be included
+         if (nargin > 4)            
+            [idx,labels] = obj.parseTrialIndicesFromIncludeStruct(align,includeStruct,outcome);
             rate = rate(idx,:,:);
             flag_isempty = isempty(rate);
-         end
-         
-         if (flag_exists) && (~flag_isempty)
-            if nargin < 3
-               labels = parseStruct(obj.Data,'Data.Outcome')+1;
-            elseif (nargin < 5) && (nargin >= 3)
-               switch outcome
-                  case 'Unsuccessful'
-                     labels = ones(size(rate,1),1);
-                  case 'Successful'
-                     labels = ones(size(rate,1),1)+1;
-                  otherwise
-                     labels = parseStruct(obj.Data,'Data.Outcome')+1;
+            
+            if (flag_isempty)
+               fprintf(1,'No rate for %s: %s\n',...
+                  obj.Name,utils.parseIncludeStruct(includeStruct));
+               if updateAreaModulations
+                  obj.HasAreaModulations = false;
+                  obj.chMod = [];
                end
-            end
-            rate = rate(:,:,obj.ChannelMask);
-            if nargin >= 4
-               if strcmpi(area,'RFA') || strcmpi(area,'CFA')
-                  ch_idx = contains({obj.ChannelInfo(obj.ChannelMask).area},area);
-                  rate = rate(:,:,ch_idx);
-               end
+               return;
             end
          end
+
+         % If no outcome specified, parse outcome labels
+         if nargin < 3
+            labels = parseStruct(obj.Data,'Data.Outcome')+1;
+         elseif (nargin < 5) && (nargin >= 3) % If "outcome" was specified but not includeStruct
+            switch outcome
+               case 'Unsuccessful'
+                  labels = ones(size(rate,1),1);
+               case 'Successful'
+                  labels = ones(size(rate,1),1)+1;
+               otherwise
+                  labels = parseStruct(obj.Data,'Data.Outcome')+1;
+            end
+         end
+         rate = rate(:,:,obj.ChannelMask);
+
+         % Exclude based on area if 'RFA' or 'CFA' are explicitly specified
+         if strcmpi(area,'RFA') || strcmpi(area,'CFA')
+            ch_idx = contains({obj.ChannelInfo(obj.ChannelMask).area},area);
+            rate = rate(:,:,ch_idx);
+         end
+
+
+         % If asked to update area modulations, do so for the rate
+         % structure given default parameters in defaults.block regarding
+         % the relevant indexing for time-periods to look at modulations in
+         if updateAreaModulations
+            obj.updateChMod(rate,t,true);
+         end
+
          
+      end
+      
+      % Get mean firing rate using "includeStruct" format which is a little
+      % more general for handling alignment marginalizations using the
+      % variables in BEHAVIORDATA table from video metadata scoring.
+      function [rate,t,labels,flag] = getMeanRate(obj,align,includeStruct,area,updateAreaModulations)
+         % Parse input arguments
+         if nargin < 2
+            align = defaults.block('alignment');
+         end
+         
+         if nargin < 3
+            includeStruct = utils.makeIncludeStruct;
+         end
+         
+         if nargin < 4
+            area = 'Full';
+         end
+         
+         if nargin < 5
+            updateAreaModulations = false;
+         end
+         
+         % Iterate on all objects in array
+         if numel(obj) > 1
+            rate = cell(numel(obj),1);
+            labels = cell(numel(obj),1);
+            flag = false(numel(obj),1);
+            for ii = 1:numel(obj)
+               [rate{ii},t,labels{ii},flag(ii)] = getMeanRate(obj(ii),align,includeStruct,area,updateAreaModulations);
+            end
+            return;
+         end
+         
+         if isempty(obj.nTrialRecent)
+            obj.initRecentTrialCounter;
+         end
+         obj.nTrialRecent.rate = 0;
+         
+         % Get rate relative to some alignment/subset of conditions
+         [rate,flag_exists,flag_isempty,t,labels] = obj.getRate(align,'All',area,includeStruct);
+         
+         % Check that rate does in fact exist for said alignment/conditions
+         % from this particular recording
+         flag = flag_exists && (~flag_isempty);
+         if (~flag)
+            fprintf(1,'Missing rate data for %s %s.\n',obj.Name,align);
+            if updateAreaModulations
+               obj.HasAreaModulations = false;
+               obj.chMod = [];
+            end
+            return;
+         else
+            obj.nTrialRecent.rate = size(rate,1);
+            rate = squeeze(nanmean(rate,1));
+         end
+         
+         % If specified on input argument, update area modulations relating
+         % to average rate maxima vs minima for channels in this
+         % alignment/condition by CFA/RFA
+         if updateAreaModulations
+            obj.updateChMod(rate,t,true);
+         end
+      end
+      
+      % Similar to GETMEANRATE, but returns the average rate after
+      % subtracting a marginalization using the cross-day average and
+      % restrictions from the "includeStruct" format input
+      % 'includeStructMarg.' 
+      function [rate,t,labels,flag] = getMeanMargRate(obj,align,includeStruct,includeStructMarg,area,updateAreaModulations)
+         % Parse input arguments
+         if nargin < 2
+            align = defaults.block('alignment');
+         end
+         
+         if nargin < 3
+            includeStruct = utils.makeIncludeStruct;
+         end
+         
+         if nargin < 4
+            includeStructMarg = utils.makeIncludeStruct;
+         end
+         
+         if nargin < 5
+            area = 'Full';
+         end
+         
+         if nargin < 6
+            updateAreaModulations = false;
+         end
+         
+         % Handle array BLOCK object inputs
+         if numel(obj) > 1
+            rate = cell(numel(obj),1);
+            labels = cell(numel(obj),1);
+            flag = false(numel(obj),1);
+            for ii = 1:numel(obj)
+               [rate{ii},t,labels{ii},flag(ii)] = getMeanMargRate(obj(ii),align,includeStruct,includeStructMarg,area,updateAreaModulations);
+            end
+            return;
+         end
+         
+         % Reset the trial counter, or initialize it if necessary
+         if isempty(obj.nTrialRecent)
+            obj.initRecentTrialCounter;
+         else
+            obj.nTrialRecent.marg = 0;
+            obj.nTrialRecent.rate = 0;
+         end
+         
+         % Get rate for a particular set of conditions, for this recording
+         [rate,flag_exists,flag_isempty,t,labels] = obj.getRate(align,'All',area,includeStruct);
+         flag = flag_exists && (~flag_isempty);
+         
+         % If couldn't retrieve any trials for those conditions, then skip
+         % this one and make sure the channel modulation estimate has been
+         % reset.
+         if (~flag)
+            fprintf(1,'Missing rate data for %s %s.\n',obj.Name,align);
+            if updateAreaModulations
+               obj.HasAreaModulations = false;
+               obj.chMod = [];
+            end
+            return;
+         else
+            % Otherwise, try to remove the average cross-day mean from all
+            % trials for the particular set of conditions specified in
+            % includeStructMarg.
+            obj.nTrialRecent.rate = size(rate,1);
+            rate = obj.removeCrossCondMean(rate,align,includeStructMarg,area);
+            
+            % If the cross-day mean set of conditions is too restrictive to
+            % find any trials, again, return an empty array and make sure
+            % the channel modulations are reset.
+            if isempty(rate)
+               fprintf(1,'Missing marginal rate data for %s %s.\n',...
+                  obj.Name,utils.parseIncludeStruct(includeStructMarg));
+               if updateAreaModulations
+                  obj.HasAreaModulations = false;
+                  obj.chMod = [];
+               end
+               return;
+            end
+            % Otherwise, return the average and tally up the total number
+            % of trials used in both the mean subtraction (.marg) and the
+            % actual returned estimate (.rate)
+            obj.nTrialRecent.marg = sum(obj.parseTrialIndicesFromIncludeStruct(align,includeStructMarg));
+            obj.nTrialRecent.rate = size(rate,1);
+            rate = squeeze(nanmean(rate,1));
+         end
+         
+         % If specified, update "area" related channel modulations for this
+         % recording (e.g. the max rate peak within a range minus the min
+         % rate trough within a range, averaged across channels for RFA or
+         % CFA).
+         if updateAreaModulations
+            obj.updateChMod(rate,t,true);
+         end
       end
       
       % Return "unified" property (from parent)
@@ -1523,12 +1738,11 @@ classdef block < handle
          end
 
          if strcmp(outcome,'Successful')
-            iS = struct;
-            iS.Include = {'Reach','Grasp','Complete','PelletPresent'};
-            iS.Exclude = [];
-            [rate,flag_exists,flag_isempty,t] = getRate(obj,align,outcome,area,iS);
+            includeStruct = utils.makeIncludeStruct({'Reach','Grasp','Complete','PelletPresent'});
+            [rate,flag_exists,flag_isempty,t] = getRate(obj,align,outcome,area,includeStruct);
          else
-            [rate,flag_exists,flag_isempty,t] = getRate(obj,align,outcome,area);
+            includeStruct = utils.makeIncludeStruct({'Reach','Grasp','Complete'},[]);
+            [rate,flag_exists,flag_isempty,t] = getRate(obj,align,outcome,area,includeStruct);
          end
          if (~flag_exists) || flag_isempty
             fprintf(1,'No %s %s (%s) rates to do jPCA for %s.\n',...
@@ -1540,6 +1754,8 @@ classdef block < handle
          start_stop_times = defaults.jPCA('jpca_start_stop_times');
 %          analyze_times = t(t>=start_stop_times(1) & t<=start_stop_times(2));
          
+         rate = obj.removeCrossCondMean(rate,align,includeStruct,area);
+
          D = jPCA.format(rate,t);
          idx = ones(numel(D),1);
       end
@@ -1796,8 +2012,8 @@ classdef block < handle
          end         
          
 
-         includeStruct = struct;
-         includeStruct.Include = {'PelletPresent'};            
+
+         includeStruct = utils.makeIncludeStruct({'PelletPresent'},[]);
          [x,flag_exists,flag_isempty,t,labels] = obj.getRate(align,'All',area,includeStruct);
          Summary.outcomes = labels;
          if ~flag_exists
@@ -1811,6 +2027,8 @@ classdef block < handle
             fprintf(1,'No trials for %s: %s-%s\n',obj.Name,align,area);
             return;
          end
+         
+         x = obj.removeCrossCondMean(x,align,includeStruct,area);
 
          
          if size(x,1) < 2
@@ -2322,6 +2540,18 @@ classdef block < handle
       
       % Return the matched channel for the channel index (from parent)
       function iCh = matchChannel(obj,ch)
+         if numel(obj) > 1
+            error('matchChannel method is only for scalar BLOCK objects.');
+         end
+         
+         if numel(ch) > 1
+            iCh = nan(size(ch));
+            for ii = 1:numel(ch)
+               iCh(ii) = obj.matchChannel(ch);
+            end
+            return;
+         end
+         
          if isempty(obj.Parent)
             iCh = ch;
             fprintf(1,'Parent of %s not yet initialized.\n',obj.Name);
@@ -2334,6 +2564,67 @@ classdef block < handle
          p_channel = obj.Parent.ChannelInfo(ch).channel;
          
          iCh = find((ch_probe==p_probe) & (ch_channel==p_channel),1,'first');
+      end
+      
+      % Parse the trials to be used, based on includeStruct
+      function [idx,labels] = parseTrialIndicesFromIncludeStruct(obj,align,includeStruct,outcome)
+         % Parse input
+         if numel(obj) > 1
+            error('parseTrialIndicesFromIncludeStruct is a method of scalar BLOCK objects only.');
+         end
+         
+         if nargin < 4
+            outcome = 'All';
+         end
+         
+         % Reduce number of rows (trials) of BEHAVIORDATA
+         b = obj.behaviorData;
+         idx = ~isinf(b.(align));
+         b = b(idx,:);
+
+         if strcmpi(outcome,'Successful')
+            idx = logical(b.Outcome);
+            b = b(idx,:);
+         elseif strcmpi(outcome,'Unsuccessful')
+            idx = ~logical(b.Outcome);
+            b = b(idx,:);
+         end
+         idx = true(size(b,1),1);
+         labels = b.Outcome+1;
+
+         % Parse trial indexing based on what char vector elements 
+         % comprise 'Include' field cell array
+         if isfield(includeStruct,'Include')
+            for ii = 1:numel(includeStruct.Include)
+               switch b.Properties.UserData(ismember(b.Properties.VariableNames,includeStruct.Include{ii}))
+                  case 1
+                     idx = idx & (~isinf(b.(includeStruct.Include{ii})));
+                  case 3
+                     idx = idx & logical(b.(includeStruct.Include{ii}));
+                  otherwise
+                     continue;
+               end
+
+            end
+         end
+
+         % Parse trial indexing based on what char vector elements 
+         % comprise 'Exclude' field cell array
+         if isfield(includeStruct,'Exclude')
+            for ii = 1:numel(includeStruct.Exclude)
+               switch b.Properties.UserData(ismember(b.Properties.VariableNames,includeStruct.Exclude{ii}))
+                  case 1
+                     idx = idx & (isinf(b.(includeStruct.Exclude{ii})));
+                  case 3
+                     idx = idx & ~logical(b.(includeStruct.Exclude{ii}));
+                  otherwise
+                     continue;
+               end
+
+            end
+         end
+
+         labels = labels(idx);
       end
       
       % Plot the average normalized spike rate for a given
@@ -2431,6 +2722,9 @@ classdef block < handle
             title(a{ii},'Color','k','FontName','Arial','FontSize',16);
          end
       end
+      
+      % Remove cross-condition mean from a set of output rates
+      rate = removeCrossCondMean(obj,rate,align,includeStruct,area);
       
       % Reset channel-wise metadata
       function resetChannelInfo(obj,resetMask)
@@ -2655,6 +2949,50 @@ classdef block < handle
                obj.HasData = false;
             end
          end
+         
+      end
+      
+      % Set cross-condition means, averaged across all days
+      function setCrossCondMean(obj,xcmean,align,outcome,pellet,reach,grasp,support,complete)
+         if nargin < 9
+            complete = 'All';
+         end
+         
+         if nargin < 8
+            support = 'All';
+         end
+         
+         if nargin < 7
+            grasp = 'All';
+         end
+         
+         if nargin < 6
+            reach = 'All';
+         end
+         
+         if nargin < 5
+            pellet = 'All';
+         end
+         
+         if nargin < 4
+            outcome = 'All';
+         end
+         
+         if nargin < 3
+            align = defaults.block('alignment');
+         end
+         
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               setCrossCondMean(obj(ii),xcmean,align,outcome,pellet,reach,grasp,support,complete);
+            end
+            return;
+         end
+         if isempty(obj.XCMean)
+            obj.XCMean = struct;
+            obj.XCMean.key = '(align).(outcome).(pellet).(reach).(grasp).(support).(complete)';
+         end
+         obj.XCMean.(align).(outcome).(pellet).(reach).(grasp).(support).(complete) = xcmean;
          
       end
       
@@ -2913,6 +3251,49 @@ classdef block < handle
          end
       end
       
+      % Update values in channel modulation property struct
+      function updateChMod(obj,rate,t,alreadyMasked)
+         if numel(obj) > 1
+            error('UPDATECHMOD method should only be used on scalar BLOCK objects.');
+         end
+         
+         if nargin < 4
+            alreadymasked = true;
+         end
+         
+         if nargin < 3
+            t = linspace(obj.T(1)*1e3,obj.T(end)*1e3,size(rate,1));
+         end
+         
+         % rate: nTimesteps x nChannels matrix
+         if numel(size(rate)) > 2
+            rate = squeeze(nanmean(rate,1));
+         end
+         
+         % Get indexing for CFA and RFA channels
+         if alreadyMasked
+            ch_rfa = contains({obj.ChannelInfo(obj.ChannelMask).area},'RFA');
+            ch_cfa = contains({obj.ChannelInfo(obj.ChannelMask).area},'CFA');
+         else
+            ch_rfa = contains({obj.ChannelInfo.area},'RFA');
+            ch_cfa = contains({obj.ChannelInfo.area},'CFA');
+         end
+         
+         % Restrict timepoints of interest to region around the peak
+         % (for estimating channel modulations for index)
+         tss = defaults.rat('ch_mod_epoch_start_stop');
+         t_idx = (t >= tss(1)) & (t <= tss(2));
+         
+         % Get average "peak modulation" across channels for the legend
+         obj.chMod = struct;
+         obj.chMod.RFA = nanmean(max(rate(t_idx,ch_rfa),[],1) -...
+                                 min(rate(t_idx,ch_rfa),[],1));
+         obj.chMod.CFA = nanmean(max(rate(t_idx,ch_cfa),[],1) -...
+                                 min(rate(t_idx,ch_cfa),[],1));
+                              
+         obj.HasAreaModulations = true;
+      end
+      
       % Update decomposition data relating to profile activity
       function updateDecompData(obj)
          fname = fullfile(obj.Folder,obj.Name,...
@@ -3105,6 +3486,12 @@ classdef block < handle
       end
    end
    
+   methods (Access = private)
+      function initRecentTrialCounter(obj)
+         obj.nTrialRecent = struct('rate',0,'marg',0);
+      end
+   end
+   
    methods (Access = public, Static = true)
       % Static function to apply LPF and down-sample for jPCA
       function [y,t_out] = applyLPF2Rate(x,t_in,doNorm)
@@ -3244,8 +3631,6 @@ classdef block < handle
             y = filtfilt(b,a,mu).';
          end
       end
-      
-      
       
    end
    

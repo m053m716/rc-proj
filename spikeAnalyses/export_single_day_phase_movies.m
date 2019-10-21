@@ -64,9 +64,8 @@ end
 for iF = 1:numel(f)
    
    fprintf(1,'-->\t%s channels (%s TRIALS)...\n',f{iF},upper(outcome));
-   field_expr = sprintf('jPCA.%s',f{iF});
-   [x,fieldExists] = parseStruct(J.Data{idx}.(align).(outcome).jPCA,...
-      field_expr);
+   field_expr = sprintf('Data.%s.%s.jPCA.%s',align,outcome,f{iF});
+   [x,fieldExists] = parseStruct(J.Data{idx},field_expr);
    
    if ~fieldExists
       fprintf(1,'%s: missing %s\n',J.Name{idx},field_expr);

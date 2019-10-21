@@ -60,6 +60,13 @@ p.channel_export_spreadsheet = 'Stats-By-Channel.xlsx';
 p.rat_export_spreadsheet = 'Stats-By-Rat.xlsx';
 p.trial_export_spreadsheet = 'Stats-By-Trial.xlsx';
 
+% Figure name and location
+p.marg_fig_loc = 'marginal-rate-average-figs';
+p.marg_fig_name = '%s-%s_%s__X__%s%s';
+
+% Cross-condition info
+p.xc_fields = {'Outcome','PelletPresent','Reach','Grasp','Support','Complete'};
+
 %% PARSE OUTPUT
 if ismember(lower(name),fieldnames(p))
    param = p.(lower(name));

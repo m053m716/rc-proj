@@ -5,6 +5,8 @@ classdef group < handle
       Name        % Name of this experimental group
       Children    % Child rat objects belonging to this GROUP
       Data        % Struct to hold GROUP-level data
+      xPC         % Struct to hold xPCA-related data
+      ChannelInfo % Aggregate (masked) channel info
    end
    
    properties (GetAccess = public, SetAccess = private, Hidden = true)
@@ -595,8 +597,20 @@ classdef group < handle
          end
       end
       
-      % Plot average rate profiles across days by group
+      % Plot average rate profiles across days by group. Can accept object
+      % arrays, cell arrays of 'align' arguments (e.g. {'Grasp','Reach'}),
+      % and cell arrays of 'outcome' arguments, which can either be a char
+      % vector (e.g. 'Successful' or {'Successful','Unsuccessful','All'})
+      % or the includeStruct that is more general for including different
+      % kinds of metadata from the BEHAVIORDATA table constructed from
+      % appending video metadata to each behavioral/neurophysiological
+      % recording. For details about includeStruct, see
+      % utils.MAKEINCLUDESTRUCT. In that case, outcome can be an
+      % includeStruct or a cell array of such structs 
+      % (e.g. {utils.makeIncludeStruct; utils.makeIncludeStruct([],[])}
+      % etc.)
       function fig = plotNormAverages(obj,align,outcome)
+         % Parse input arguments
          if nargin < 2
             align = defaults.block('all_events');
          end
@@ -605,6 +619,7 @@ classdef group < handle
             outcome = defaults.block('outcome');
          end
          
+         % Iterate on object array
          if numel(obj) > 1
             if nargout > 0
                fig = [];
@@ -620,27 +635,155 @@ classdef group < handle
             end
          end
          
+         % Iterate on alignments
          if iscell(align)
             if nargout > 0
                fig = [];
-               for ik = 1:numel(align)
-                  fig = [fig; plotNormAverages(obj.Children,align{ik},outcome)];
+               for ii = 1:numel(align)
+                  fig = [fig; plotNormAverages(obj,align{ii},outcome)];
                end
                return;
             else
-               for ik = 1:numel(align)
-                  plotNormAverages(obj.Children,align{ik},outcome)
+               for ii = 1:numel(align)
+                  plotNormAverages(obj,align{ii},outcome)
                end
                return;
             end
+         end
             
-         else
+         % Iterate on all outcomes (or cell arrays of includeStructs) 
+         if iscell(outcome)
             if nargout > 0
-               fig = plotNormAverages(obj.Children,align,outcome);
+               fig = [];
+               for ii = 1:numel(outcome)
+                  fig = [fig; plotNormAverages(obj,align,outcome{ii})];
+               end
+               return;
             else
-               plotNormAverages(obj.Children,align,outcome);
+               for ii = 1:numel(outcome)
+                  plotNormAverages(obj,align,outcome{ii})
+               end
+               return;
+            end
+         end
+         
+         % Run method on child RAT objects of this GROUP object. Make sure
+         % to handle differently depending on if nargout is specified, as
+         % that determines whether there is batch save/delete or not.
+         if nargout > 0
+            fig = plotNormAverages(obj.Children,align,outcome);
+         else
+            plotNormAverages(obj.Children,align,outcome);
+         end
+         return;
+
+      end
+      
+      % Plot average rate profiles marginalized by various conditions. If
+      % no figure handle is requested as an output, then it automatically
+      % saves figures and deletes them (for batch processing).
+      function fig = plotMargAverages(obj,align,includeStruct,includeStructMarg)
+         % Parse input
+         if nargin < 2
+            align = defaults.block('alignment');
+         end
+         
+         if nargin < 3
+            includeStruct = utils.makeIncludeStruct;
+         end
+         
+         if nargin < 4
+            includeStructMarg = utils.makeIncludeStruct;
+         end
+         
+         % Handle array object input
+         if numel(obj) > 1
+            if nargout < 1
+               for ii = 1:numel(obj)
+                  plotMargAverages(obj(ii),align,includeStruct,includeStructMarg);
+               end
+            else
+               fig = [];
+               for ii = 1:numel(obj)
+                  fig = [fig; plotMargAverages(obj(ii),align,includeStruct,includeStructMarg)];
+               end
             end
             return;
+         end
+         
+         % Handle batch marginalizations for cell arrays of includeStruct
+         if iscell(includeStruct)
+            if ~iscell(includeStructMarg)
+               error('If includeStruct is a cell array, includeStructMarg must also be.');
+            end
+            if numel(includeStruct) ~= numel(includeStructMarg)
+               error('As a cell array, includeStruct and includeStructMarg must have same number of elements.');
+            end
+            if nargout < 1
+               for ii = 1:numel(includeStruct)
+                  plotMargAverages(obj,align,includeStruct{ii},includeStructMarg{ii});
+               end
+               return;
+            else
+               fig = [];
+               for ii = 1:numel(includeStruct)
+                  fig = [fig; plotMargAverages(obj,align,includeStruct{ii},includeStructMarg{ii})];
+               end
+               return;
+            end
+         end
+         
+         % Handle batch marginalizations for cell arrays of alignments
+         if iscell(align)
+            if nargout < 1
+               for ii = 1:numel(align)
+                  plotMargAverages(obj,align{ii},includeStruct,includeStructMarg);
+               end
+               return;
+            else
+               fig = [];
+               for ii = 1:numel(align)
+                  fig = [fig; plotMargAverages(obj,align{ii},includeStruct,includeStructMarg)];
+               end
+               return;
+            end
+         end
+         
+         strIn = utils.parseIncludeStruct(includeStruct);
+         strMarg = utils.parseIncludeStruct(includeStructMarg);
+         
+         % Make figure and tabgroup container. Then loop through and make a
+         % tab for each RAT object, each of which contains the method to
+         % fill out the tab's contents with plots.
+         fig = figure('Name',sprintf('%s -- %s vs %s-ByDay',obj.Name,strIn,strMarg),...
+            'Color','w',...
+            'Units','Normalized',...
+            'Position',[0.1+0.01*randn,0.1+0.01*randn,0.8,0.8]);
+         tg = uitabgroup(fig);
+         pt = [];
+         for ii = 1:numel(obj.Children)
+            pt = [pt; uitab(tg,'Title',obj.Children(ii).Name)];
+            obj.Children(ii).addToTab_PlotMarginalRateByDay(pt(ii),...
+               align,includeStruct,includeStructMarg);
+         end
+         
+         % Parse output (do batch saving if no figure handle requested)
+         if nargout < 1
+            pname = fullfile(pwd,defaults.group('marg_fig_loc'));
+            if exist(pname,'dir')==0
+               mkdir(pname);
+            end
+            
+            fname = fullfile(pname,sprintf(defaults.group('marg_fig_name'),...
+               obj.Name,align,strIn,strMarg,'.fig'));
+            savefig(fig,fname);
+            for ii = 1:numel(pt)
+               fname = fullfile(pname,sprintf(defaults.group('marg_fig_name'),...
+                  obj.Children(ii).Name,align,strIn,strMarg,'.png'));
+               tg.SelectedTab = pt(ii);
+               saveas(fig,fname);
+            end
+            delete(fig);
          end
       end
       
@@ -872,6 +1015,46 @@ classdef group < handle
          out = run_dPCA_days_are_stimuli(obj.Children);
       end
       
+      % Set cross-condition means for block objects of child rat objects
+      function setCrossCondMean(obj,align,outcome,pellet,reach,grasp,support,complete)
+      
+         if nargin < 8
+            [align,outcome,pellet,reach,grasp,support,complete] = utils.getCrossCondKeyCombos();
+         else
+            if ~iscell(align)
+               align = {align};
+            end
+            if ~iscell(outcome)
+               outcome = {outcome};
+            end
+            if ~iscell(pellet)
+               pellet = {pellet};
+            end
+            if ~iscell(reach)
+               reach = {reach};
+            end
+            if ~iscell(grasp)
+               grasp = {grasp};
+            end
+            if ~iscell(support)
+               support = {support};
+            end
+            if ~iscell(complete)
+               complete = {complete};
+            end
+         end
+         
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               setCrossCondMean(obj(ii),align,outcome,pellet,reach,grasp,support,complete);
+            end
+            return;
+         end
+         
+         setCrossCondMean(obj.Children,align,outcome,pellet,reach,grasp,support,complete);
+         
+      end
+      
       % Break into subgroups
       function subGroupArray = splitSubGroups(obj,groupNameArray,groupIndices)
          if nargin < 2
@@ -936,6 +1119,22 @@ classdef group < handle
          unifyjPCA(obj.Children,align,area);
       end
       
+      % Update the ChannelInfo property using the masking and channelInfo
+      % of child RAT objects
+      function updateChannelInfo(obj)
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               obj(ii).updateChannelInfo;
+            end
+            return;
+         end
+         
+         ci = vertcat(obj.Children.ChannelInfo);
+         cm = vertcat(obj.Children.ChannelMask);
+         
+         obj.ChannelInfo = ci(cm);         
+      end
+      
       % Update Folder property of this and children objects
       function updateFolder(obj,newFolder)
          if nargin < 2
@@ -975,6 +1174,33 @@ classdef group < handle
             updateSpikeRateData(obj.Children(ii).Children,align,outcome);
          end
       end
+      % Returns the INTACT group from an array of GROUP objects
+      function [obj_out,idx] = Intact(obj)
+         obj_out = [];
+         for idx = 1:numel(obj)
+            if strcmpi(obj(idx).Name,'Intact')
+               obj_out = obj(idx);
+               return;
+            end
+         end
+         % Otherwise, didn't find it
+         idx = [];
+         fprintf(1,'No Intact group contained in array (%g GROUP objects passed).\n',numel(obj));
+      end
+      
+      % Returns the ISCHEMIA group from an array of GROUP objects
+      function [obj_out,idx] = Ischemia(obj)
+         obj_out = [];
+         for idx = 1:numel(obj)
+            if strcmpi(obj(idx).Name,'Ischemia')
+               obj_out = obj(idx);
+               return;
+            end
+         end
+         % Otherwise, didn't find it
+         idx = [];
+         fprintf(1,'No Ischemia group contained in array (%g GROUP objects passed).\n',numel(obj));
+      end
    end
    
    methods (Access = private)
@@ -993,6 +1219,8 @@ classdef group < handle
             nameArray = [nameArray; getBlockNames(obj.Children(ii))]; %#ok<*AGROW>
          end
       end
+      
+      
    end
    
 end
