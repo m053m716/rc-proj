@@ -20,9 +20,7 @@ end
 
 %% HANDLE MULTIPLE INPUT OBJECTS
 if numel(obj) > 1
-   if nargin < 4
-      rate = cell(numel(obj),1);
-   end
+   rate = cell(numel(obj),1);
    for ii = 1:numel(obj)
       if nargout > 1
          [rate{ii},t] = getSetIncludeStruct(obj(ii),align,includeStruct);
@@ -41,6 +39,7 @@ field_expr = parseIncludeFieldExpr(align,includeStruct);
 fe_t = [field_expr '.t'];
 fe_rate = [field_expr '.rate'];
 emptyStruct = struct;
+
 
 if nargout < 1 % Set
    obj.XCMean = setStructField(obj.XCMean,{field_expr,fe_t,fe_rate},{emptyStruct,t,rate});

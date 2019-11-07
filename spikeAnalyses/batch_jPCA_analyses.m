@@ -7,7 +7,7 @@ ticTimes = struct;
 if exist('gData','var')==0
    loadTic = tic;
    fprintf(1,'Loading gData object...');
-   load('Updated_Scoring_gData.mat','gData');
+   load(defaults.experiment('group_data_name'),'gData');
    ticTimes.load = round(toc(loadTic));
    fprintf(1,'complete (%g sec elapsed)\n',ticTimes.load);
 end
@@ -44,6 +44,6 @@ fprintf(1,'\t-->\t(%g sec elapsed)\n\n',ticTimes.movie_export);
 %% SAVE AT END
 fprintf(1,'Saving...');
 saveTic = tic;
-save('Updated_Scoring_gData.mat','gData','-v7.3');
+save(defaults.experiment('group-data_name'),'gData','-v7.3');
 ticTimes.save = round(toc(saveTic));
 fprintf(1,'complete (%g sec elapsed)\n\n\n',ticTimes.save);

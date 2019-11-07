@@ -7,7 +7,7 @@ ticTimes = struct;
 if exist('gData','var')==0
    loadTic = tic;
    fprintf(1,'Loading gData object...');
-   load('Updated_Scoring_gData.mat','gData');
+   load(defaults.experiment('group_data_name'),'gData');
    ticTimes.load = round(toc(loadTic));
    fprintf(1,'complete (%g sec elapsed)\n',ticTimes.load);
 end

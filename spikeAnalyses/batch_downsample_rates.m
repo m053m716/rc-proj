@@ -5,7 +5,7 @@ clc;
 %% Load data (if not in workspace already)
 if exist('gData','var')==0
    clear; 
-   load('Updated_Scoring_gData.mat','gData');
+   load(defaults.experiment('group_data_name'),'gData');
 else
    clearvars -except gData
 end
@@ -24,5 +24,5 @@ for iO = 1:numel(outcome)
       updateSpikeRateData(gData,align{iA},outcome{iO});
    end
 end
-save('Updated_Scoring_gData.mat','gData','-v7.3');
+save(defaults.experiment('group_data_name'),'gData','-v7.3');
 toc(maintic);

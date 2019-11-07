@@ -1,10 +1,13 @@
-function xcmean = getCrossCondMean(obj,align,includeStruct,area)
+function [xcmean,t] = getCrossCondMean(obj,align,includeStruct,area)
 %% GETCROSSCONDMEAN  Get cross-condition mean for a set of conditions
 %
 %  xcmean = obj.GETCROSSCONDMEAN(align,includeStruct);
 %  xcmean = obj.GETCROSSCONDMEAN(align,includeStruct,area);
+%  [xcmean,t] = ...
 %
 %  xcmean : nTimesteps x nChannels array
+%
+%  t      : 1 x nTimesteps vector
 %
 % By: Max Murphy  v1.0  2019-10-18  Original version (R2017a)
 
@@ -55,15 +58,19 @@ for ii = 1:numel(key)
       str = [str '.All'];
    end
 end
+str_rate = [str '.rate'];
+str_t = [str '.t'];
 
 %% Return the cross-condition mean
-[xcmean,flag_exists,flag_isempty] = parseStruct(obj.XCMean,str);
+[xcmean,flag_exists,flag_isempty] = parseStruct(obj.XCMean,str_rate);
 if (~flag_exists) || (flag_isempty)
    xcmean = [];
+   t = [];
    fprintf(1,'No cross-condition mean set for %s.%s\n',obj.Name,str);
    return;
 else
    xcmean = xcmean(:,ch_idx);
+   t = parseStruct(obj.XCMean,str_t);
 end
 
 end

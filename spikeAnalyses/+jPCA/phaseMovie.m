@@ -252,8 +252,8 @@ if (nargout > 0)  || (usePads == 1)
       frameParams.reusePlot = 1;  % after the first frame, always reuse
       
       if nargout > 0
-         MV(:,:,:,fi) = screencapture(gca); %#ok<*AGROW>
-%          MV(:,:,:,fi) = screencapture(gcf,pixelsToGet); %#ok<*AGROW>
+         MV(:,:,:,fi) = utils.screencapture(gca); %#ok<*AGROW>
+%          MV(:,:,:,fi) = utils.screencapture(gcf,pixelsToGet); %#ok<*AGROW>
 %          try
 %             MV(fi) = getframe(gca, pixelsToGet);
 %          catch
@@ -325,8 +325,8 @@ for ti = 3:length(times2plot)
       'Color',[0.75 0.75 0.75]);
    
    if nargout > 0
-      MV(:,:,:,fi) = screencapture(gca);
-%       MV(:,:,:,fi) = screencapture(gcf, pixelsToGet);
+      MV(:,:,:,fi) = utils.screencapture(gca);
+%       MV(:,:,:,fi) = utils.screencapture(gcf, pixelsToGet);
 %       try
 %          MV(fi) = getframe(gca, pixelsToGet);
 %       catch
@@ -354,8 +354,8 @@ if nargout > 0  && usePads == 1
       frameParams.reusePlot = 1;  % after the first frame, always reuse
       
       if nargout > 0
-         MV(:,:,:,fi) = screencapture(gca);
-%          MV(:,:,:,fi) = screencapture(gcf,pixelsToGet);
+         MV(:,:,:,fi) = utils.screencapture(gca);
+%          MV(:,:,:,fi) = utils.screencapture(gcf,pixelsToGet);
 %          try
 %             MV(fi) = getframe(gca, pixelsToGet);
 %          catch

@@ -4,8 +4,14 @@ function param = xPCA(name)
 %%
 p = struct;
 p.t_start = -1000; % ms
+% p.t_start = -600; % ms
 p.t_stop = 750; % ms
-p.debug = true; % enables debug conditionals
+% p.t_stop = 400; % ms
+p.areas = categorical({'CFA','RFA'});
+p.groups = categorical({'Intact','Ischemia'});
+p.latent_threshold = 0.95; % percent-explained threshold
+p.varcapt_threshold = 0.75; % threshold for removing an Intact channel (reconstruction)
+p.debug = false; % enables debug conditionals
 
 %%
 if nargin < 1

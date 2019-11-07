@@ -49,6 +49,8 @@ p.norm_spike_rate_tag = sprintf('_NormSpikeRate%03gms_',p.spike_smoother_w);
 p.fname_orig_rate = '%s%s%s_%s.mat';
 p.fname_ds_rate = '%s%s%s_%s_ds-%gx.mat';
 p.alignment = 'Grasp';
+p.align = 'Grasp'; % same as "alignment" but just to make it compatible keep both
+p.include = utils.makeIncludeStruct({'Reach','Grasp','Outcome'},[]);
 p.all_alignments = {'Successful',1;...
                     'Unsuccessful',0;...
                     'All',[0,1]};
@@ -95,6 +97,14 @@ p.trial_stats_var_descriptions = { ...
    '0 - unsuccessful; 1 - successful'; ...
    'which forelimb was used for reaching'};
 
+% For parsing electrode orientation/location
+p.elec_grid_x = repmat(linspace(-0.875,0.875,8),2,1); % mm; rostro-caudal axis
+p.elec_grid_y = repmat([0.25; -0.25],1,8); % mm; medio-lasteral axis
+p.elec_grid_ord = [ 1, 2, 3, 4, 5, 6, 7, 8; ...
+                   16,15,14,13,12,11,10, 9]; % Channel indices/arrangement
+p.elec_info_xlsx = fullfile(defaults.experiment('tank'),...
+                            'electrode_stereotaxic_centers.xlsx');
+                
 %% PARSE OUTPUT
 if ismember(lower(name),fieldnames(p))
    param = p.(lower(name));

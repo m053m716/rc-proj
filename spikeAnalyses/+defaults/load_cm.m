@@ -8,18 +8,21 @@ function [cm,nColorOpts] = load_cm(name)
 % By: Max Murphy  v1.0  2019-06-06  Original version (R2017a)
 
 %%
+thispath = mfilename('fullpath');
+thispath = fileparts(thispath);
+
 if nargin < 1
    name = 'hotcold';
 else
    fname = sprintf('%smap.mat',name);
-   if exist(fname,'file')==0
+   if exist(fullfile(thispath,fname),'file')==0
       fprintf(1,'%s does not exist. Loading hotcoldmap.mat instead.\n',fname);
       name = 'hotcold';
    end
 end
 
 fname = sprintf('%smap.mat',name);
-in = load(fname);
+in = load(fullfile(thispath,fname));
 if ~isfield(in,'cm')
    error('No ''cm'' variable in %s. Is it a valid colormap file?',fname);
 else

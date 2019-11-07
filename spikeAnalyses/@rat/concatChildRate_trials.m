@@ -58,24 +58,45 @@ end
 %% HANDLE OBJECT ARRAY INPUT
 if numel(obj) > 1
    X = cell(numel(obj),1);
+   t = [];
    for ii = 1:numel(obj)
-      [X{ii},t] = concatChildRate_trials(obj(ii),align,includeStruct);
+      [X{ii},ttmp] = concatChildRate_trials(obj(ii),align,includeStruct,area,tIdx);
+      if ~isempty(ttmp)
+         t = ttmp;
+      end
    end
    return;
 end
+%% INITIALIZE OUTPUT
+t = [];
+X = [];
 
 %% FOR EACH CHILD, GET THE RIGHT TRIALS
 x = cell(size(obj.Children));
 nTrialTotal = 0;
+t_is_set_flag = false;
+t = [];
 for ii = 1:numel(obj.Children)
-   [xtmp,~,~,ttmp] = getRate(obj.Children(ii),align,'All',area,includeStruct);
+   [xtmp,~,flag_isempty,ttmp] = getRate(obj.Children(ii),align,'All',area,includeStruct);
+
    if isnan(tIdx(1))
-      t = ttmp;
+      if ~t_is_set_flag
+         if ~flag_isempty
+            t = ttmp;
+            t_is_set_flag = true;
+         end
+      end
       x{ii} = xtmp;
    else
-      t = ttmp(tIdx);
+      if ~t_is_set_flag
+         if ~flag_isempty
+            t = ttmp(tIdx);
+            t_is_set_flag = true;
+         end
+      end
       x{ii} = xtmp(:,tIdx,:);
    end
+
 end
 removeBlock = cellfun(@(c)isempty(c),x,'UniformOutput',true);
 x(removeBlock) = [];
@@ -83,7 +104,6 @@ nTrialTotal = sum(cellfun(@(c)size(c,1),x,'UniformOutput',true));
 nT = numel(t);
 
 if nTrialTotal == 0
-   X = [];
    return;
 end
 

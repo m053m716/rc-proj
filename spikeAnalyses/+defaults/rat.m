@@ -16,7 +16,7 @@ function param = rat(name)
 
 %% CHANGE THESE
 p = struct; % All field names should be lower-case
-p.icms_file = 'P:\Extracted_Data_To_Move\Rat\TDTRat\icms_data.xlsx';
+p.icms_file = fullfile(defaults.experiment('tank'),defaults.experiment('icms_data_name'));
 p.x_lim_screening = [-1750, 750];   % x-limits for screening plots
 p.y_lim_screening = [-15 15];       % y-limits for screening plots
 p.x_lim_norm = [-1250, 750];
@@ -34,6 +34,8 @@ p.rate_avg_leg_subplot = 35; % Index of the "daily average rate" subplot to cont
 p.suppress_data_curation = true; % should set to false if haven't curated data yet
 % p.suppress_data_curation = false; 
 p.batch_align = defaults.jPCA('jpca_align');
+p.align = 'Grasp';
+p.include = utils.makeIncludeStruct({'Reach','Grasp','Outcome'},[]);
 p.batch_outcome = 'All';
 p.batch_area = 'Unified';
 p.channel_mask_loc = defaults.block('channel_mask_loc');
@@ -46,6 +48,57 @@ p.includeStructMarg = p.includeStructPlot; % Same, but the marginalization occur
 
 % For "channel modulation" epoch identification
 p.ch_mod_epoch_start_stop = [-750 500]; % [onset,offset] of interest (ms)
+p.ch_mod_legopts = struct('yLim',[-2 3.75],... % for plotting "legend" axes
+                          'scoreScale',2,...
+                          'scoreOffset',1.5,...
+                          'barScale',1,...
+                          'textOffset',[0.75,-0.85],...
+                          'minTrials',10,...
+                          'cfaTextY',0.5,...
+                          'rfaTextY',-0.5,...
+                          'axYLabel','Relative Modulation',...
+                          'scatterMarkerSize',30); 
+
+% For making figures in general
+e = 0.015*randn;
+p.big_fig_pos = [0.1+e 0.1+e 0.8 0.8]; % "Big"
+p.bl_fig_pos = [0.1+e 0.1+e 0.3 0.3]; % Bottom-Left
+p.ul_fig_pos = [0.1+e 0.5+e 0.3 0.3]; % Upper-Left
+p.br_fig_pos = [0.5+e 0.1+e 0.3 0.3]; % Bottom-Right
+p.ur_fig_pos = [0.5+e 0.5+e 0.3 0.3]; % Upper-Right
+
+% For plotting channels by day
+p.ch_by_day_xlim = [0 31];
+p.ch_by_day_ylim = [-0.1 1];
+p.ch_by_day_xaxisloc = 'origin';
+p.ch_by_day_legopts = struct('yLim',[-2 3.75],... % for plotting "legend" axes
+                          'scoreScale',2,...
+                          'scoreOffset',1.5,...
+                          'barScale',1,...
+                          'textOffset',[0.75,-0.85],...
+                          'minTrials',10,...
+                          'cfaTextY',0.5,...
+                          'rfaTextY',-0.5,...
+                          'axYLabel','Relative Modulation',...
+                          'scatterMarkerSize',30); 
+
+% For PLOTMEANCOHERENCE method
+p.ch_by_day_coh_xloc = 'bottom';
+p.ch_by_day_coh_xlim = [0 12];
+p.ch_by_day_coh_ylim = [0 31];
+p.ch_by_day_coh_zlim = [0 1];
+p.coh_plot_type = 'heatmap'; % can be: 'ribbon', 'waterfall', 'surface', or 'heatmap'
+p.coh_ax_angle = [10 45]; % azimuth, elevation
+p.coh_x_lab = 'Freq (Hz)';
+p.coh_y_lab = 'PO-Day';
+p.cm_name = 'hotcold';
+p.coh_fig_fname = ['%s_%s__%s__' p.coh_plot_type];
+
+% For EXPORTSKULLPLOTMOVIE method
+p.movie_n_frames = 900; % Total number of frames in movie
+p.movie_fs = 30; % Frames per second
+p.movie_loc = 'channel-plot-movies';
+p.movie_fname_str = '%s_%s_power-v-time.avi';
 
 %% PARSE OUTPUT
 if ismember(lower(name),fieldnames(p))
