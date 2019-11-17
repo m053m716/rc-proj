@@ -1770,7 +1770,7 @@ classdef block < handle
                   case 3
                      idx = idx & ~logical(b.(includeStruct.Exclude{ii}));
                   case 4
-                     idx = idx & logical(b.(includeStruct.Exclude{ii}));
+                     idx = idx & ~logical(b.(includeStruct.Exclude{ii}));
                   otherwise
                      continue;
                end
@@ -3394,6 +3394,58 @@ classdef block < handle
          end
       end
       
+      % Get average rate from blocks within a post-op day range
+      function [X,t,n,iKeep] = getMeanRateByDay(obj,align,includeStruct,poDayStart,poDayStop)
+         if nargin < 5
+            error('Must include all 5 input arguments.');
+         end
+         
+         if numel(unique(vertcat(obj.Parent))) > 1
+            error('All blocks in array must have SAME parent RAT object.');
+         end
+         
+         % Init outputs
+         X = [];
+         t = [];
+         n = 0;
+         iKeep = [];
+         
+         s = getSubsetByDayRange(obj,poDayStart,poDayStop);
+         if isempty(s)
+            return;
+         end
+         [rate,t,labels] = getMeanRate(s,align,includeStruct,'All',false);
+         
+         if isempty(rate)
+            return;
+         end
+         
+         % Remove days with no data
+         if ~iscell(rate)
+            rate = {rate};
+            labels = {labels};
+         end
+         iKeep = ~cellfun(@isempty,rate);
+         labels = labels(iKeep);
+         s = s(iKeep);
+         rate = rate(iKeep);
+         
+         if isempty(rate)
+            return;
+         end
+         
+         X = zeros(numel(t),sum(s(1).Parent.ChannelMask));
+         
+         % Index according to parent
+         n = sum(cellfun(@numel,labels));
+         for i = 1:numel(rate)
+            ch = getParentChannel(s(i),1:size(rate{i},2));
+            % Weight each by total number of trials
+            w = numel(labels{i}) / n;
+            X(:,ch) = X(:,ch) + rate{i} .* w;
+         end
+      end
+      
       % Similar to GETMEANRATE, but returns the average rate after
       % subtracting a marginalization using the cross-day average and
       % restrictions from the "includeStruct" format input
@@ -3520,9 +3572,25 @@ classdef block < handle
       end
       
       % Get median offset latency (ms) between two behaviors
-      function offset = getOffsetLatency(obj,align1,align2)
-         if numel(obj) > 1
-            error('Method only works on scalar objects.');
+      %     align1 : "Later" alignment   (grasp, in reach-grasp pair)
+      %     align2 : "Earlier" alignment (reach, in reach-grasp pair)
+      %     offset : Positive value indicates that align1 occurs after
+      %                 align2
+      function offset = getOffsetLatency(obj,align1,align2,outcome,pellet,mustInclude,mustExclude)
+         if nargin < 4
+            outcome = [0 1];
+         end
+         
+         if nargin < 5
+            pellet = [0 1];
+         end
+         
+         if nargin < 6
+            mustInclude = {};
+         end
+         
+         if nargin < 7
+            mustExclude = {};
          end
          
          if nargin < 3
@@ -3534,13 +3602,34 @@ classdef block < handle
          end
          
          
-         if ~ismember(align1,{'Reach','Grasp','Support','Complete'})
+         if ~ismember(align1,{'Reach','Grasp','Support','Complete'}) || ...
+               ~ismember(align2,{'Reach','Grasp','Support','Complete'})
             error('Invalid alignment. Must specify from: (Reach, Grasp, Support, Complete)');
+         end
+         
+         if numel(obj) > 1
+            offset = nan(numel(obj),1);
+            for i = 1:numel(obj)
+               offset(i) = getOffsetLatency(obj(i),align1,align2,outcome,pellet,mustInclude,mustExclude);
+            end
+            return;
          end
          
          b = loadBehaviorData(obj);
          idx = ~isinf(b.(align1)) & ~isnan(b.(align1)) & ...
                ~isinf(b.(align2)) & ~isnan(b.(align2));
+         idx = idx & (ismember(b.Outcome,outcome));
+         idx = idx & (ismember(b.PelletPresent,pellet));
+         for i = 1:numel(mustInclude)
+            idx = idx & (...
+               (~isinf(b.(mustInclude{i}))) & ...
+               (~isnan(b.(mustInclude{i}))));
+         end
+         for i = 1:numel(mustExclude)
+            idx = idx & (...
+               (isinf(b.(mustExclude{i}))) | ...
+               (isnan(b.(mustExclude{i}))));
+         end   
          a1 = b.(align1)(idx);
          a2 = b.(align2)(idx);
          
@@ -3863,8 +3952,17 @@ classdef block < handle
       end
       
       % Alternative way to get/set include struct that's a little more
-      % general than the initial methods
+      % general than the initial methods. GETS CROSS-CONDITION MEAN
+      % (AVERAGED ACROSS DAYS).
       [rate,t] = getSetIncludeStruct(obj,align,includeStruct,rate,t)
+      
+      % Return a subset of BLOCK objects from a BLOCK array using PostOpDay
+      function s = getSubsetByDayRange(obj,poDayStart,poDayStop)
+         d = poDayStart:poDayStop;
+         poday = getNumProp(obj,'PostOpDay');
+         idx = ismember(poday,d);
+         s = obj(idx);
+      end
       
       % Return "unified" property (from parent)
       function out = getUnifiedProp(obj,area,propName)
@@ -4266,7 +4364,9 @@ classdef block < handle
          pCh = horzcat(vertcat(channelInfo.probe),vertcat(channelInfo.channel));
       end
       
-      % Match probe and channel
+      % Match probe and channel. For each probe-channel combination of
+      % pCh_in (row), checks against all rows of pCh_match and returns
+      % indexing to matched rows.
       function [idx,mask] = matchProbeChannel(pCh_in,pCh_match)
          nCh = size(pCh_in,1);
          idx = nan(nCh,1);

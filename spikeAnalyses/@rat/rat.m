@@ -80,46 +80,6 @@ classdef rat < handle
          fprintf(1,'-------------------------------------------------\n');
          fprintf(1,'\t\t\t\t\t%s --> %g sec\n\n',obj.Name,round(toc(ratTic)));
       end
-      
-      % Assign data from PCA re-basis to child block objects
-      % -- deprecated --
-      function assignBasisData(obj,coeff,score,x,channelInfo)
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               assignBasisData(obj(ii),coeff,score,x,channelInfo);
-            end
-            return;
-         end
-         name = {channelInfo.file}.';
-         blockName = cellfun(@(x)x(1:16),name,'UniformOutput',false);
-         for ii = 1:numel(obj.Children)
-            idx = ismember(blockName,obj.Children(ii).Name);
-            assignBasisData(obj.Children(ii),...
-               coeff(obj.Children(ii).ChannelMask,:),...
-               score(idx,:),x(idx,:),...
-               channelInfo(idx));
-         end
-      end
-      
-      % Assign divergence data relating divergence of jPCA successful &
-      % unsuccessful trajectories in primary jPCA plane
-      % -- deprecated --
-      function assignDivergenceData(obj,T)
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               Tsub = T(ismember(T.Rat,obj(ii).Name),:);
-               if isempty(Tsub)
-                  fprintf(1,'No divergence data for %s.\n',obj(ii).Name);
-                  continue;
-               else
-                  assignDivergenceData(obj(ii),Tsub);
-               end
-            end
-            return;
-         end
-         setDivergenceData(obj.Children,T);
-      end
-      
       % Function to convert child array from cell format to array format,
       % where columns are channels and each row of the array corresponds to
       % a child BLOCK object.
@@ -231,172 +191,6 @@ classdef rat < handle
          
       end
       
-      % Export down-sampled rate data for dPCA. If no output argument is
-      % specified, then files are saved in the default location from
-      % defaults.dPCA. In this version, days are stimuli and successful or
-      % unsuccessful retrieval are the decision.
-      % -- deprecated --
-      function [X,t,trialNum] = export_dPCA_days_are_stimuli(obj)
-         % Parse array input
-         if numel(obj) > 1
-            if nargout < 1
-               for ii = 1:numel(obj)
-                  export_dPCA_days_are_stimuli(obj(ii));
-               end
-            else
-               X = cell(numel(obj),1);
-               trialNum = cell(numel(obj),1);
-               for ii = 1:numel(obj)
-                  [X{ii},t,trialNum{ii}] = export_dPCA_days_are_stimuli(obj(ii)); % t always the same
-               end
-            end
-            return;
-         end
-         
-         p = defaults.dPCA;
-         addpath(p.local_repo_loc);
-         
-         [normRatesCell,t,trialNum] = format_dPCA_days_are_stimuli(obj.Children);
-         removeBlock = cellfun(@(x)isempty(x),normRatesCell,'UniformOutput',true);
-         normRatesCell(removeBlock) = [];
-         trialNum(:,removeBlock,:) = [];
-         setProp(obj.Children,'dPCA_include',removeBlock);
-         
-         nTrialMax = max(cellfun(@(x)size(x,5),normRatesCell,...
-                           'UniformOutput',true));
-         nChannel = sum(obj.ChannelMask);
-         nDay = numel(normRatesCell);               
-         nTs = numel(t);
-         
-         X = nan(nChannel,nDay,3,nTs,nTrialMax);
-         for ii = 1:nDay
-            X(:,ii,:,:,1:size(normRatesCell{ii},5)) = normRatesCell{ii};            
-         end       
-         
-         % If no output argument, save data in array X
-         if nargout < 1
-            fname = fullfile(p.path,sprintf(p.fname,obj.Name));
-            save(fname,'X','t','trialNum','-v7.3');
-         end
-      end
-      
-      % Export down-sampled rate data for dPCA. If no output argument is
-      % specified, then files are saved in the default location from
-      % defaults.dPCA. in this version, pellet presence is the stimulus and
-      % the decision is whether to do a secondary reach or not.
-      % -- deprecated --
-      function [X,t,trialNum] = export_dPCA_pellet_present_absent(obj)
-         % Parse array input
-         if numel(obj) > 1
-            if nargout < 1
-               for ii = 1:numel(obj)
-                  export_dPCA_pellet_present_absent(obj(ii));
-               end
-            else
-               X = cell(numel(obj),1);
-               trialNum = cell(numel(obj),1);
-               for ii = 1:numel(obj)
-                  [X{ii},t,trialNum{ii}] = export_dPCA_pellet_present_absent(obj(ii)); % t always the same
-               end
-            end
-            return;
-         end
-         
-         [X,t,trialNum] = format_dPCA_pellet_present_absent(obj.Children);
-      end
-      
-      % Export a movie of the evolution of some value through time, for a
-      % single rat (over all the recording blocks).
-      function exportSkullPlotMovie(obj,f)
-         if nargin < 2
-            f = [];
-         end
-         
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               exportSkullPlotMovie(obj(ii),f);
-            end
-            return;
-         end
-         
-         align = defaults.rat('align');
-         includeStruct = defaults.rat('include');
-         
-         score = getNumProp(obj.Children,'TrueScore');
-         t = getNumProp(obj.Children,'PostOpDay');
-         fprintf(1,'Estimating mean aligned frequency power for %s.\n',obj.Name);
-         
-         if isempty(f)
-            pCell = getMeanAlignedFreqPower(obj.Children,align,includeStruct);
-         else
-            fch = obj.parentChannelArray2ChildCell(f);
-            pCell = getMeanAlignedFreqPower(obj.Children,align,includeStruct,fch);
-         end
-         pArray = obj.childCell2ChannelArray(pCell);
-         
-         % q - "queried"
-         tq = linspace(min(t),max(t),defaults.rat('movie_n_frames'));
-         
-         % Interpolate score so that there is a score value for each frame
-         fprintf(1,'->\tInterpolating...\n');
-         scoreq = interp1(t,score,tq,'spline'); 
-         scoreq = min(max(scoreq,0),1); % Can't go below 0 or above 1 (from spline interp)
-         
-         % Interpolate power value so it exists for each frame
-         pIdx = ~isnan(pArray);
-         pq = nan(sum(obj.ChannelMask),numel(tq));
-         for iCh = 1:sum(obj.ChannelMask)
-            pq(iCh,:) = interp1(t(pIdx(:,iCh)),pArray(pIdx(:,iCh),iCh),tq,'spline');
-         end
-         
-         % Rearrange order of pq to match channel ordering
-         E = obj.Electrode;
-         e_idx = getChannelElectrodeIndex(obj);
-         pq = abs(pq(e_idx,:));
-         
-         % Make movie
-         fig = figure('Name',obj.Name,...
-            'Units','Normalized',...
-            'Position',[0.3 0.3 0.175 0.4]);
-         ax1 = subplot(2,1,1);
-         ax1.XTick = [];
-         ax1.YTick = [];
-         ax1.NextPlot = 'add';
-         ax2 = subplot(2,1,2);
-         ax2.XLim = [1 31];
-         ax2.YLim = [0 100];
-         
-         ratSkullObj = obj.Parent.buildRatSkullPlot(ax1);
-         ratSkullObj.Name = [obj.Name ' (' obj.Parent.Name ')'];
-         ratSkullObj.addScatterGroup(E.x,E.y,30,E.ICMS); % initialize
-         pq_mu = nanmean(nanmean(pq,1));
-         pq_sd = nanstd(nanmean(pq,1));
-         sizeData = group.c2sizeData(pq,pq_mu,pq_sd);         
-         MV = ratSkullObj.buildMovieFrameSequence(sizeData,scoreq,ax2,tq,t,score); % Get movie
-         pname = defaults.rat('movie_loc');
-         fname_str = defaults.rat('movie_fname_str');
-         if isempty(f)
-            fstr = 'Dominant';
-         else
-            fstr = sprintf('%g-Hz',f(1,1));
-         end
-         fname = fullfile(pname,sprintf(fname_str,obj.Name,fstr));
-         if exist(pname,'dir')==0
-            mkdir(pname);
-         end
-         
-         v = VideoWriter(fname);
-         v.FrameRate = defaults.rat('movie_fs');
-         open(v);
-         for ii = 1:size(MV,4)
-            writeVideo(v,MV(:,:,:,ii));
-         end
-         fprintf(1,'Finished writing skull channel movie for %s.\n',obj.Name);
-         close(v);
-         close(fig);
-         
-      end
-      
       % Returns table of stats for all child Block objects where each row
       % is a reach trial. Essentially is behaviorData of each child object,
       % with appended metadata for each child object.
@@ -422,66 +216,6 @@ classdef rat < handle
          T.Properties.VariableDescriptions = ['rat name', vd];
       end
       
-      % Export "unified" jPCA trial projections from all days
-      % -- deprecated --
-      function exportUnifiedjPCA_movie(obj,align,area)
-         if nargin < 2
-            align = defaults.jPCA('jpca_align');
-         end
-         
-         if nargin < 3
-            area = 'Full';
-         end
-         
-         % Parse array
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               obj(ii).exportUnifiedjPCA_movie(align,area);
-            end
-            return;
-         end
-         
-         if ~isfield(obj.Data,area)
-            obj.unifyjPCA(align,area);
-         end
-         
-         vid_folder = fullfile(defaults.jPCA('video_export_base'),...
-            'Successful',area);
-         output_score = defaults.group('output_score');
-         score = mean(getProp(obj,output_score));
-         movie_params = defaults.jPCA('movie_params',...
-            obj.Data.Summary.outcomes+2,score);
-         
-         t = defaults.jPCA('analyze_times');
-         lpf_fc = defaults.block('lpf_fc');
-         moviename = sprintf('%s_%s_allDays_%gms_to_%gms_%gHzFc',...
-            obj.Name,align,t(1),t(end),lpf_fc);
-         movie_params.movieName = moviename;
-         
-         
-         if ~isempty(obj.Parent)
-            moviename = fullfile(pwd,...
-               vid_folder,obj.Parent.Name,obj.Name,moviename);
-         else
-            moviename = fullfile(pwd,...
-               vid_folder,obj.Name,moviename);
-         end
-
-         vidTic = tic;
-         
-         fprintf(1,'Exporting video:\n-->\t\t%s\n',moviename);
-         if ~isempty(obj.Data.(area).Projection)
-            jPCA.export_jPCA_movie(jPCA.phaseMovie(...
-               obj.Data.(area).Projection,...
-               obj.Data.(area).Summary, ...
-               movie_params),...
-               moviename);
-         else
-            fprintf('\t-->\t(Unsuccessful)\n');
-         end
-         toc(vidTic);
-      end
-      
       % Find children blocks associated with this rat
       function findChildren(obj,extractSpikeRate)         
          if nargin < 2
@@ -499,85 +233,6 @@ classdef rat < handle
                fprintf(1,'-->\tNo data in %s. Skipped.\t\t(%g sec)\n',...
                   h.Name,round(toc(maintic)+3));
             end
-         end
-      end
-      
-      % Shortcut to run jPCA on all children objects
-      % -- deprecated --
-      function jPCA(obj,align)
-         if nargin < 2
-            align = defaults.jPCA('jpca_align');
-         end
-         
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               jPCA(obj(ii),align);
-            end
-            return;
-         end
-         jPCA(obj.Children,align);
-      end
-      
-      % Shortcut to export jPCA movie for all children objects
-      % -- deprecated --
-      function jPCA_movie(obj,align,outcome,area)
-         if nargin < 4
-            area = defaults.rat('batch_area');
-         end
-         
-         if nargin < 3
-            outcome = defaults.rat('batch_outcome');
-         end
-         
-         if nargin < 2
-            align = defaults.rat('batch_align');
-         end
-         
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               jPCA_movie(obj(ii),align,outcome,area);
-            end
-            return;
-         end
-         
-         jPCA_movie(obj.Children,align,outcome,area);
-         
-      end
-      
-      % Shortcut for jPCA_suppress runFun
-      % -- deprecated --
-      function [Projection,Summary] = jPCA_suppress(obj,active_area,align,outcome,doReProject)
-         if nargin < 5
-            doReProject = false;
-         end
-         
-         if nargin < 4
-            outcome = 'All';
-         end
-         
-         if nargin < 3
-            align = 'Grasp';
-         end
-         
-         if numel(obj) > 1
-            if nargout > 1
-               Projection = cell(numel(obj),1);
-               Summary = cell(numel(obj),1);
-               for ii = 1:numel(obj)
-                  [Projection{ii},Summary{ii}] = jPCA_suppress(obj(ii),active_area,align,outcome,doReProject);
-               end
-            else
-               for ii = 1:numel(obj)
-                  jPCA_suppress(obj(ii),active_area,align,outcome,doReProject);
-               end
-            end
-            return;
-         end
-         
-         if nargout > 1
-            [Projection,Summary] = jPCA_suppress(obj.Children,active_area,align,outcome,doReProject);
-         else
-            jPCA_suppress(obj.Children,active_area,align,outcome,doReProject);
          end
       end
       
@@ -610,35 +265,6 @@ classdef rat < handle
          end
          
          obj.unifyChildChannelMask(ChannelMask);
-      end
-      
-      % Load "by-day" dPCA-formatted rates
-      % -- deprecated --
-      function [X,t,trialNum] = load_dPCA(obj)
-         if numel(obj) > 1
-            X = cell(numel(obj),1);
-            trialNum = cell(numel(obj),1);
-            for ii = 1:numel(obj)
-               [X{ii},t,trialNum{ii}] = load_dPCA(obj(ii)); % t is always the same
-            end
-            return;
-         end
-         p = obj.getPathTo('dPCA');
-         f = defaults.dPCA('fname');
-         X = [];
-         fname = fullfile(p,sprintf(f,obj.Name));
-         if exist(fname,'file')==0
-            fprintf(1,'Missing dPCA file: %s\n',fname);
-            return;
-         end
-         in = load(fname,'X','t','trialNum');
-         if isfield(in,'X')
-            X = in.X;
-            t = in.t;
-            trialNum = in.trialNum;
-         else
-            fprintf(1,'%s dPCA missing variable: ''X'' (contains spike rates).\n',obj.Name);
-         end
       end
       
       % From parent array where channels are columns and rows are recording
@@ -784,210 +410,6 @@ classdef rat < handle
          if ~(strcmpi(area,'CFA') || strcmpi(area,'RFA'))
             obj.Electrode = table(Probe,Channel,ICMS,x,y);
          end
-         
-      end
-      
-      % Queries the PCs of a given channel across days
-      % -- deprecated --
-      function [pcScore,pcCoeff,t,postOpDay] = queryChannelPC(obj,ch)
-         if ~obj.HasData
-            pcScore = [];
-            pcCoeff = [];
-            t = [];
-            postOpDay = [];
-            fprintf(1,'No data in %s.\n',obj.Name);
-            return;
-         end
-         
-         t = obj.Children(1).Data.pc{ch}.t;
-         
-         pcScore = nan(numel(t),numel(obj.Children)*3);
-         pcCoeff = cell(numel(obj.Children),1);
-         postOpDay = nan(1,numel(obj.Children)*3);
-         
-         for ii = 1:numel(obj.Children)
-            vec = ((ii-1)*3+1):(ii*3);
-            postOpDay(vec) = obj.Children(ii).PostOpDay;
-            iCh = obj.Children(ii).matchChannel(ch);
-            if ~isempty(iCh)
-               pcScore(:,vec) = obj.Children(ii).Data.pc{iCh}.score;
-               pcCoeff{ii} = obj.Children(ii).Data.pc{iCh}.coeff;
-            end
-         end
-      end
-      
-      % Run dPCA analysis for Rat object or object array
-      % -- deprecated --
-      function out = run_dPCA_days_are_stimuli(obj)
-         % NOTE: code below is adapted from dPCA repository code
-         %       dpca_demo.m, which was graciously provided by the
-         %       machenslab github at github.com/machenslab/dPCA
-         
-         if numel(obj) > 1
-            out = cell(numel(obj),1);
-            for ii = 1:numel(obj)
-               out{ii} = run_dPCA_days_are_stimuli(obj(ii));
-            end
-            return;
-         end
-         addpath(defaults.dPCA('local_repo_loc'));
-         [firingRates,time,trialNum] = load_dPCA(obj);
-         firingRatesAverage = nanmean(firingRates,5);
-         S = size(firingRatesAverage,2);
-         
-         combinedParams = defaults.dPCA('combinedParams');
-         margNames = defaults.dPCA('margNames');
-         margColours = defaults.dPCA('margColours');
-         timeEvents = 0;
-         
-         %% Step 1: PCA of the dataset
-         X = firingRatesAverage(:,:);
-         X = bsxfun(@minus, X, mean(X,2));
-
-         [W,~,~] = svd(X, 'econ');
-         W = W(:,1:20);
-
-         % computing explained variance
-         explVar = dpca_explainedVariance(firingRatesAverage, W, W, ...
-             'combinedParams', combinedParams);
-
-         % a bit more informative plotting
-         dpca_plot(firingRatesAverage, W, W, @dpca_plot_default, ...
-             'explainedVar', explVar, ...
-             'time', time,                        ...
-             'timeEvents', timeEvents,               ...
-             'marginalizationNames', margNames, ...
-             'marginalizationColours', margColours,...
-             'figName',sprintf('%s: PCA',obj.Name),...
-             'figPos',[0.1+0.01*randn(1) 0.1+0.01*randn(1) 0.4 0.8]);
-          
-%          %% Step 2: PCA in each marginalization separately
-%          dpca_perMarginalization(firingRatesAverage, @dpca_plot_default, ...
-%             'combinedParams', combinedParams);
-%          
-%          %% Step 3: dPCA without regularization and ignoring noise covariance
-% 
-%          % This is the core function.
-%          % W is the decoder, V is the encoder (ordered by explained variance),
-%          % whichMarg is an array that tells you which component comes from which
-%          % marginalization
-% 
-%          [W,V,whichMarg] = dpca(firingRatesAverage, 20, ...
-%              'combinedParams', combinedParams);
-% 
-%          explVar = dpca_explainedVariance(firingRatesAverage, W, V, ...
-%              'combinedParams', combinedParams);
-% 
-%          dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
-%              'explainedVar', explVar, ...
-%              'marginalizationNames', margNames, ...
-%              'marginalizationColours', margColours, ...
-%              'whichMarg', whichMarg,                 ...
-%              'time', time,                        ...
-%              'timeEvents', timeEvents,               ...
-%              'timeMarginalization', 3, ...
-%              'legendSubplot', 16,...
-%              'figName',sprintf('%s: dPCA',obj.Name),...
-%              'figPos',[0.5+0.01*randn(1) 0.1+0.01*randn(1) 0.4 0.8]);
-%           
-         %% Step 4: dPCA with regularization
-
-         % This function takes some minutes to run. It will save the computations 
-         % in a .mat file with a given name. Once computed, you can simply load 
-         % lambdas out of this file:
-         %   load('tmp_optimalLambdas.mat', 'optimalLambda')
-
-         % Please note that this now includes noise covariance matrix Cnoise which
-         % tends to provide substantial regularization by itself (even with lambda set
-         % to zero).
-
-         optimalLambda = dpca_optimizeLambda(firingRatesAverage, firingRates, trialNum, ...
-             'combinedParams', combinedParams, ...
-             'simultaneous', true, ...
-             'numRep', 2, ...  % increase this number to ~10 for better accuracy
-             'filename', 'tmp_optimalLambdas.mat');
-
-         Cnoise = dpca_getNoiseCovariance(firingRatesAverage, ...
-             firingRates, trialNum, 'simultaneous', true);
-
-         [W,V,whichMarg] = dpca(firingRatesAverage, 20, ...
-             'combinedParams', combinedParams, ...
-             'lambda', optimalLambda, ...
-             'Cnoise', Cnoise);
-
-         explVar = dpca_explainedVariance(firingRatesAverage, W, V, ...
-             'combinedParams', combinedParams, ...
-             'Cnoise', Cnoise, 'numOfTrials', trialNum);
-
-%          dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
-%              'explainedVar', explVar, ...
-%              'marginalizationNames', margNames, ...
-%              'marginalizationColours', margColours, ...
-%              'whichMarg', whichMarg,                 ...
-%              'time', time,                        ...
-%              'timeEvents', timeEvents,               ...
-%              'timeMarginalization', 3,           ...
-%              'legendSubplot', 16,...
-%              'figName',sprintf('%s: regularized dPCA',obj.Name),...
-%              'figPos',[0.1+0.01*randn(1) 0.1+0.01*randn(1) 0.8 0.8]);
-         
-          
-          
-        decodingClasses = {...
-           [(1:S)' (1:S)' (1:S)'],...
-           repmat(1:3, [S 1]), ...
-           [], ...
-           [(1:S)' (S+(1:S))' (2*S+(1:S))']};
-  
-        accuracy = dpca_classificationAccuracy(firingRatesAverage, firingRates, trialNum, ...
-             'lambda', optimalLambda, ...
-             'combinedParams', combinedParams, ...
-             'decodingClasses', decodingClasses, ...
-             'simultaneous', true, ...
-             'numRep', 5, ...        % increase to 100
-             'filename', 'tmp_classification_accuracy.mat');
-
-        dpca_classificationPlot(accuracy, [], [], [], decodingClasses)
-
-        accuracyShuffle = dpca_classificationShuffled(firingRates, trialNum, ...
-             'lambda', optimalLambda, ...
-             'combinedParams', combinedParams, ...
-             'decodingClasses', decodingClasses, ...
-             'simultaneous', true, ...
-             'numRep', 5, ...        % increase to 100
-             'numShuffles', 20, ...  % increase to 100 (takes a lot of time)
-             'filename', 'tmp_classification_accuracy.mat');
-
-        dpca_classificationPlot(accuracy, [], accuracyShuffle, [], decodingClasses)
-
-        componentsSignif = dpca_signifComponents(accuracy, accuracyShuffle, whichMarg);
-
-        dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
-             'explainedVar', explVar, ...
-             'marginalizationNames', margNames, ...
-             'marginalizationColours', margColours, ...
-             'whichMarg', whichMarg,                 ...
-             'time', time,                        ...
-             'timeEvents', timeEvents,               ...
-             'timeMarginalization', 3,           ...
-             'legendSubplot', 16,                ...
-             'componentsSignif', componentsSignif,...
-             'figName',sprintf('%s: regularized classified dPCA',obj.Name),...
-             'figPos',[0.1+0.01*randn(1) 0.1+0.01*randn(1) 0.8 0.8]);
-          
-          
-         out = struct;
-         out.W = W;
-         out.V = V;
-         out.whichMarg = whichMarg;
-         out.explVar = explVar;
-         out.accuracy = accuracy;
-         out.accuracyShuffle = accuracyShuffle;
-         out.decodingClasses = decodingClasses;
-         out.componentsSignif = componentsSignif;
-         
-          
-         fprintf(1,'dPCA completed: %s\n',obj.Name);
          
       end
       
@@ -1571,6 +993,97 @@ classdef rat < handle
          c = squeeze(nanmean(cf ./ ct,1));
       end
       
+      % Get average rate from blocks within a post-op day range
+      function [rate,t,n,iKeep] = getMeanRateByDay(obj,align,includeStruct,poDayStart,poDayStop)
+         if nargin < 5
+            error('Must include all 5 input arguments.');
+         end
+         
+         if numel(obj) > 1
+            rate = cell(numel(obj),1);
+            tFlag = true;
+            n = zeros(1,numel(obj));
+            iKeep = cell(size(rate));
+            for i = 1:numel(obj)
+               [rate{i},ttmp,n(i),iKeep{i}] = getMeanRateByDay(obj(i),align,includeStruct,poDayStart,poDayStop);
+               if (~isempty(ttmp) && tFlag)
+                  t = ttmp;
+                  tFlag = false;
+               end
+            end
+            if tFlag % then t was never assigned
+               t = [];
+            end
+            return;
+         end
+         
+         [rate,t,n,iKeep] = getMeanRateByDay(obj.Children,align,includeStruct,poDayStart,poDayStop);         
+      end
+      
+      % Count total number of blocks within a single RAT object, or in all
+      % the RAT objects of an array.
+      function n = getNumBlocks(obj)
+         if numel(obj) > 1
+            n = 0;
+            for i = 1:numel(obj)
+               n = n + getNumBlocks(obj(i));
+            end
+            return;
+         end
+         n = numel(obj.Children);
+      end
+      
+      % Get median offset latency (ms) between two behaviors
+      %     align1 : "Later" alignment   (grasp, in reach-grasp pair)
+      %     align2 : "Earlier" alignment (reach, in reach-grasp pair)
+      %     offset : Positive value indicates that align1 occurs after
+      %                 align2
+      function offset = getOffsetLatency(obj,align1,align2,outcome,pellet,mustInclude,mustExclude)         
+         if nargin < 3
+            align2 = defaults.block('alignment');
+         end
+         
+         if nargin < 2
+            error('Must specify a comparator alignment: (Reach, Grasp, Support, Complete)');
+         end
+         
+         if nargin < 4
+            outcome = [0 1];
+         end
+         
+         if nargin < 5
+            pellet = [0 1];
+         end
+         
+         if nargin < 6
+            mustInclude = {};
+         end
+         
+         if nargin < 7
+            mustExclude = {};
+         end
+         
+         
+         if ~ismember(align1,{'Reach','Grasp','Support','Complete'}) || ...
+               ~ismember(align2,{'Reach','Grasp','Support','Complete'})
+            error('Invalid alignment. Must specify from: (Reach, Grasp, Support, Complete)');
+         end
+         
+         if numel(obj) > 1
+            offset = nan(getNumBlocks(obj),1);
+            iStart = 1;
+            for i = 1:numel(obj)
+               n = getNumBlocks(obj(i));
+               vec = iStart:(iStart + n - 1);
+               offset(vec) = getOffsetLatency(obj(i),align1,align2,outcome,pellet,mustInclude,mustExclude);
+               iStart = iStart + n;
+            end
+            return;
+         end
+         
+         offset = getOffsetLatency(obj.Children,align1,align2,outcome,pellet,mustInclude,mustExclude);
+      end
+      
       % Return the path to rat-related folder
       function path = getPathTo(obj,dataType)
          if numel(obj) > 1
@@ -1634,8 +1147,10 @@ classdef rat < handle
             elseif isprop(obj,propName) && ~ismember(propName,{'Data'})
                out = obj.(propName);
             else
-               warning('No property ''%s'' of RAT %s. Returning BLOCK property values.',...
-                  propName,obj.Name);
+               if defaults.rat('verbose')
+                  warning('No property ''%s'' of RAT %s. Returning BLOCK property values.',...
+                     propName,obj.Name);
+               end
                out = getProp(obj.Children,propName);
             end
          end
@@ -1645,7 +1160,6 @@ classdef rat < handle
       % Get or set the cross-condition mean based on align and
       % includeStruct inputs (basically a way to parse that quickly).
       [rate,t] = getSetIncludeStruct(obj,align,includeStruct,rate,t);
-      
       
       % Set the most-recent include and alignment
       function setAlignInclude(obj,align,includeStruct)
@@ -1831,13 +1345,105 @@ classdef rat < handle
       
    end
    
-   % Methods for plotting/graphics
+   % "GRAPHICS" methods
    methods (Access = public)
       % Function to add common plot axes
       ax = addToAx_PlotScoreByDay(obj,ax,do_not_modify_properties,legOpts);
       
       % Function to add common plots to a panel container
       p = addToTab_PlotMarginalRateByDay(obj,p,align,includeStructPlot,includeStructMarg);
+      
+      % Export a movie of the evolution of some value through time, for a
+      % single rat (over all the recording blocks).
+      function exportSkullPlotMovie(obj,f)
+         if nargin < 2
+            f = [];
+         end
+         
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               exportSkullPlotMovie(obj(ii),f);
+            end
+            return;
+         end
+         
+         align = defaults.rat('align');
+         includeStruct = defaults.rat('include');
+         
+         score = getNumProp(obj.Children,'TrueScore');
+         t = getNumProp(obj.Children,'PostOpDay');
+         fprintf(1,'Estimating mean aligned frequency power for %s.\n',obj.Name);
+         
+         if isempty(f)
+            pCell = getMeanAlignedFreqPower(obj.Children,align,includeStruct);
+         else
+            fch = obj.parentChannelArray2ChildCell(f);
+            pCell = getMeanAlignedFreqPower(obj.Children,align,includeStruct,fch);
+         end
+         pArray = obj.childCell2ChannelArray(pCell);
+         
+         % q - "queried"
+         tq = linspace(min(t),max(t),defaults.rat('movie_n_frames'));
+         
+         % Interpolate score so that there is a score value for each frame
+         fprintf(1,'->\tInterpolating...\n');
+         scoreq = interp1(t,score,tq,'spline'); 
+         scoreq = min(max(scoreq,0),1); % Can't go below 0 or above 1 (from spline interp)
+         
+         % Interpolate power value so it exists for each frame
+         pIdx = ~isnan(pArray);
+         pq = nan(sum(obj.ChannelMask),numel(tq));
+         for iCh = 1:sum(obj.ChannelMask)
+            pq(iCh,:) = interp1(t(pIdx(:,iCh)),pArray(pIdx(:,iCh),iCh),tq,'spline');
+         end
+         
+         % Rearrange order of pq to match channel ordering
+         E = obj.Electrode;
+         e_idx = getChannelElectrodeIndex(obj);
+         pq = abs(pq(e_idx,:));
+         
+         % Make movie
+         fig = figure('Name',obj.Name,...
+            'Units','Normalized',...
+            'Position',[0.3 0.3 0.175 0.4]);
+         ax1 = subplot(2,1,1);
+         ax1.XTick = [];
+         ax1.YTick = [];
+         ax1.NextPlot = 'add';
+         ax2 = subplot(2,1,2);
+         ax2.XLim = [1 31];
+         ax2.YLim = [0 100];
+         
+         ratSkullObj = obj.Parent.buildRatSkullPlot(ax1);
+         ratSkullObj.Name = [obj.Name ' (' obj.Parent.Name ')'];
+         ratSkullObj.addScatterGroup(E.x,E.y,30,E.ICMS); % initialize
+         pq_mu = nanmean(nanmean(pq,1));
+         pq_sd = nanstd(nanmean(pq,1));
+         sizeData = group.c2sizeData(pq,pq_mu,pq_sd);         
+         MV = ratSkullObj.buildMovieFrameSequence(sizeData,scoreq,ax2,tq,t,score); % Get movie
+         pname = defaults.rat('movie_loc');
+         fname_str = defaults.rat('movie_fname_str');
+         if isempty(f)
+            fstr = 'Dominant';
+         else
+            fstr = sprintf('%g-Hz',f(1,1));
+         end
+         fname = fullfile(pname,sprintf(fname_str,obj.Name,fstr));
+         if exist(pname,'dir')==0
+            mkdir(pname);
+         end
+         
+         v = VideoWriter(fname);
+         v.FrameRate = defaults.rat('movie_fs');
+         open(v);
+         for ii = 1:size(MV,4)
+            writeVideo(v,MV(:,:,:,ii));
+         end
+         fprintf(1,'Finished writing skull channel movie for %s.\n',obj.Name);
+         close(v);
+         close(fig);
+         
+      end
       
       % Plot the relevant PCA data for a given channel across days
       function fig = plotChannelPC(obj,ch)
@@ -2479,6 +2085,496 @@ classdef rat < handle
       
    end
    
+   % -- DEPRECATED -- methods
+   methods (Access = public, Hidden = true)
+      % Assign data from PCA re-basis to child block objects
+      % -- deprecated --
+      function assignBasisData(obj,coeff,score,x,channelInfo)
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               assignBasisData(obj(ii),coeff,score,x,channelInfo);
+            end
+            return;
+         end
+         name = {channelInfo.file}.';
+         blockName = cellfun(@(x)x(1:16),name,'UniformOutput',false);
+         for ii = 1:numel(obj.Children)
+            idx = ismember(blockName,obj.Children(ii).Name);
+            assignBasisData(obj.Children(ii),...
+               coeff(obj.Children(ii).ChannelMask,:),...
+               score(idx,:),x(idx,:),...
+               channelInfo(idx));
+         end
+      end
+      
+      % Assign divergence data relating divergence of jPCA successful &
+      % unsuccessful trajectories in primary jPCA plane
+      % -- deprecated --
+      function assignDivergenceData(obj,T)
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               Tsub = T(ismember(T.Rat,obj(ii).Name),:);
+               if isempty(Tsub)
+                  fprintf(1,'No divergence data for %s.\n',obj(ii).Name);
+                  continue;
+               else
+                  assignDivergenceData(obj(ii),Tsub);
+               end
+            end
+            return;
+         end
+         setDivergenceData(obj.Children,T);
+      end
+      
+      % Export down-sampled rate data for dPCA. If no output argument is
+      % specified, then files are saved in the default location from
+      % defaults.dPCA. In this version, days are stimuli and successful or
+      % unsuccessful retrieval are the decision.
+      % -- deprecated --
+      function [X,t,trialNum] = export_dPCA_days_are_stimuli(obj)
+         % Parse array input
+         if numel(obj) > 1
+            if nargout < 1
+               for ii = 1:numel(obj)
+                  export_dPCA_days_are_stimuli(obj(ii));
+               end
+            else
+               X = cell(numel(obj),1);
+               trialNum = cell(numel(obj),1);
+               for ii = 1:numel(obj)
+                  [X{ii},t,trialNum{ii}] = export_dPCA_days_are_stimuli(obj(ii)); % t always the same
+               end
+            end
+            return;
+         end
+         
+         p = defaults.dPCA;
+         addpath(p.local_repo_loc);
+         
+         [normRatesCell,t,trialNum] = format_dPCA_days_are_stimuli(obj.Children);
+         removeBlock = cellfun(@(x)isempty(x),normRatesCell,'UniformOutput',true);
+         normRatesCell(removeBlock) = [];
+         trialNum(:,removeBlock,:) = [];
+         setProp(obj.Children,'dPCA_include',removeBlock);
+         
+         nTrialMax = max(cellfun(@(x)size(x,5),normRatesCell,...
+                           'UniformOutput',true));
+         nChannel = sum(obj.ChannelMask);
+         nDay = numel(normRatesCell);               
+         nTs = numel(t);
+         
+         X = nan(nChannel,nDay,3,nTs,nTrialMax);
+         for ii = 1:nDay
+            X(:,ii,:,:,1:size(normRatesCell{ii},5)) = normRatesCell{ii};            
+         end       
+         
+         % If no output argument, save data in array X
+         if nargout < 1
+            fname = fullfile(p.path,sprintf(p.fname,obj.Name));
+            save(fname,'X','t','trialNum','-v7.3');
+         end
+      end
+      
+      % Export down-sampled rate data for dPCA. If no output argument is
+      % specified, then files are saved in the default location from
+      % defaults.dPCA. in this version, pellet presence is the stimulus and
+      % the decision is whether to do a secondary reach or not.
+      % -- deprecated --
+      function [X,t,trialNum] = export_dPCA_pellet_present_absent(obj)
+         % Parse array input
+         if numel(obj) > 1
+            if nargout < 1
+               for ii = 1:numel(obj)
+                  export_dPCA_pellet_present_absent(obj(ii));
+               end
+            else
+               X = cell(numel(obj),1);
+               trialNum = cell(numel(obj),1);
+               for ii = 1:numel(obj)
+                  [X{ii},t,trialNum{ii}] = export_dPCA_pellet_present_absent(obj(ii)); % t always the same
+               end
+            end
+            return;
+         end
+         
+         [X,t,trialNum] = format_dPCA_pellet_present_absent(obj.Children);
+      end
+      
+      % Export "unified" jPCA trial projections from all days
+      % -- deprecated --
+      function exportUnifiedjPCA_movie(obj,align,area)
+         if nargin < 2
+            align = defaults.jPCA('jpca_align');
+         end
+         
+         if nargin < 3
+            area = 'Full';
+         end
+         
+         % Parse array
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               obj(ii).exportUnifiedjPCA_movie(align,area);
+            end
+            return;
+         end
+         
+         if ~isfield(obj.Data,area)
+            obj.unifyjPCA(align,area);
+         end
+         
+         vid_folder = fullfile(defaults.jPCA('video_export_base'),...
+            'Successful',area);
+         output_score = defaults.group('output_score');
+         score = mean(getProp(obj,output_score));
+         movie_params = defaults.jPCA('movie_params',...
+            obj.Data.Summary.outcomes+2,score);
+         
+         t = defaults.jPCA('analyze_times');
+         lpf_fc = defaults.block('lpf_fc');
+         moviename = sprintf('%s_%s_allDays_%gms_to_%gms_%gHzFc',...
+            obj.Name,align,t(1),t(end),lpf_fc);
+         movie_params.movieName = moviename;
+         
+         
+         if ~isempty(obj.Parent)
+            moviename = fullfile(pwd,...
+               vid_folder,obj.Parent.Name,obj.Name,moviename);
+         else
+            moviename = fullfile(pwd,...
+               vid_folder,obj.Name,moviename);
+         end
+
+         vidTic = tic;
+         
+         fprintf(1,'Exporting video:\n-->\t\t%s\n',moviename);
+         if ~isempty(obj.Data.(area).Projection)
+            jPCA.export_jPCA_movie(jPCA.phaseMovie(...
+               obj.Data.(area).Projection,...
+               obj.Data.(area).Summary, ...
+               movie_params),...
+               moviename);
+         else
+            fprintf('\t-->\t(Unsuccessful)\n');
+         end
+         toc(vidTic);
+      end
+      
+      % Shortcut to run jPCA on all children objects
+      % -- deprecated --
+      function jPCA(obj,align)
+         if nargin < 2
+            align = defaults.jPCA('jpca_align');
+         end
+         
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               jPCA(obj(ii),align);
+            end
+            return;
+         end
+         jPCA(obj.Children,align);
+      end
+      
+      % Shortcut to export jPCA movie for all children objects
+      % -- deprecated --
+      function jPCA_movie(obj,align,outcome,area)
+         if nargin < 4
+            area = defaults.rat('batch_area');
+         end
+         
+         if nargin < 3
+            outcome = defaults.rat('batch_outcome');
+         end
+         
+         if nargin < 2
+            align = defaults.rat('batch_align');
+         end
+         
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               jPCA_movie(obj(ii),align,outcome,area);
+            end
+            return;
+         end
+         
+         jPCA_movie(obj.Children,align,outcome,area);
+         
+      end
+      
+      % Shortcut for jPCA_suppress runFun
+      % -- deprecated --
+      function [Projection,Summary] = jPCA_suppress(obj,active_area,align,outcome,doReProject)
+         if nargin < 5
+            doReProject = false;
+         end
+         
+         if nargin < 4
+            outcome = 'All';
+         end
+         
+         if nargin < 3
+            align = 'Grasp';
+         end
+         
+         if numel(obj) > 1
+            if nargout > 1
+               Projection = cell(numel(obj),1);
+               Summary = cell(numel(obj),1);
+               for ii = 1:numel(obj)
+                  [Projection{ii},Summary{ii}] = jPCA_suppress(obj(ii),active_area,align,outcome,doReProject);
+               end
+            else
+               for ii = 1:numel(obj)
+                  jPCA_suppress(obj(ii),active_area,align,outcome,doReProject);
+               end
+            end
+            return;
+         end
+         
+         if nargout > 1
+            [Projection,Summary] = jPCA_suppress(obj.Children,active_area,align,outcome,doReProject);
+         else
+            jPCA_suppress(obj.Children,active_area,align,outcome,doReProject);
+         end
+      end
+      
+      % Load "by-day" dPCA-formatted rates
+      % -- deprecated --
+      function [X,t,trialNum] = load_dPCA(obj)
+         if numel(obj) > 1
+            X = cell(numel(obj),1);
+            trialNum = cell(numel(obj),1);
+            for ii = 1:numel(obj)
+               [X{ii},t,trialNum{ii}] = load_dPCA(obj(ii)); % t is always the same
+            end
+            return;
+         end
+         p = obj.getPathTo('dPCA');
+         f = defaults.dPCA('fname');
+         X = [];
+         fname = fullfile(p,sprintf(f,obj.Name));
+         if exist(fname,'file')==0
+            fprintf(1,'Missing dPCA file: %s\n',fname);
+            return;
+         end
+         in = load(fname,'X','t','trialNum');
+         if isfield(in,'X')
+            X = in.X;
+            t = in.t;
+            trialNum = in.trialNum;
+         else
+            fprintf(1,'%s dPCA missing variable: ''X'' (contains spike rates).\n',obj.Name);
+         end
+      end
+      
+      % Queries the PCs of a given channel across days
+      % -- deprecated --
+      function [pcScore,pcCoeff,t,postOpDay] = queryChannelPC(obj,ch)
+         if ~obj.HasData
+            pcScore = [];
+            pcCoeff = [];
+            t = [];
+            postOpDay = [];
+            fprintf(1,'No data in %s.\n',obj.Name);
+            return;
+         end
+         
+         t = obj.Children(1).Data.pc{ch}.t;
+         
+         pcScore = nan(numel(t),numel(obj.Children)*3);
+         pcCoeff = cell(numel(obj.Children),1);
+         postOpDay = nan(1,numel(obj.Children)*3);
+         
+         for ii = 1:numel(obj.Children)
+            vec = ((ii-1)*3+1):(ii*3);
+            postOpDay(vec) = obj.Children(ii).PostOpDay;
+            iCh = obj.Children(ii).matchChannel(ch);
+            if ~isempty(iCh)
+               pcScore(:,vec) = obj.Children(ii).Data.pc{iCh}.score;
+               pcCoeff{ii} = obj.Children(ii).Data.pc{iCh}.coeff;
+            end
+         end
+      end
+      
+      % Run dPCA analysis for Rat object or object array
+      % -- deprecated --
+      function out = run_dPCA_days_are_stimuli(obj)
+         % NOTE: code below is adapted from dPCA repository code
+         %       dpca_demo.m, which was graciously provided by the
+         %       machenslab github at github.com/machenslab/dPCA
+         
+         if numel(obj) > 1
+            out = cell(numel(obj),1);
+            for ii = 1:numel(obj)
+               out{ii} = run_dPCA_days_are_stimuli(obj(ii));
+            end
+            return;
+         end
+         addpath(defaults.dPCA('local_repo_loc'));
+         [firingRates,time,trialNum] = load_dPCA(obj);
+         firingRatesAverage = nanmean(firingRates,5);
+         S = size(firingRatesAverage,2);
+         
+         combinedParams = defaults.dPCA('combinedParams');
+         margNames = defaults.dPCA('margNames');
+         margColours = defaults.dPCA('margColours');
+         timeEvents = 0;
+         
+         %% Step 1: PCA of the dataset
+         X = firingRatesAverage(:,:);
+         X = bsxfun(@minus, X, mean(X,2));
+
+         [W,~,~] = svd(X, 'econ');
+         W = W(:,1:20);
+
+         % computing explained variance
+         explVar = dpca_explainedVariance(firingRatesAverage, W, W, ...
+             'combinedParams', combinedParams);
+
+         % a bit more informative plotting
+         dpca_plot(firingRatesAverage, W, W, @dpca_plot_default, ...
+             'explainedVar', explVar, ...
+             'time', time,                        ...
+             'timeEvents', timeEvents,               ...
+             'marginalizationNames', margNames, ...
+             'marginalizationColours', margColours,...
+             'figName',sprintf('%s: PCA',obj.Name),...
+             'figPos',[0.1+0.01*randn(1) 0.1+0.01*randn(1) 0.4 0.8]);
+          
+%          %% Step 2: PCA in each marginalization separately
+%          dpca_perMarginalization(firingRatesAverage, @dpca_plot_default, ...
+%             'combinedParams', combinedParams);
+%          
+%          %% Step 3: dPCA without regularization and ignoring noise covariance
+% 
+%          % This is the core function.
+%          % W is the decoder, V is the encoder (ordered by explained variance),
+%          % whichMarg is an array that tells you which component comes from which
+%          % marginalization
+% 
+%          [W,V,whichMarg] = dpca(firingRatesAverage, 20, ...
+%              'combinedParams', combinedParams);
+% 
+%          explVar = dpca_explainedVariance(firingRatesAverage, W, V, ...
+%              'combinedParams', combinedParams);
+% 
+%          dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
+%              'explainedVar', explVar, ...
+%              'marginalizationNames', margNames, ...
+%              'marginalizationColours', margColours, ...
+%              'whichMarg', whichMarg,                 ...
+%              'time', time,                        ...
+%              'timeEvents', timeEvents,               ...
+%              'timeMarginalization', 3, ...
+%              'legendSubplot', 16,...
+%              'figName',sprintf('%s: dPCA',obj.Name),...
+%              'figPos',[0.5+0.01*randn(1) 0.1+0.01*randn(1) 0.4 0.8]);
+%           
+         %% Step 4: dPCA with regularization
+
+         % This function takes some minutes to run. It will save the computations 
+         % in a .mat file with a given name. Once computed, you can simply load 
+         % lambdas out of this file:
+         %   load('tmp_optimalLambdas.mat', 'optimalLambda')
+
+         % Please note that this now includes noise covariance matrix Cnoise which
+         % tends to provide substantial regularization by itself (even with lambda set
+         % to zero).
+
+         optimalLambda = dpca_optimizeLambda(firingRatesAverage, firingRates, trialNum, ...
+             'combinedParams', combinedParams, ...
+             'simultaneous', true, ...
+             'numRep', 2, ...  % increase this number to ~10 for better accuracy
+             'filename', 'tmp_optimalLambdas.mat');
+
+         Cnoise = dpca_getNoiseCovariance(firingRatesAverage, ...
+             firingRates, trialNum, 'simultaneous', true);
+
+         [W,V,whichMarg] = dpca(firingRatesAverage, 20, ...
+             'combinedParams', combinedParams, ...
+             'lambda', optimalLambda, ...
+             'Cnoise', Cnoise);
+
+         explVar = dpca_explainedVariance(firingRatesAverage, W, V, ...
+             'combinedParams', combinedParams, ...
+             'Cnoise', Cnoise, 'numOfTrials', trialNum);
+
+%          dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
+%              'explainedVar', explVar, ...
+%              'marginalizationNames', margNames, ...
+%              'marginalizationColours', margColours, ...
+%              'whichMarg', whichMarg,                 ...
+%              'time', time,                        ...
+%              'timeEvents', timeEvents,               ...
+%              'timeMarginalization', 3,           ...
+%              'legendSubplot', 16,...
+%              'figName',sprintf('%s: regularized dPCA',obj.Name),...
+%              'figPos',[0.1+0.01*randn(1) 0.1+0.01*randn(1) 0.8 0.8]);
+         
+          
+          
+        decodingClasses = {...
+           [(1:S)' (1:S)' (1:S)'],...
+           repmat(1:3, [S 1]), ...
+           [], ...
+           [(1:S)' (S+(1:S))' (2*S+(1:S))']};
+  
+        accuracy = dpca_classificationAccuracy(firingRatesAverage, firingRates, trialNum, ...
+             'lambda', optimalLambda, ...
+             'combinedParams', combinedParams, ...
+             'decodingClasses', decodingClasses, ...
+             'simultaneous', true, ...
+             'numRep', 5, ...        % increase to 100
+             'filename', 'tmp_classification_accuracy.mat');
+
+        dpca_classificationPlot(accuracy, [], [], [], decodingClasses)
+
+        accuracyShuffle = dpca_classificationShuffled(firingRates, trialNum, ...
+             'lambda', optimalLambda, ...
+             'combinedParams', combinedParams, ...
+             'decodingClasses', decodingClasses, ...
+             'simultaneous', true, ...
+             'numRep', 5, ...        % increase to 100
+             'numShuffles', 20, ...  % increase to 100 (takes a lot of time)
+             'filename', 'tmp_classification_accuracy.mat');
+
+        dpca_classificationPlot(accuracy, [], accuracyShuffle, [], decodingClasses)
+
+        componentsSignif = dpca_signifComponents(accuracy, accuracyShuffle, whichMarg);
+
+        dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
+             'explainedVar', explVar, ...
+             'marginalizationNames', margNames, ...
+             'marginalizationColours', margColours, ...
+             'whichMarg', whichMarg,                 ...
+             'time', time,                        ...
+             'timeEvents', timeEvents,               ...
+             'timeMarginalization', 3,           ...
+             'legendSubplot', 16,                ...
+             'componentsSignif', componentsSignif,...
+             'figName',sprintf('%s: regularized classified dPCA',obj.Name),...
+             'figPos',[0.1+0.01*randn(1) 0.1+0.01*randn(1) 0.8 0.8]);
+          
+          
+         out = struct;
+         out.W = W;
+         out.V = V;
+         out.whichMarg = whichMarg;
+         out.explVar = explVar;
+         out.accuracy = accuracy;
+         out.accuracyShuffle = accuracyShuffle;
+         out.decodingClasses = decodingClasses;
+         out.componentsSignif = componentsSignif;
+         
+          
+         fprintf(1,'dPCA completed: %s\n',obj.Name);
+         
+      end
+      
+   end
+   
+   % Private methods used by other methods
    methods (Access = private)
       % Add a child block object to this rat object
       function addChild(obj,h,tic_start)
@@ -2589,6 +2685,7 @@ classdef rat < handle
       
    end
    
+   % Static methods used by other methods
    methods (Static = true, Access = private)
       % Brings up the dialog box for selecting path to rat
       function path = uiPathDialog()

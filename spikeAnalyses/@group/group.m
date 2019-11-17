@@ -1,9 +1,15 @@
-classdef group < handle
+classdef group < matlab.mixin.Copyable
    %GROUP organizes all data for an experimental group in RC project
    
-   properties (GetAccess = public, SetAccess = private)
+   % Public properties that are set in the class constructor upon object
+   % creation
+   properties (GetAccess = public, SetAccess = immutable, Hidden = false)
       Name        % Name of this experimental group
-      Children    % Child rat objects belonging to this GROUP
+   end
+   
+   % Properties that can be retrieved publically but only set by class
+   % methods.
+   properties (GetAccess = public, SetAccess = private, Hidden = false)
       Data        % Struct to hold GROUP-level data
       xPC         % Struct to hold xPCA-related data
       ChannelInfo % Aggregate (masked) channel info
@@ -11,10 +17,14 @@ classdef group < handle
       RecentIncludes    % Most-recent "includeStruct" run by a method
    end
    
-   properties (GetAccess = public, SetAccess = public)
+   % Properties that can both be retrieved and set publicly
+   properties (GetAccess = public, SetAccess = public, Hidden = false)
       CR                % Table of Channel Response correlations
+      Children    % Child rat objects belonging to this GROUP
    end
    
+   % Hidden properties that must be set using class methods but can be
+   % retrieved publicly
    properties (GetAccess = public, SetAccess = private, Hidden = true)
       HasData = false;  % Do any of the rats have data associated?
       
@@ -25,6 +35,7 @@ classdef group < handle
       HasSessionStats = false;
    end
    
+   % Hidden public properties (probably deprecated)
    properties (Access = public, Hidden = true)
       pct
       p
@@ -34,6 +45,14 @@ classdef group < handle
    methods (Access = public)
       % Group object constructor
       function obj = group(name,ratArray)
+         if nargin < 2
+            if isnumeric(name) && isscalar(name)
+               nGroup = name;
+               obj = repmat(obj,nGroup,1);
+               return;
+            end
+         end
+         
          obj.Name = name;
          for ii = 1:numel(ratArray)
             if ratArray(ii).HasData
@@ -49,288 +68,6 @@ classdef group < handle
          % Update the object's channel info for all channels of all child
          % rat objects (that are not masked)
          getChannelInfo(gData,true);
-      end
-      
-      % Redistribute the combined PCA results to child Rat objects 
-      % -- deprecated --
-      function assignBasisData(obj,coeff,score,mu)
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               assignBasisData(obj(ii),coeff,score,mu);
-            end
-            return;
-         end
-         ratName = cellstr(vertcat(obj.ChannelInfo.Name));
-         for ii = 1:numel(obj.Children)
-            idx = ismember(ratName,obj.Children(ii).Name);
-            assignBasisData(obj.Children(ii),...
-               coeff(idx,:),score(idx,:),mu(idx),...
-               obj.ChannelInfo(idx));
-         end
-      end
-      
-      % Table of data describing divergence between unsuccessful and
-      % successful trials in phase space, for each recording. Created by
-      % EXPORTDIVERGENCESTATS 
-      % -- deprecated --
-      function assignDivergenceData(obj,T)
-         % Parse array
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               Tsub = T(ismember(T.Group,obj(ii).Name),:);
-               assignDivergenceData(obj(ii),Tsub);
-            end
-            return;
-         end
-         
-         assignDivergenceData(obj.Children,T);
-      end
-      
-      % Puts a rat skull plot object on current axes
-      function [ratSkullObj,ax] = buildRatSkullPlot(obj,ax)
-         if nargin < 2
-            ax = gca;
-         end
-         ratSkullObj = ratskull_plot(ax);
-         obj.scatterInjectionSites(ratSkullObj);
-      end
-      
-      % Export statistics (as a spreadsheet) for individual channels.  Each
-      % row of output spreadsheet (name in defaults.group) corresponds to
-      % statistics for a single recording channel, for a single recording
-      % session. Only exports spreadsheet if no output argument is 
-      % specified.
-      function T = exportChannelStats(obj)
-         if numel(obj) > 1
-            T = [];
-            for ii = 1:numel(obj)
-               obj(ii).Data.ChannelStats = exportChannelStats(obj(ii));
-               obj(ii).HasChannelStats = true;
-               T = [T; obj(ii).Data.ChannelStats];
-            end
-            if nargout < 1
-               fname = defaults.group('channel_export_spreadsheet');
-               writetable(T,fname);
-            end
-            return;
-         end
-      end
-      
-      % Export down-sampled rate data for dPCA. If no output argument is
-      % specified, then files are saved in the default location from
-      % defaults.dPCA. In this version, days are stimuli and successful or
-      % unsuccessful outcome is the decision.
-      function [X,t,trialNum] = export_dPCA_days_are_stimuli(obj)
-         % Parse array input
-         if numel(obj) > 1
-            if nargout < 1
-               for ii = 1:numel(obj)
-                  export_dPCA_days_are_stimuli(obj(ii));
-               end
-            else
-               X = cell(numel(obj),1);
-               trialNum = cell(numel(obj),1);
-               for ii = 1:numel(obj)
-                  [X{ii},t,trialNum{ii}] = export_dPCA_days_are_stimuli(obj(ii)); % t always the same
-               end
-            end
-            return;
-         end
-         
-         if nargout < 1
-            export_dPCA_days_are_stimuli(obj.Children);
-         else
-            [X,t,trialNum] = export_dPCA_days_are_stimuli(obj.Children);
-         end
-      end
-      
-      % Export down-sampled rate data for dPCA. If no output argument is
-      % specified, then files are saved in the default location from
-      % defaults.dPCA. In this version, pellet presence or absence is the
-      % stimulus and the decision is to complete or continue a second
-      % reach.
-      function [X,t,trialNum] = export_dPCA_pellet_present_absent(obj)
-         % Parse array input
-         if numel(obj) > 1
-            if nargout < 1
-               for ii = 1:numel(obj)
-                  export_dPCA_pellet_present_absent(obj(ii));
-               end
-            else
-               X = cell(numel(obj),1);
-               trialNum = cell(numel(obj),1);
-               for ii = 1:numel(obj)
-                  [X{ii},t,trialNum{ii}] = export_dPCA_pellet_present_absent(obj(ii)); % t always the same
-               end
-            end
-            return;
-         end
-         
-         if nargout < 1
-            export_dPCA_pellet_present_absent(obj.Children);
-         else
-            [X,t,trialNum] = export_dPCA_pellet_present_absent(obj.Children);
-         end
-      end
-      
-      % Export statistics (as a spreadsheet) for individual trials. Each
-      % row of output spreadsheet (name in defaults.group) corresponds to
-      % statistics for a single reaching trial. Only exports spreadsheet
-      % if no output argument is specified.
-      function T = exportTrialStats(obj)
-         if numel(obj) > 1
-            T = [];
-            for ii = 1:numel(obj)
-               T = [T; exportTrialStats(obj(ii))];
-               obj(ii).HasTrialStats = true;
-            end
-            if nargout < 1
-               fname = defaults.group('trial_export_spreadsheet');
-               writetable(T,fname);
-            end
-            return;
-         end
-         
-         T = exportTrialStats(obj.Children);
-         
-         % Extend variable descriptors to an additional metadata field
-         ud = T.Properties.UserData;
-         vd = T.Properties.VariableDescriptions;
-         Group = repmat(categorical({obj.Name}),size(T,1),1);
-         
-         T = [table(Group), T];
-         T.Properties.Description = 'Concatenated Trial Metadata';
-         T.Properties.UserData = [nan(1,1), ud];
-         T.Properties.VariableDescriptions = ['experimental group', vd];
-         obj.Data.TrialStats = T;
-      end
-      
-      
-      % Export "ratskull_plot" type movies to show evolution of a
-      % particular rat's spatially-distributed response (for some
-      % parameter) against days
-      function exportSkullPlotMovie(obj,f)
-         if nargin < 2
-            f = [];
-         end
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               obj(ii).exportSkullPlotMovie(f);
-            end
-            return;
-         end
-         
-         exportSkullPlotMovie(obj.Children,f);
-      end
-      
-      % Export "unified" jPCA trial projections from all days 
-      % -- deprecated --
-      function exportUnifiedjPCA_movie(obj,align,area)
-         if nargin < 2
-            align = defaults.jPCA('jpca_align');
-         end
-         
-         if nargin < 3
-            area = 'Full';
-         end
-         
-         % Parse array
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               obj(ii).exportUnifiedjPCA_movie(align,area);
-            end
-            return;
-         end
-         
-         exportUnifiedjPCA_movie(obj.Children,align,area);
-      end
-      
-      % Shortcut for jPCA runFun 
-      % -- deprecated --
-      function jPCA(obj,align)
-         if nargin < 2
-            align = defaults.jPCA('jpca_align');
-         end
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               jPCA(obj(ii),align);
-            end
-            return;
-         end
-         
-         jPCA(obj.Children,align);
-      end
-      
-      % Shortcut for jPCA_project runFun 
-      % -- deprecated --
-      function jPCA_All(obj,align,area)
-         if nargin < 2
-            align = defaults.jPCA('jpca_align');
-         end
-         
-         if nargin < 3
-            area = 'Full';
-         end
-         
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               jPCA_All(obj(ii),align,area);
-            end
-            return;
-         end
-         
-         for ii = 1:numel(obj.Children)
-            for ik = 1:numel(obj.Children(ii).Children)
-               if isfield(obj.Children(ii).Children(ik).Data.(align).Successful,'jPCA')
-                  if isfield(obj.Children(ii).Children(ik).Data.(align).Successful.jPCA,area)
-                     fprintf(1,'-->\t%s: projecting all trials\n',obj.Children(ii).Children(ik).Name);
-                     jPCA_project(obj.Children(ii).Children(ik),align,[],nan,area);
-                  else
-                     fprintf(1,'\t-->\t%s: missing successful jPCA for AREA (%s)\n',obj.Children(ii).Children(ik).Name,area);   
-                  end                  
-               else
-                  fprintf(1,'\t-->\t%s: missing successful jPCA\n',obj.Children(ii).Children(ik).Name);                  
-               end
-            end
-         end
-         
-      end
-      
-      % Shortcut for jPCA_suppress runFun 
-      % -- deprecated --
-      function [Projection,Summary] = jPCA_suppress(obj,active_area,align,outcome,doReProject)
-         if nargin < 5
-            doReProject = false;
-         end
-         
-         if nargin < 4
-            outcome = 'All';
-         end
-         
-         if nargin < 3
-            align = 'Grasp';
-         end
-         
-         if numel(obj) > 1
-            if nargout > 1
-               Projection = cell(numel(obj),1);
-               Summary = cell(numel(obj),1);
-               for ii = 1:numel(obj)
-                  [Projection{ii},Summary{ii}] = jPCA_suppress(obj(ii),active_area,align,outcome,doReProject);
-               end
-            else
-               for ii = 1:numel(obj)
-                  jPCA_suppress(obj(ii),active_area,align,outcome,doReProject);
-               end
-            end
-            return;
-         end
-         
-         if nargout > 1
-            [Projection,Summary] = jPCA_suppress(obj.Children,active_area,align,outcome,doReProject);
-         else
-            jPCA_suppress(obj.Children,active_area,align,outcome,doReProject);
-         end
       end
       
       % Load channel mask for child rat objects
@@ -361,83 +98,6 @@ classdef group < handle
          parseElectrodeCoordinates(obj.Children,area);
       end
       
-      % Concatenate all rate and do decomposition on it 
-      % -- deprecated --
-      function [x,coeff,score,latent,channelInfo,pc_idx] = pca(obj,doPlots)
-         if nargin < 2
-            doPlots = false;
-         end
-         
-         decimation_factor = defaults.group('decimation_factor');
-         
-         tic;
-         fprintf(1,'Gathering average rates...');
-         [avgRate,channelInfo] = getAvgSpikeRate(obj.Children);
-         fprintf(1,'complete.\n');
-         
-         fprintf(1,'Doing decimation...');
-         x = nan(size(avgRate,1),round(size(avgRate,2)/decimation_factor));
-         for ii = 1:size(avgRate,1)
-            x(ii,:) = decimate(avgRate(ii,:),decimation_factor);
-         end
-         fprintf(1,'complete.\n');
-         
-         fprintf(1,'Doing PCA...');
-         [coeff,score,latent] = pca(x,...
-            'Rows','all');
-         fprintf(1,'complete.\n');
-         toc;
-         
-         p = cumsum(latent)/sum(latent)*100;
-         min_pca_var = defaults.group('min_pca_var');
-         pc_idx = find(p>=min_pca_var,1,'first');
-         
-         obj.pct = latent/sum(latent)*100;
-         obj.p = p;
-         
-         if (doPlots) || (nargout < 1)
-            figure('Name',sprintf('Group: %s - PCA',obj.Name),...
-               'Units','Normalized',...
-               'Position',[0.3 0.3 0.4 0.4],...
-               'Color','w');
-            
-            subplot(2,1,1);
-            
-            c = get(gca,'ColorOrder');
-            for ii = 1:pc_idx
-               stem(gca,ii,p(ii),...
-                  'Color',c(ii,:),...
-                  'LineWidth',2,...
-                  'MarkerFaceColor',c(ii,:));
-               hold on;
-            end
-            stem(gca,(pc_idx+1):numel(p),p((pc_idx+1):end),...
-               'Color',[0.8 0.8 0.8],'LineWidth',1.5);
-            xlabel('PC #',...
-               'FontName','Arial','FontSize',14,'Color','k');
-            ylabel('Cumulative %',...
-               'FontName','Arial','FontSize',14,'Color','k');
-            title('% Data Explained',...
-               'FontName','Arial','FontSize',16,'Color','k');
-            
-            line([0 numel(p)+1],[min_pca_var min_pca_var],...
-               'Color','k','LineWidth',2,'LineStyle','--');
-            xlim([0.5 pc_idx+round(0.5*pc_idx)+1.5]);   
-            ylim([p(1)-5 103]);
-            
-            subplot(2,1,2);
-            t = defaults.experiment('t');
-            t = decimate(t,decimation_factor);
-            plot(t,coeff(:,1:pc_idx),'LineWidth',2);
-            xlabel('Time (sec)',...
-               'FontName','Arial','FontSize',14,'Color','k');
-            ylabel('PC Amplitude (a.u.)',...
-               'FontName','Arial','FontSize',14,'Color','k');
-            title(sprintf('Top %g PCs (>=%g%% explained)',pc_idx,min_pca_var),...
-               'FontName','Arial','FontSize',16,'Color','k');
-         end
-      end
-      
       % Run function on children Rat objects
       function runFun(obj,f)
          % Parse function handle input
@@ -460,122 +120,6 @@ classdef group < handle
                obj.Children(ii).runFun(f);
             end
          end
-      end
-      
-      % Run dPCA analysis for all children Rat objects 
-      % -- deprecated --
-      function out = run_dPCA_days_are_stimuli(obj)
-         if numel(obj) > 1
-            out = struct;
-            maintic = tic;
-            for ii = 1:numel(obj)
-               out.(obj(ii).Name) = obj(ii).run_dPCA_days_are_stimuli;
-            end
-            toc(maintic);
-            return;
-         end
-         out = run_dPCA_days_are_stimuli(obj.Children);
-      end
-      
-      % Shortcut to save with the appropriate filename
-      function ticTimes = saveGroupData(obj,ticTimes)
-         if nargin < 2
-            ticTimes = struct;
-         end
-         if numel(obj) > 1
-            fprintf(1,'Saving GROUP class object array...');
-         else
-            fprintf(1,'Saving GROUP class object...');
-         end
-         saveTic = tic;
-         gData = obj; % To keep name consistent with outside variable name
-         save(defaults.experiment('group_data_name'),'gData','-v7.3');
-         ticTimes.save = round(toc(saveTic));
-         fprintf(1,'complete (%g sec elapsed)\n\n\n',ticTimes.save);
-         if nargout < 1
-            ticTimes = [];
-         end
-      end
-      
-      % Add ET-1 (or sham) injection sites to ratSkullObj object
-      function scatterInjectionSites(obj,ratSkullObj)
-         if strcmpi(obj.Name,'Ischemia')
-            scatter(ratSkullObj,defaults.group('skull_et1_x'),...
-               defaults.group('skull_et1_y'),'ET-1',...
-               'MarkerSize',60,...
-               'MarkerFaceColor','k');
-         else
-            scatter(ratSkullObj,defaults.group('skull_et1_x'),...
-               defaults.group('skull_et1_y'),'ET-1',...
-               'MarkerSize',60,...
-               'MarkerFaceColor','none',...
-               'MarkerEdgeColor','k');
-         end
-      end
-      
-      % Set the most-recent include and alignment
-      function setAlignInclude(obj,align,includeStruct)
-         if nargin < 2
-            align = defaults.group('align');
-         end
-         
-         if nargin < 3
-            includeStruct = defaults.group('include');
-         end
-         
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               obj(ii).setAlignInclude(align,includeStruct);
-            end
-            return;
-         end
-         
-         obj.RecentAlignment = align;
-         obj.RecentIncludes = includeStruct;
-      end
-      
-      % Set cross-condition means for block objects of child rat objects
-      function setCrossCondMean(obj,align,outcome,pellet,reach,grasp,support,complete,forceReset)
-      
-         if nargin < 8
-            [align,outcome,pellet,reach,grasp,support,complete] = utils.getCrossCondKeyCombos();
-            forceReset = true; % By default, reset if no arguments specified
-         else
-            if ~iscell(align)
-               align = {align};
-            end
-            if ~iscell(outcome)
-               outcome = {outcome};
-            end
-            if ~iscell(pellet)
-               pellet = {pellet};
-            end
-            if ~iscell(reach)
-               reach = {reach};
-            end
-            if ~iscell(grasp)
-               grasp = {grasp};
-            end
-            if ~iscell(support)
-               support = {support};
-            end
-            if ~iscell(complete)
-               complete = {complete};
-            end
-            if nargin < 9
-               forceReset = false;  % By default do not reset if all arguments are already specified
-            end
-         end
-         
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               setCrossCondMean(obj(ii),align,outcome,pellet,reach,grasp,support,complete,forceReset);
-            end
-            return;
-         end
-         
-         setCrossCondMean(obj.Children,align,outcome,pellet,reach,grasp,support,complete,forceReset);
-         
       end
       
       % Break into subgroups
@@ -610,48 +154,13 @@ classdef group < handle
             end
          end
          
-         subGroupArray = [];
+         subGroupArray = group(numel(groupIndices));
          for ii = 1:numel(groupIndices)
-            subGroupArray = [subGroupArray; group(groupNameArray{ii},...
-               obj.Children(groupIndices{ii}))];
+            subGroupArray = group(groupNameArray{ii},obj.Children(groupIndices{ii}));
             subGroupArray(ii).p = obj.p;
             subGroupArray(ii).pct = obj.pct;
          end
          
-      end
-      
-      % Set xPC object
-      function setxPCs(obj,xPC)
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               setxPCs(obj(ii),xPC);
-            end
-            return;
-         end
-         setxPCs(obj.Children,xPC);
-      end
-      
-      % Recover jPCA weights for channels using trials from all days 
-      % -- deprecated --
-      function unifyjPCA(obj,align,area)
-         % Parse alignment
-         if nargin < 2
-            align = defaults.jPCA('jpca_align');
-         end
-         
-         % Parse area for unification ('Full', 'RFA', or 'CFA')
-         if nargin < 3
-            area = 'Full'; % default
-         end
-            
-         % Parse array
-         if numel(obj) > 1
-            for ii = 1:numel(obj)
-               unifyjPCA(obj(ii),align,area);
-            end
-            return;
-         end
-         unifyjPCA(obj.Children,align,area);
       end
       
       % Update Folder property of this and children objects
@@ -694,6 +203,10 @@ classdef group < handle
          end
       end
       
+   end
+   
+   % "PROPERTY" methods (shortcuts for getting indexed GROUP objects)
+   methods (Access = public)
       % Returns the INTACT group from an array of GROUP objects
       function [obj_out,idx] = Intact(obj)
          obj_out = [];
@@ -721,9 +234,10 @@ classdef group < handle
          idx = [];
          fprintf(1,'No Ischemia group contained in array (%g GROUP objects passed).\n',numel(obj));
       end
+      
    end
    
-   % Methods for retrieving data from child objects
+   % "GET" methods
    methods (Access = public)
       % Return all BLOCK names contained in this GROUP
       function nameArray = getBlockNames(obj)
@@ -736,7 +250,95 @@ classdef group < handle
          end
          
          % Flag true: fromChild
-         nameArray = getProp(obj.Children,'Name',true);
+         nameArray = cellstr(getProp(obj.Children,'Name',true));
+      end
+      
+      % Return a numeric property from the BLOCK level
+      function propValArray = getBlockNumProp(obj,propName)
+         if nargin < 2
+            error('Must specify property name as a character array.');
+         end
+         
+         if numel(obj) > 1
+            propValArray = [];
+            for i = 1:numel(obj)
+               propValArray = [propValArray; obj(i).getBlockNumProp(propName)];
+            end
+            return;
+         end
+         
+         propValArray = [];
+         for i = 1:numel(obj.Children)
+            propValArray = [propValArray; getNumProp(obj.Children(i).Children,propName)];
+         end
+      end
+      
+      % Return summary of BLOCK objects in record
+      function S = getBlockSummary(obj,output_score)
+         if nargin < 2
+            output_score = defaults.group('output_score');
+         end
+         
+         if numel(obj) > 1
+            S = [];
+            for i = 1:numel(obj)
+               S = [S; getBlockSummary(obj(i),output_score)];
+            end
+            return;
+         end
+         
+         % Extract summary variables
+         Name = getBlockNames(obj); %#ok<*PROP>
+         Rat = cellfun(@(x){x(1:5)},Name,'UniformOutput',true);
+         Group = repmat(categorical({obj.Name}),numel(Rat),1);
+         Score = getBlockNumProp(obj,output_score);
+         PostOpDay = getBlockNumProp(obj,'PostOpDay');
+         
+         ReachToGrasp_All = getOffsetLatency(obj,'Grasp','Reach',[0,1],1);
+         ReachToComplete_All = getOffsetLatency(obj,'Complete','Reach',[0,1],1);
+         GraspToComplete_All = getOffsetLatency(obj,'Complete','Grasp',[0,1],1);
+         GraspToSupport_All = getOffsetLatency(obj,'Support','Grasp',[0,1],1);
+         
+         ReachToGrasp_Successful = getOffsetLatency(obj,'Grasp','Reach',1,1);
+         ReachToComplete_Successful = getOffsetLatency(obj,'Complete','Reach',1,1);
+         GraspToComplete_Successful = getOffsetLatency(obj,'Complete','Grasp',1,1);
+         GraspToSupport_Successful = getOffsetLatency(obj,'Support','Grasp',1,1);
+         
+         S = table(Rat,Group,Name,PostOpDay,Score,...
+            ReachToGrasp_All,ReachToComplete_All,GraspToComplete_All,GraspToSupport_All,...
+            ReachToGrasp_Successful,ReachToComplete_Successful,GraspToComplete_Successful,GraspToSupport_Successful);
+         
+         % Append descriptions
+         S.Properties.Description = 'Block Summary Table';
+         S.Properties.VariableDescriptions = ...
+            {'Name of Rat', ...
+            'Experimental Group (Ischemia or Intact)', ...
+            'Name of Recording Block',...
+            'Day relative to implant/injection surgery date',...
+            sprintf('%s - retrieval success rate',output_score),...
+            'Time from reach onset to digit flexion (All trials with pellet present)',...
+            'Time from reach onset to trial completion (All trials with pellet present)',...
+            'Time from digit flexion to trial completion (All trials with pellet present)',...
+            'Time from digit flexion to support limb movement (All trials with pellet present)',...
+            'Time from reach onset to digit flexion (Successful trials with pellet present)',...
+            'Time from reach onset to trial completion (Successful trials with pellet present)',...
+            'Time from digit flexion to trial completion (Successful trials with pellet present)',...
+            'Time from digit flexion to support limb movement (Successful trials with pellet present)'};
+         S.Properties.VariableUnits = ...
+            {'', ...
+            '', ...
+            '',...
+            'days',...
+            'nSuccessful/nAttempt',...
+            'milliseconds',...
+            'milliseconds',...
+            'milliseconds',...
+            'milliseconds',...
+            'milliseconds',...
+            'milliseconds',...
+            'milliseconds',...
+            'milliseconds'};
+         
       end
       
       % Get/update the ChannelInfo property using the masking and 
@@ -760,12 +362,11 @@ classdef group < handle
             return;
          end
          
+         % Flags: doUpdate (false); useMask (true)
+         channelInfo = getChannelInfo(obj.Children,false,true);
+         
          if doUpdate
-            % Flags: doUpdate (false); useMask (true)
-            channelInfo = getChannelInfo(obj.Children,false,true);
             obj.ChannelInfo = channelInfo;
-         else
-            channelInfo = obj.ChannelInfo;
          end       
          Group = obj.Name;
          channelInfo = utils.addStructField(channelInfo,Group);
@@ -868,85 +469,46 @@ classdef group < handle
          end
       end
       
-      % Returns table with Data variable containing jPCA Projection and
-      % Summmary fields 
-      % -- deprecated --
-      function J = getjPCA(obj,align,outcome,area)
-         if nargin < 4
-            area = 'Full';
-         end
+      % Get median offset latency (ms) between two behaviors
+      %     align1 : "Later" alignment   (grasp, in reach-grasp pair)
+      %     align2 : "Earlier" alignment (reach, in reach-grasp pair)
+      %     offset : Positive value indicates that align1 occurs after
+      %                 align2
+      function offset = getOffsetLatency(obj,align1,align2,outcome,pellet,mustInclude,mustExclude)         
          if nargin < 3
-            outcome = 'All';
+            error('Must specify two alignment points (''Reach'', ''Grasp'', ''Support'', or ''Complete'')');
          end
-         if nargin < 2
-            align = defaults.jPCA('jpca_align');
+         
+         if nargin < 4
+            outcome = [0 1];
          end
+         
+         if nargin < 5
+            pellet = [0 1];
+         end
+         
+         if nargin < 6
+            mustInclude = {};
+         end
+         
+         if nargin < 7
+            mustExclude = {};
+         end
+         
+         if ~ismember(align1,{'Reach','Grasp','Support','Complete'}) || ...
+               ~ismember(align2,{'Reach','Grasp','Support','Complete'})
+            error('Invalid alignment. Must specify from: (Reach, Grasp, Support, Complete)');
+         end
+         
          if numel(obj) > 1
-            J = [];
-            for ii = 1:numel(obj)
-               J = [J; getjPCA(obj(ii),align,outcome,area)];
+            offset = [];
+            for i = 1:numel(obj)
+               offset = [offset; getOffsetLatency(obj(i),align1,align2,outcome,pellet,mustInclude,mustExclude)];
             end
             return;
          end
          
-         J = [];
-         THRESH = defaults.group('w_avg_dp_thresh');
-         field_expr = sprintf('Data.%s.%s.jPCA.%s',align,outcome,area);
-         for ii = 1:numel(obj.Children)
-            ratObj = obj.Children(ii);
-            for ik = 1:numel(ratObj.Children)
-               blockObj = ratObj.Children(ik);
-               Rat = {ratObj.Name};
-               Name = {blockObj.Name};
-               Group = {obj.Name};
-               PostOpDay = blockObj.PostOpDay;
-               Score = blockObj.(defaults.group('output_score'));
-               Align = {align};
-               ChannelInfo = {blockObj.ChannelInfo(blockObj.ChannelMask)};
-               [Projection,Summary] = getjPCA(blockObj,field_expr);
-               if isempty(Projection)
-                  continue;
-               end
-               phaseData = jPCA.getPhase(Projection,Summary.sortIndices(1),Summary.outcomes);
-               idx = abs([phaseData.wAvgDPWithPiOver2]) > THRESH;
-               nAttempts = numel(phaseData);
-               outcomes = [phaseData.label].';
-               outcomes = outcomes(idx);
-               Projection = Projection(idx);
-               Summary.outcomes = outcomes;
-               Data.Projection = Projection;
-               Data.Summary = Summary;
-               J = [J; table(Rat,Name,Group,PostOpDay,Score,nAttempts,Align,ChannelInfo,Data)];
-            end
-         end
-      end
-      
-      % Return phase data for jPCA analyses 
-      % -- deprecated --
-      function phaseData = getPhase(obj,align,outcome,area)
-         
-         if nargin < 4
-            area = 'Full';
-         end
-         
-         if nargin < 3
-            outcome = 'All';
-         end
-         
-         if nargin < 2
-            align = defaults.jPCA('jpca_align');
-         end
-         
-         if numel(obj) > 1
-            phaseData = [];
-            for ii = 1:numel(obj)
-               phaseData = [phaseData; getPhase(obj(ii),align,outcome,area)];
-            end
-            return;
-         end
-
-         fprintf(1,'\n%s group:\n',obj.Name);
-         phaseData = getPhase(obj.Children,align,outcome,area);
+         offset = getOffsetLatency(obj.Children,align1,align2,outcome,pellet,mustInclude,mustExclude);
       end
       
       % Return some property as an array for all child objects
@@ -1028,56 +590,112 @@ classdef group < handle
       end
    end
    
-   % Methods for plotting data
+   % "SET" methods
    methods (Access = public)
-      % Plot average rate profiles across days by group 
-      % -- deprecated --
-      function fig = plotRateAverages(obj,align,outcome)
+      % Set the most-recent include and alignment
+      function setAlignInclude(obj,align,includeStruct)
          if nargin < 2
-            align = defaults.block('all_events');
+            align = defaults.group('align');
          end
          
          if nargin < 3
-            outcome = defaults.block('outcome');
+            includeStruct = defaults.group('include');
          end
          
          if numel(obj) > 1
-            if nargout > 0
-               fig = [];
-               for ii = 1:numel(obj)
-                  fig = [fig; plotRateAverages(obj(ii),align,outcome)];
-               end
-               return;
-            else
-               for ii = 1:numel(obj)
-                  plotRateAverages(obj(ii),align,outcome);
-               end
-               return;
-            end
-         end
-         
-         if iscell(align)
-            if nargout > 0
-               fig = [];
-               for ik = 1:numel(align)
-                  fig = [fig; plotRateAverages(obj.Children,align{ik},outcome)];
-               end
-               return;
-            else
-               for ik = 1:numel(align)
-                  plotRateAverages(obj.Children,align{ik},outcome)
-               end
-               return;
-            end
-            
-         else
-            if nargout > 0
-               fig = plotRateAverages(obj.Children,align,outcome);
-            else
-               plotRateAverages(obj.Children,align,outcome);
+            for ii = 1:numel(obj)
+               obj(ii).setAlignInclude(align,includeStruct);
             end
             return;
          end
+         
+         obj.RecentAlignment = align;
+         obj.RecentIncludes = includeStruct;
+      end
+      
+      % Set cross-condition means for block objects of child rat objects
+      function setCrossCondMean(obj,align,outcome,pellet,reach,grasp,support,complete,forceReset)
+      
+         if nargin < 8
+            [align,outcome,pellet,reach,grasp,support,complete] = utils.getCrossCondKeyCombos();
+            forceReset = true; % By default, reset if no arguments specified
+         else
+            if ~iscell(align)
+               align = {align};
+            end
+            if ~iscell(outcome)
+               outcome = {outcome};
+            end
+            if ~iscell(pellet)
+               pellet = {pellet};
+            end
+            if ~iscell(reach)
+               reach = {reach};
+            end
+            if ~iscell(grasp)
+               grasp = {grasp};
+            end
+            if ~iscell(support)
+               support = {support};
+            end
+            if ~iscell(complete)
+               complete = {complete};
+            end
+            if nargin < 9
+               forceReset = false;  % By default do not reset if all arguments are already specified
+            end
+         end
+         
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               setCrossCondMean(obj(ii),align,outcome,pellet,reach,grasp,support,complete,forceReset);
+            end
+            return;
+         end
+         
+         setCrossCondMean(obj.Children,align,outcome,pellet,reach,grasp,support,complete,forceReset);
+         
+      end
+      
+      % Set xPC object
+      function setxPCs(obj,xPC)
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               setxPCs(obj(ii),xPC);
+            end
+            return;
+         end
+         setxPCs(obj.Children,xPC);
+      end
+      
+   end
+   
+   % "GRAPHICS" methods
+   methods (Access = public)
+      % Puts a rat skull plot object on current axes
+      function [ratSkullObj,ax] = buildRatSkullPlot(obj,ax)
+         if nargin < 2
+            ax = gca;
+         end
+         ratSkullObj = ratskull_plot(ax);
+         obj.scatterInjectionSites(ratSkullObj);
+      end
+      
+      % Export "ratskull_plot" type movies to show evolution of a
+      % particular rat's spatially-distributed response (for some
+      % parameter) against days
+      function exportSkullPlotMovie(obj,f)
+         if nargin < 2
+            f = [];
+         end
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               obj(ii).exportSkullPlotMovie(f);
+            end
+            return;
+         end
+         
+         exportSkullPlotMovie(obj.Children,f);
       end
       
       % Plot average rate profiles across days by group. Can accept object
@@ -1290,6 +908,10 @@ classdef group < handle
          legText = [];
          rat_marker = defaults.group('rat_marker');
          rat_color = defaults.group('rat_color');
+         hg = gobjects(numel(obj),1);
+         plotDayVec = 4:28;
+         data = cell(numel(obj),numel(plotDayVec));
+         
          for iG = 1:numel(obj)
             poDay = cell(numel(obj(iG).Children),1);
             score = cell(numel(obj(iG).Children),1);
@@ -1321,26 +943,33 @@ classdef group < handle
                obj(iG).Children(ii).setAllDaysScore(tmp_score);
             end
 
-            plotDayVec = 4:28;
+            
             groupScore = nan(size(plotDayVec));
             groupStd = nan(size(plotDayVec));
             for ik = 1:numel(plotDayVec)
-               tmp = [];
                for ii = 1:numel(obj(iG).Children)
                   if ismember(plotDayVec(ik),allDays{ii})
-                     tmp = [tmp; smoothedData{ii}(allDays{ii}==plotDayVec(ik))];
+                     data{iG,ik} = [data{iG,ik}; smoothedData{ii}(allDays{ii}==plotDayVec(ik))];
                   end
                end
-               if ~isempty(tmp)
-                  groupScore(ik) = mean(tmp);
-                  groupStd(ik) = std(tmp);
+               if ~isempty(data{iG,ik})
+                  groupScore(ik) = mean(data{iG,ik});
+                  groupStd(ik) = std(data{iG,ik});
                end
             end
             
             subplot(3,6,1:6);
             hold on;
-            errorbar(plotDayVec,groupScore*100,groupStd*100,...
-               'Color',mean(rat_color.(obj(iG).Name),1),'LineWidth',3);
+%             errorbar(plotDayVec,groupScore*100,groupStd*100,...
+%                'Color',mean(rat_color.(obj(iG).Name),1),'LineWidth',3);
+            % Plot shading as 1 SD for confidence interval
+            hg(iG) = gfx.plotWithShadedError(plotDayVec,...
+               groupScore*100,...
+               groupStd*100,...
+               'LineWidth',3,...
+               'Color',max(rat_color.(obj(iG).Name),[],1),...
+               'DisplayName',obj(iG).Name,...
+               'FaceColor',min(rat_color.(obj(iG).Name),[],1));
             set(gca,'XColor','k');
             set(gca,'YColor','k');
             set(gca,'FontName','Arial');
@@ -1349,9 +978,41 @@ classdef group < handle
             ylabel('% Successful','FontName','Arial','Color','k','FontSize',12);
             title('Group Mean Score','FontName','Arial','Color','k','FontSize',14);
             ylim([0 100]);
-            legText = [legText; {obj(iG).Name}];
-            legend(legText,'Location','NorthWest');
+%             legText = [legText; {obj(iG).Name}];
+%             legend(legText,'Location','NorthWest');
          end
+         legend(hg);
+         xlim([min(plotDayVec)-0.25,max(plotDayVec)+0.25]);
+         
+         startFlag = true;
+         endFlag = false;
+         
+         % Append whether it was significant or not using a line above the
+         % plot
+%          sigGroup = hggroup(gca,...
+%             'DisplayName','Significant (\alpha = 0.05)');
+%          for i = 1:numel(plotDayVec)
+%             d = plotDayVec(i);
+%             
+%             if ttest2(data{1,i},data{2,i},'Alpha',0.05,'Vartype','unequal')
+%                if startFlag
+%                   line([d,d],[75 90],'Color','k','LineWidth',2.5,...
+%                      'Parent',sigGroup);
+%                   startFlag = false;
+%                   endFlag = true;
+%                end
+%                line([d,d+1],[90 90],'Color','k','LineWidth',2.5,...
+%                      'Parent',sigGroup);
+%             else
+%                if endFlag
+%                   line([d,d],[90 75],'Color','k','LineWidth',2.5,...
+%                      'Parent',sigGroup);
+%                   startFlag = true;
+%                   endFlag = false;
+%                end
+%             end
+%          end
+         sigGroup = gfx.addSignificanceLine(gca,plotDayVec,data(2,:),data(1,:),0.05);
       end
       
       % Plot channelwise cross-day condition response correlations
@@ -1405,113 +1066,6 @@ classdef group < handle
          else
             fig = plotMeanCoherence(obj.Children,...
                obj.RecentAlignment,obj.RecentIncludes,obj.Name);
-         end
-      end
-      
-      % Make scatter plots accounting for channel type etc 
-      % -- deprecated --
-      function fig = plotScatter(obj,pc_indices)
-         % Parse input
-         if nargin < 2
-            pc_indices = 1:3;
-         end
-         
-         % Handle multiple input objects
-         if numel(obj) > 1
-            if nargout < 1
-               for ii = 1:numel(obj)
-                  plotScatter(obj(ii),pc_indices);
-               end
-            else
-               fig = [];
-               for ii = 1:numel(obj)
-                  fig = [fig; plotScatter(obj(ii),pc_indices)];
-               end
-            end
-            return;
-         end
-         
-         fig = figure('Name',sprintf('%s: ICMS-Scatter',obj.Name),...
-            'Units','Normalized',...
-            'Color','w',...
-            'Position',[0.2 0.2 0.6 0.6]);
-         icms_opts = defaults.group('icms_opts');
-         nCol = numel(icms_opts)+1;
-         area_opts = defaults.group('area_opts');
-         nRow = numel(area_opts);
-         rat_marker = defaults.group('rat_marker');
-         rat_color = defaults.group('rat_color');
-         col = rat_color.(obj.Name);
-         for iPlot = 1:(nRow * nCol)
-            subplot(nRow,nCol,iPlot);
-            icms_idx = rem(iPlot-1,nCol)+1;
-            area_idx = ceil(iPlot/nCol);
-            for ii = 1:numel(obj.Children)
-               for ik = 1:numel(obj.Children(ii).Children)
-                  b = obj.Children(ii).Children(ik); % block
-                  x = b.score(:,pc_indices(1));
-                  y = b.score(:,pc_indices(2));
-                  z = b.score(:,pc_indices(3));
-                  chInf = b.ChannelInfo(b.score_ch_idx);
-                  
-                  site_icms = {chInf.icms}.';
-                  site_area = {chInf.area}.';
-                  
-                  
-                  if icms_idx > numel(icms_opts)
-                     idx = (~contains(site_icms,icms_opts{1})) & ...
-                           (~contains(site_icms,icms_opts{2})) & ...
-                     	   (contains(site_area,area_opts{area_idx}));
-                  else
-                     idx = (contains(site_icms,icms_opts{icms_idx})) & ...
-                        (contains(site_area,area_opts{area_idx}));
-                  end
-                  
-                  
-                  
-                  mrk_idx = rem(ii-1,numel(rat_marker))+1;
-                  scatter3(x(idx),y(idx),z(idx),30,'filled','k',...
-                     'MarkerFaceColor',col(ii,:),...
-                     'MarkerEdgeColor',col(ii,:),...
-                     'Marker',rat_marker{mrk_idx},...
-                     'MarkerFaceAlpha',0.5,'MarkerEdgeAlpha',0.75);
-                  hold on;
-               end
-            end
-            if icms_idx > numel(icms_opts)
-               t_str = sprintf('%s-Other',area_opts{area_idx});
-            else
-               t_str = sprintf('%s-%s',area_opts{area_idx},icms_opts{icms_idx});
-            end
-            xlabel(sprintf('PC-%g',pc_indices(1)),...
-               'FontName','Arial','FontSize',14,'Color','k');
-            ylabel(sprintf('PC-%g',pc_indices(2)),...
-               'FontName','Arial','FontSize',14,'Color','k');
-            zlabel(sprintf('PC-%g',pc_indices(3)),...
-               'FontName','Arial','FontSize',14,'Color','k');
-            title(t_str,'FontName','Arial','FontSize',16,'Color','k');
-            xlim([-75 75]);
-            ylim([-50 50]);
-            zlim([-25 25]);
-         end
-         pct_explained = sum(obj.pct(pc_indices));
-         t_str = sprintf('%s: PCs explain %2.4g%% var',obj.Name,pct_explained);
-         suptitle(t_str);
-         
-         % Save and delete if no output prompted
-         if nargout < 1
-            out_dir = defaults.group('somatotopy_pca_behavior_fig_dir');
-            out_dir = fullfile(pwd,out_dir);
-            if exist(out_dir,'dir')==0
-               mkdir(out_dir);
-            end
-            savefig(fig,fullfile(out_dir,...
-               sprintf('%s_ICMS-Scatter_PC-%g-%g-%g.fig',obj.Name,...
-               pc_indices(1),pc_indices(2),pc_indices(3))));
-            saveas(fig,fullfile(out_dir,...
-               sprintf('%s_ICMS-Scatter_PC-%g-%g-%g.png',obj.Name,...
-               pc_indices(1),pc_indices(2),pc_indices(3))));
-            delete(fig);
          end
       end
       
@@ -1628,6 +1182,22 @@ classdef group < handle
          
       end
       
+      % Add ET-1 (or sham) injection sites to ratSkullObj object
+      function scatterInjectionSites(obj,ratSkullObj)
+         if strcmpi(obj.Name,'Ischemia')
+            scatter(ratSkullObj,defaults.group('skull_et1_x'),...
+               defaults.group('skull_et1_y'),'ET-1',...
+               'MarkerSize',60,...
+               'MarkerFaceColor','k');
+         else
+            scatter(ratSkullObj,defaults.group('skull_et1_x'),...
+               defaults.group('skull_et1_y'),'ET-1',...
+               'MarkerSize',60,...
+               'MarkerFaceColor','none',...
+               'MarkerEdgeColor','k');
+         end
+      end
+      
       % Plots the reprojection fit for each channel in the Ischemia group
       function fig = xPCA_reprojectionErrorBarGraph(obj)
          g = obj.Ischemia;
@@ -1731,6 +1301,643 @@ classdef group < handle
       
    end
    
+   % "STATS" (export) methods
+   methods (Access = public)
+      % Export statistics (as a spreadsheet) for individual channels.  Each
+      % row of output spreadsheet (name in defaults.group) corresponds to
+      % statistics for a single recording channel, for a single recording
+      % session. Only exports spreadsheet if no output argument is 
+      % specified.
+      function T = exportChannelStats(obj)
+         if numel(obj) > 1
+            T = [];
+            for ii = 1:numel(obj)
+               obj(ii).Data.ChannelStats = exportChannelStats(obj(ii));
+               obj(ii).HasChannelStats = true;
+               T = [T; obj(ii).Data.ChannelStats];
+            end
+            if nargout < 1
+               fname = defaults.group('channel_export_spreadsheet');
+               writetable(T,fname);
+            end
+            return;
+         end
+      end
+      
+      % Export statistics (as a spreadsheet) for individual trials. Each
+      % row of output spreadsheet (name in defaults.group) corresponds to
+      % statistics for a single reaching trial. Only exports spreadsheet
+      % if no output argument is specified.
+      function T = exportTrialStats(obj)
+         if numel(obj) > 1
+            T = [];
+            for ii = 1:numel(obj)
+               T = [T; exportTrialStats(obj(ii))];
+               obj(ii).HasTrialStats = true;
+            end
+            if nargout < 1
+               fname = defaults.group('trial_export_spreadsheet');
+               writetable(T,fname);
+            end
+            return;
+         end
+         
+         T = exportTrialStats(obj.Children);
+         
+         % Extend variable descriptors to an additional metadata field
+         ud = T.Properties.UserData;
+         vd = T.Properties.VariableDescriptions;
+         Group = repmat(categorical({obj.Name}),size(T,1),1);
+         
+         T = [table(Group), T];
+         T.Properties.Description = 'Concatenated Trial Metadata';
+         T.Properties.UserData = [nan(1,1), ud];
+         T.Properties.VariableDescriptions = ['experimental group', vd];
+         obj.Data.TrialStats = T;
+      end
+      
+   end
+   
+   % -- DEPRECATED -- methods
+   methods (Access = public, Hidden = true)
+      % Redistribute the combined PCA results to child Rat objects 
+      % -- deprecated --
+      function assignBasisData(obj,coeff,score,mu)
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               assignBasisData(obj(ii),coeff,score,mu);
+            end
+            return;
+         end
+         ratName = cellstr(vertcat(obj.ChannelInfo.Name));
+         for ii = 1:numel(obj.Children)
+            idx = ismember(ratName,obj.Children(ii).Name);
+            assignBasisData(obj.Children(ii),...
+               coeff(idx,:),score(idx,:),mu(idx),...
+               obj.ChannelInfo(idx));
+         end
+      end
+      
+      % Table of data describing divergence between unsuccessful and
+      % successful trials in phase space, for each recording. Created by
+      % EXPORTDIVERGENCESTATS 
+      % -- deprecated --
+      function assignDivergenceData(obj,T)
+         % Parse array
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               Tsub = T(ismember(T.Group,obj(ii).Name),:);
+               assignDivergenceData(obj(ii),Tsub);
+            end
+            return;
+         end
+         
+         assignDivergenceData(obj.Children,T);
+      end
+      
+      % Export down-sampled rate data for dPCA. If no output argument is
+      % specified, then files are saved in the default location from
+      % defaults.dPCA. In this version, days are stimuli and successful or
+      % unsuccessful outcome is the decision.
+      function [X,t,trialNum] = export_dPCA_days_are_stimuli(obj)
+         % Parse array input
+         if numel(obj) > 1
+            if nargout < 1
+               for ii = 1:numel(obj)
+                  export_dPCA_days_are_stimuli(obj(ii));
+               end
+            else
+               X = cell(numel(obj),1);
+               trialNum = cell(numel(obj),1);
+               for ii = 1:numel(obj)
+                  [X{ii},t,trialNum{ii}] = export_dPCA_days_are_stimuli(obj(ii)); % t always the same
+               end
+            end
+            return;
+         end
+         
+         if nargout < 1
+            export_dPCA_days_are_stimuli(obj.Children);
+         else
+            [X,t,trialNum] = export_dPCA_days_are_stimuli(obj.Children);
+         end
+      end
+      
+      % Export down-sampled rate data for dPCA. If no output argument is
+      % specified, then files are saved in the default location from
+      % defaults.dPCA. In this version, pellet presence or absence is the
+      % stimulus and the decision is to complete or continue a second
+      % reach.
+      function [X,t,trialNum] = export_dPCA_pellet_present_absent(obj)
+         % Parse array input
+         if numel(obj) > 1
+            if nargout < 1
+               for ii = 1:numel(obj)
+                  export_dPCA_pellet_present_absent(obj(ii));
+               end
+            else
+               X = cell(numel(obj),1);
+               trialNum = cell(numel(obj),1);
+               for ii = 1:numel(obj)
+                  [X{ii},t,trialNum{ii}] = export_dPCA_pellet_present_absent(obj(ii)); % t always the same
+               end
+            end
+            return;
+         end
+         
+         if nargout < 1
+            export_dPCA_pellet_present_absent(obj.Children);
+         else
+            [X,t,trialNum] = export_dPCA_pellet_present_absent(obj.Children);
+         end
+      end
+      
+      % Export "unified" jPCA trial projections from all days 
+      % -- deprecated --
+      function exportUnifiedjPCA_movie(obj,align,area)
+         if nargin < 2
+            align = defaults.jPCA('jpca_align');
+         end
+         
+         if nargin < 3
+            area = 'Full';
+         end
+         
+         % Parse array
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               obj(ii).exportUnifiedjPCA_movie(align,area);
+            end
+            return;
+         end
+         
+         exportUnifiedjPCA_movie(obj.Children,align,area);
+      end
+      
+      % Returns table with Data variable containing jPCA Projection and
+      % Summmary fields 
+      % -- deprecated --
+      function J = getjPCA(obj,align,outcome,area)
+         if nargin < 4
+            area = 'Full';
+         end
+         if nargin < 3
+            outcome = 'All';
+         end
+         if nargin < 2
+            align = defaults.jPCA('jpca_align');
+         end
+         if numel(obj) > 1
+            J = [];
+            for ii = 1:numel(obj)
+               J = [J; getjPCA(obj(ii),align,outcome,area)];
+            end
+            return;
+         end
+         
+         J = [];
+         THRESH = defaults.group('w_avg_dp_thresh');
+         field_expr = sprintf('Data.%s.%s.jPCA.%s',align,outcome,area);
+         for ii = 1:numel(obj.Children)
+            ratObj = obj.Children(ii);
+            for ik = 1:numel(ratObj.Children)
+               blockObj = ratObj.Children(ik);
+               Rat = {ratObj.Name};
+               Name = {blockObj.Name};
+               Group = {obj.Name};
+               PostOpDay = blockObj.PostOpDay;
+               Score = blockObj.(defaults.group('output_score'));
+               Align = {align};
+               ChannelInfo = {blockObj.ChannelInfo(blockObj.ChannelMask)};
+               [Projection,Summary] = getjPCA(blockObj,field_expr);
+               if isempty(Projection)
+                  continue;
+               end
+               phaseData = jPCA.getPhase(Projection,Summary.sortIndices(1),Summary.outcomes);
+               idx = abs([phaseData.wAvgDPWithPiOver2]) > THRESH;
+               nAttempts = numel(phaseData);
+               outcomes = [phaseData.label].';
+               outcomes = outcomes(idx);
+               Projection = Projection(idx);
+               Summary.outcomes = outcomes;
+               Data.Projection = Projection;
+               Data.Summary = Summary;
+               J = [J; table(Rat,Name,Group,PostOpDay,Score,nAttempts,Align,ChannelInfo,Data)];
+            end
+         end
+      end
+      
+      % Return phase data for jPCA analyses 
+      % -- deprecated --
+      function phaseData = getPhase(obj,align,outcome,area)
+         
+         if nargin < 4
+            area = 'Full';
+         end
+         
+         if nargin < 3
+            outcome = 'All';
+         end
+         
+         if nargin < 2
+            align = defaults.jPCA('jpca_align');
+         end
+         
+         if numel(obj) > 1
+            phaseData = [];
+            for ii = 1:numel(obj)
+               phaseData = [phaseData; getPhase(obj(ii),align,outcome,area)];
+            end
+            return;
+         end
+
+         fprintf(1,'\n%s group:\n',obj.Name);
+         phaseData = getPhase(obj.Children,align,outcome,area);
+      end
+      
+      % Shortcut for jPCA runFun 
+      % -- deprecated --
+      function jPCA(obj,align)
+         if nargin < 2
+            align = defaults.jPCA('jpca_align');
+         end
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               jPCA(obj(ii),align);
+            end
+            return;
+         end
+         
+         jPCA(obj.Children,align);
+      end
+      
+      % Shortcut for jPCA_project runFun 
+      % -- deprecated --
+      function jPCA_All(obj,align,area)
+         if nargin < 2
+            align = defaults.jPCA('jpca_align');
+         end
+         
+         if nargin < 3
+            area = 'Full';
+         end
+         
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               jPCA_All(obj(ii),align,area);
+            end
+            return;
+         end
+         
+         for ii = 1:numel(obj.Children)
+            for ik = 1:numel(obj.Children(ii).Children)
+               if isfield(obj.Children(ii).Children(ik).Data.(align).Successful,'jPCA')
+                  if isfield(obj.Children(ii).Children(ik).Data.(align).Successful.jPCA,area)
+                     fprintf(1,'-->\t%s: projecting all trials\n',obj.Children(ii).Children(ik).Name);
+                     jPCA_project(obj.Children(ii).Children(ik),align,[],nan,area);
+                  else
+                     fprintf(1,'\t-->\t%s: missing successful jPCA for AREA (%s)\n',obj.Children(ii).Children(ik).Name,area);   
+                  end                  
+               else
+                  fprintf(1,'\t-->\t%s: missing successful jPCA\n',obj.Children(ii).Children(ik).Name);                  
+               end
+            end
+         end
+         
+      end
+      
+      % Shortcut for jPCA_suppress runFun 
+      % -- deprecated --
+      function [Projection,Summary] = jPCA_suppress(obj,active_area,align,outcome,doReProject)
+         if nargin < 5
+            doReProject = false;
+         end
+         
+         if nargin < 4
+            outcome = 'All';
+         end
+         
+         if nargin < 3
+            align = 'Grasp';
+         end
+         
+         if numel(obj) > 1
+            if nargout > 1
+               Projection = cell(numel(obj),1);
+               Summary = cell(numel(obj),1);
+               for ii = 1:numel(obj)
+                  [Projection{ii},Summary{ii}] = jPCA_suppress(obj(ii),active_area,align,outcome,doReProject);
+               end
+            else
+               for ii = 1:numel(obj)
+                  jPCA_suppress(obj(ii),active_area,align,outcome,doReProject);
+               end
+            end
+            return;
+         end
+         
+         if nargout > 1
+            [Projection,Summary] = jPCA_suppress(obj.Children,active_area,align,outcome,doReProject);
+         else
+            jPCA_suppress(obj.Children,active_area,align,outcome,doReProject);
+         end
+      end
+      
+      % Concatenate all rate and do decomposition on it 
+      % -- deprecated --
+      function [x,coeff,score,latent,channelInfo,pc_idx] = pca(obj,doPlots)
+         if nargin < 2
+            doPlots = false;
+         end
+         
+         decimation_factor = defaults.group('decimation_factor');
+         
+         tic;
+         fprintf(1,'Gathering average rates...');
+         [avgRate,channelInfo] = getAvgSpikeRate(obj.Children);
+         fprintf(1,'complete.\n');
+         
+         fprintf(1,'Doing decimation...');
+         x = nan(size(avgRate,1),round(size(avgRate,2)/decimation_factor));
+         for ii = 1:size(avgRate,1)
+            x(ii,:) = decimate(avgRate(ii,:),decimation_factor);
+         end
+         fprintf(1,'complete.\n');
+         
+         fprintf(1,'Doing PCA...');
+         [coeff,score,latent] = pca(x,...
+            'Rows','all');
+         fprintf(1,'complete.\n');
+         toc;
+         
+         p = cumsum(latent)/sum(latent)*100;
+         min_pca_var = defaults.group('min_pca_var');
+         pc_idx = find(p>=min_pca_var,1,'first');
+         
+         obj.pct = latent/sum(latent)*100;
+         obj.p = p;
+         
+         if (doPlots) || (nargout < 1)
+            figure('Name',sprintf('Group: %s - PCA',obj.Name),...
+               'Units','Normalized',...
+               'Position',[0.3 0.3 0.4 0.4],...
+               'Color','w');
+            
+            subplot(2,1,1);
+            
+            c = get(gca,'ColorOrder');
+            for ii = 1:pc_idx
+               stem(gca,ii,p(ii),...
+                  'Color',c(ii,:),...
+                  'LineWidth',2,...
+                  'MarkerFaceColor',c(ii,:));
+               hold on;
+            end
+            stem(gca,(pc_idx+1):numel(p),p((pc_idx+1):end),...
+               'Color',[0.8 0.8 0.8],'LineWidth',1.5);
+            xlabel('PC #',...
+               'FontName','Arial','FontSize',14,'Color','k');
+            ylabel('Cumulative %',...
+               'FontName','Arial','FontSize',14,'Color','k');
+            title('% Data Explained',...
+               'FontName','Arial','FontSize',16,'Color','k');
+            
+            line([0 numel(p)+1],[min_pca_var min_pca_var],...
+               'Color','k','LineWidth',2,'LineStyle','--');
+            xlim([0.5 pc_idx+round(0.5*pc_idx)+1.5]);   
+            ylim([p(1)-5 103]);
+            
+            subplot(2,1,2);
+            t = defaults.experiment('t');
+            t = decimate(t,decimation_factor);
+            plot(t,coeff(:,1:pc_idx),'LineWidth',2);
+            xlabel('Time (sec)',...
+               'FontName','Arial','FontSize',14,'Color','k');
+            ylabel('PC Amplitude (a.u.)',...
+               'FontName','Arial','FontSize',14,'Color','k');
+            title(sprintf('Top %g PCs (>=%g%% explained)',pc_idx,min_pca_var),...
+               'FontName','Arial','FontSize',16,'Color','k');
+         end
+      end
+      
+      % Plot average rate profiles across days by group 
+      % -- deprecated --
+      function fig = plotRateAverages(obj,align,outcome)
+         if nargin < 2
+            align = defaults.block('all_events');
+         end
+         
+         if nargin < 3
+            outcome = defaults.block('outcome');
+         end
+         
+         if numel(obj) > 1
+            if nargout > 0
+               fig = [];
+               for ii = 1:numel(obj)
+                  fig = [fig; plotRateAverages(obj(ii),align,outcome)];
+               end
+               return;
+            else
+               for ii = 1:numel(obj)
+                  plotRateAverages(obj(ii),align,outcome);
+               end
+               return;
+            end
+         end
+         
+         if iscell(align)
+            if nargout > 0
+               fig = [];
+               for ik = 1:numel(align)
+                  fig = [fig; plotRateAverages(obj.Children,align{ik},outcome)];
+               end
+               return;
+            else
+               for ik = 1:numel(align)
+                  plotRateAverages(obj.Children,align{ik},outcome)
+               end
+               return;
+            end
+            
+         else
+            if nargout > 0
+               fig = plotRateAverages(obj.Children,align,outcome);
+            else
+               plotRateAverages(obj.Children,align,outcome);
+            end
+            return;
+         end
+      end
+      
+      % Make scatter plots accounting for channel type etc 
+      % -- deprecated --
+      function fig = plotScatter(obj,pc_indices)
+         % Parse input
+         if nargin < 2
+            pc_indices = 1:3;
+         end
+         
+         % Handle multiple input objects
+         if numel(obj) > 1
+            if nargout < 1
+               for ii = 1:numel(obj)
+                  plotScatter(obj(ii),pc_indices);
+               end
+            else
+               fig = [];
+               for ii = 1:numel(obj)
+                  fig = [fig; plotScatter(obj(ii),pc_indices)];
+               end
+            end
+            return;
+         end
+         
+         fig = figure('Name',sprintf('%s: ICMS-Scatter',obj.Name),...
+            'Units','Normalized',...
+            'Color','w',...
+            'Position',[0.2 0.2 0.6 0.6]);
+         icms_opts = defaults.group('icms_opts');
+         nCol = numel(icms_opts)+1;
+         area_opts = defaults.group('area_opts');
+         nRow = numel(area_opts);
+         rat_marker = defaults.group('rat_marker');
+         rat_color = defaults.group('rat_color');
+         col = rat_color.(obj.Name);
+         for iPlot = 1:(nRow * nCol)
+            subplot(nRow,nCol,iPlot);
+            icms_idx = rem(iPlot-1,nCol)+1;
+            area_idx = ceil(iPlot/nCol);
+            for ii = 1:numel(obj.Children)
+               for ik = 1:numel(obj.Children(ii).Children)
+                  b = obj.Children(ii).Children(ik); % block
+                  x = b.score(:,pc_indices(1));
+                  y = b.score(:,pc_indices(2));
+                  z = b.score(:,pc_indices(3));
+                  chInf = b.ChannelInfo(b.score_ch_idx);
+                  
+                  site_icms = {chInf.icms}.';
+                  site_area = {chInf.area}.';
+                  
+                  
+                  if icms_idx > numel(icms_opts)
+                     idx = (~contains(site_icms,icms_opts{1})) & ...
+                           (~contains(site_icms,icms_opts{2})) & ...
+                     	   (contains(site_area,area_opts{area_idx}));
+                  else
+                     idx = (contains(site_icms,icms_opts{icms_idx})) & ...
+                        (contains(site_area,area_opts{area_idx}));
+                  end
+                  
+                  
+                  
+                  mrk_idx = rem(ii-1,numel(rat_marker))+1;
+                  scatter3(x(idx),y(idx),z(idx),30,'filled','k',...
+                     'MarkerFaceColor',col(ii,:),...
+                     'MarkerEdgeColor',col(ii,:),...
+                     'Marker',rat_marker{mrk_idx},...
+                     'MarkerFaceAlpha',0.5,'MarkerEdgeAlpha',0.75);
+                  hold on;
+               end
+            end
+            if icms_idx > numel(icms_opts)
+               t_str = sprintf('%s-Other',area_opts{area_idx});
+            else
+               t_str = sprintf('%s-%s',area_opts{area_idx},icms_opts{icms_idx});
+            end
+            xlabel(sprintf('PC-%g',pc_indices(1)),...
+               'FontName','Arial','FontSize',14,'Color','k');
+            ylabel(sprintf('PC-%g',pc_indices(2)),...
+               'FontName','Arial','FontSize',14,'Color','k');
+            zlabel(sprintf('PC-%g',pc_indices(3)),...
+               'FontName','Arial','FontSize',14,'Color','k');
+            title(t_str,'FontName','Arial','FontSize',16,'Color','k');
+            xlim([-75 75]);
+            ylim([-50 50]);
+            zlim([-25 25]);
+         end
+         pct_explained = sum(obj.pct(pc_indices));
+         t_str = sprintf('%s: PCs explain %2.4g%% var',obj.Name,pct_explained);
+         suptitle(t_str);
+         
+         % Save and delete if no output prompted
+         if nargout < 1
+            out_dir = defaults.group('somatotopy_pca_behavior_fig_dir');
+            out_dir = fullfile(pwd,out_dir);
+            if exist(out_dir,'dir')==0
+               mkdir(out_dir);
+            end
+            savefig(fig,fullfile(out_dir,...
+               sprintf('%s_ICMS-Scatter_PC-%g-%g-%g.fig',obj.Name,...
+               pc_indices(1),pc_indices(2),pc_indices(3))));
+            saveas(fig,fullfile(out_dir,...
+               sprintf('%s_ICMS-Scatter_PC-%g-%g-%g.png',obj.Name,...
+               pc_indices(1),pc_indices(2),pc_indices(3))));
+            delete(fig);
+         end
+      end
+      
+      % Run dPCA analysis for all children Rat objects 
+      % -- deprecated --
+      function out = run_dPCA_days_are_stimuli(obj)
+         if numel(obj) > 1
+            out = struct;
+            maintic = tic;
+            for ii = 1:numel(obj)
+               out.(obj(ii).Name) = obj(ii).run_dPCA_days_are_stimuli;
+            end
+            toc(maintic);
+            return;
+         end
+         out = run_dPCA_days_are_stimuli(obj.Children);
+      end
+      
+      % Shortcut to save with the appropriate filename
+      % -- deprecated --
+      function ticTimes = saveGroupData(obj,ticTimes)
+         if nargin < 2
+            ticTimes = struct;
+         end
+         if numel(obj) > 1
+            fprintf(1,'Saving GROUP class object array...');
+         else
+            fprintf(1,'Saving GROUP class object...');
+         end
+         saveTic = tic;
+         gData = obj; % To keep name consistent with outside variable name
+         save(defaults.experiment('group_data_name'),'gData','-v7.3');
+         ticTimes.save = round(toc(saveTic));
+         fprintf(1,'complete (%g sec elapsed)\n\n\n',ticTimes.save);
+         if nargout < 1
+            ticTimes = [];
+         end
+      end
+      
+      % Recover jPCA weights for channels using trials from all days 
+      % -- deprecated --
+      function unifyjPCA(obj,align,area)
+         % Parse alignment
+         if nargin < 2
+            align = defaults.jPCA('jpca_align');
+         end
+         
+         % Parse area for unification ('Full', 'RFA', or 'CFA')
+         if nargin < 3
+            area = 'Full'; % default
+         end
+            
+         % Parse array
+         if numel(obj) > 1
+            for ii = 1:numel(obj)
+               unifyjPCA(obj(ii),align,area);
+            end
+            return;
+         end
+         unifyjPCA(obj.Children,align,area);
+      end
+      
+   end
+   
    % Static GROUP methods (such as loading the default 'gData' variable)
    methods (Static = true)
       % Scale the values in c to appropriate values of sizeData to give
@@ -1807,12 +2014,17 @@ classdef group < handle
             fprintf(1,'The file ''%s'' does not exist. Try running main.m\n\n',fname);
             return;
          else
-            load(defaults.experiment('group_data_name'),'gData');
+            load(defaults.experiment('group_data_name'),...
+               'gData',...
+               'pcFitObj',...
+               'xPC');
          end
          ticTimes.load = round(toc(loadTic));
          fprintf(1,'complete (%g sec elapsed)\n',ticTimes.load);
          mtb(ticTimes);
          mtb(gData);
+         mtb(pcFitObj);
+         mtb(xPC);
       end
       
       % Helper function to parse labeling strings based on

@@ -16,6 +16,7 @@ function param = rat(name)
 
 %% CHANGE THESE
 p = struct; % All field names should be lower-case
+p.verbose = false; % Set true to see warnings etc.
 p.icms_file = fullfile(defaults.experiment('tank'),defaults.experiment('icms_data_name'));
 p.x_lim_screening = [-1750, 750];   % x-limits for screening plots
 p.y_lim_screening = [-15 15];       % y-limits for screening plots
