@@ -29,7 +29,7 @@ if nargin < 1
 else
    varargout = cell(size(varargin));
    for i = 1:numel(varargin)
-      varargout{i} = gfx.getParamField(p,varargin{i});
+      varargout{i} = utils.getParamField(p,varargin{i});
    end   
 end
 

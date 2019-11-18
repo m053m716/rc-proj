@@ -1,35 +1,66 @@
-function fig = save_coherenceByDay_fig(cxy,name,outpath)
-
-PODAY = (3:28)';
-COL = {'b';'r';'m';'k'};
-SZ = 25;
-LB = 0.05;
-UB = 0.95;
+function fig = save_coherenceByDay_fig(cxy,name,outpath,iGroup,poDay)
 
 OUT = 'G:\Lab Member Folders\Max Murphy\Writing\_MANUSCRIPTS\2019-11-12_RC_Nat-Comms\Figures\PCA\Cross-Day-Coherence';
 NAME = 'PC Coherence By Day - All Channels';
 
 if nargin < 3
    outpath = OUT;
+elseif isempty(outpath)
+   outpath = OUT;
 end
 if nargin < 2
    name = NAME;
+elseif isempty(name)
+   name = NAME;
 end
 
-iIntact = 1:numel(PODAY);
-iIschemia = (numel(PODAY)+1):size(cxy,1);
+if iscell(cxy)
+   if nargout > 0
+      fig = gobjects(numel(cxy),1);
+      for i = 1:numel(cxy)
+         fig(i) = save_coherenceByDay_fig(cxy{i},name,outpath);
+      end
+   else
+      for i = 1:numel(cxy)
+         save_coherenceByDay_fig(cxy{i},name,outpath);
+      end
+   end
+   return;
+end
 
-iGroup = {iIntact; ...
-          iIschemia};
-gName = {'Intact - All Channels'; ...
-         'Ischemia - All Channels'};
+
+
+COL = {'b';'r';'m';'k'};
+SZ = 25;
+LB = 0.05;
+UB = 0.95;
+
+if nargin < 5
+   poDay = (3:28)';
+end
+
+if nargin < 4
+   iIntact = 1:numel(poDay);
+   iIschemia = (numel(poDay)+1):size(cxy,1);
+
+   iGroup = {iIntact; ...
+             iIschemia};
+   gName = {'Intact - All Channels'; ...
+            'Ischemia - All Channels'};
+elseif isempty(iGroup)
+   iGroup = {1:size(cxy,1)};
+   gName = {name};
+end
+
+
+
 
 fig = figure('Name','PC Coherence by Day',...
    'Units','Normalized',...
    'Color','w',...
    'Position',[0.2 0.1 0.4 0.8]);
 
-ax = gobjects(2,1);
+ax = gobjects(numel(iGroup),1);
 nRow = size(ax,1);
 nCol = size(ax,2);
 nRep = size(cxy,3);
@@ -43,9 +74,9 @@ for iRow = 1:nRow
       ax(iRow,iCol) = subplot(nRow,nCol,iCount);
       ax(iRow,iCol).NextPlot = 'add';
       
-      [b,a] = butter(2,0.125,'low');
+      
       pxy{iRow,iCol} = cxy(iGroup{iRow,iCol},:,:);
-%       idx = ~isnan(pxy(:,1,1));
+      [b,a] = butter(2,0.125,'low');
       if any(ismissing(pxy{iRow,iCol}(:,1,1)))
          for iShuff = 1:nRep
             pxy{iRow,iCol}(:,:,iShuff) = fillmissing(pxy{iRow,iCol}(:,:,iShuff),'linear');
@@ -88,9 +119,9 @@ for iRow = 1:nRow
          err = err(:,[lb, ub]).';
          
          h(i) = plot(ax(iRow,iCol),...
-            PODAY,mu(:,i),'Color',COL{i},...
+            poDay,mu(:,i),'Color',COL{i},...
             'LineWidth',2);
-         gfx.plotWithShadedError(ax(iRow,iCol),PODAY,mu(:,i),err,...
+         gfx.plotWithShadedError(ax(iRow,iCol),poDay,mu(:,i),err,...
             'Color',COL{i},'FaceColor',COL{i});         
 
       end
@@ -108,7 +139,7 @@ for iRow = 1:nRow
          for i = 1:size(pxy{iRow,iCol},2)
             h0 = squeeze(pxy{1}(:,i,:));
             y = squeeze(pxy{2}(:,i,:));
-            gfx.addSignificanceLine(ax(iRow,iCol),PODAY,y,h0,1e-15,...
+            gfx.addSignificanceLine(ax(iRow,iCol),poDay,y,h0,1e-15,...
                'Color',COL{i},...
                'HighVal',0.95 - (i-1)*0.035,...
                'LowVal',0.94 - (i-1)*0.035);
@@ -117,7 +148,7 @@ for iRow = 1:nRow
       title(ax(iRow,iCol),gName{iRow,iCol},'FontName','Arial','FontSize',16,'Color','k');
       xlabel(ax(iRow,iCol),'PO-Day','FontName','Arial','FontSize',14,'Color','k');
       ylabel(ax(iRow,iCol),'||C_x_y(f_{MAX})||^2','FontName','Arial','FontSize',14,'Color','k');
-      xlim([min(PODAY), max(PODAY)+1]);
+      xlim([min(poDay), max(poDay)+1]);
       ylim([0 1]);
    end
 end

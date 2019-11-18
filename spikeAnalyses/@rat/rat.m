@@ -553,7 +553,7 @@ classdef rat < handle
       xPCA(obj);
    end
    
-   % Get and Set methods
+   % "GET" and "SET" methods
    methods (Access = public)
       % Returns the channel indices corresponding to a subset by area
       function idx = getAreaIndices(obj,area,useMask)
@@ -645,6 +645,28 @@ classdef rat < handle
          for ii = 1:numel(obj.Children)
             names{ii} = obj.Children(ii).Name;
          end
+      end
+      
+      % Return a numeric property from the BLOCK level
+      function propValArray = getBlockNumProp(obj,propName,byChannel)
+         if nargin < 2
+            error('Must specify property name as a character array.');
+         end
+         
+         if nargin < 3
+            byChannel = false;
+         end
+         
+         if numel(obj) > 1
+            propValArray = [];
+            for i = 1:numel(obj)
+               propValArray = [propValArray; ...
+                  obj(i).getBlockNumProp(propName,byChannel)];
+            end
+            return;
+         end
+         propValArray = getNumProp(obj.Children,propName,byChannel);
+
       end
       
       % Returns the corresponding Electrode table row indices for a channel 
@@ -1160,6 +1182,90 @@ classdef rat < handle
       % Get or set the cross-condition mean based on align and
       % includeStruct inputs (basically a way to parse that quickly).
       [rate,t] = getSetIncludeStruct(obj,align,includeStruct,rate,t);
+      
+      % Return subset based on valid names of rat
+      %  If 'names' is [] or 'All' then returns full array.
+      %
+      %  s = getSubsetByName(ratObjArray,{'RC-02','RC-05'}); % Get 2 rats
+      %  s = getSubsetByName(ratObjArray,'RC-02'); % Gets one rat
+      function s = getSubsetByName(obj,names)
+         allNames = {obj.Name};
+         idx = ismember(allNames,names);
+         if sum(idx) < 1
+            error('Invalid names. Check second input argument.');
+         end
+         s = obj(idx);
+      end
+      
+      % Return rate data as a tensor of [nTrial x nTimesteps x nChannels],
+      % corresponding time values (milliseconds) in t, and corresponding
+      % channel/trial metadata in meta
+      function [rate,t,meta] = getTrialData(obj,includeStruct,align,area,icms)
+         % GETTRIALDATA    Return trial-aligned spike rates and metadata
+         %
+         %  [rate,t,meta] = GETTRIALDATA(obj);
+         %  [rate,t,meta] = GETTRIALDATA(obj,includeStruct);
+         %  [rate,t,meta] = GETTRIALDATA(obj,includeStruct,align);
+         %  [rate,t,meta] = GETTRIALDATA(obj,includeStruct,align,area);
+         %  [rate,t,meta] = GETTRIALDATA(obj,includeStruct,align,area,icms);
+         %
+         %  in- 
+         %  includeStruct : Returned by utils.makeIncludeStruct
+         %  align : 'Grasp', 'Reach', 'Support', or 'Complete'
+         %  area : 'CFA', 'RFA', or 'Full'
+         %  icms : 'DF' or {'DF','PF','DF-PF','O',...} (to include those)
+         %
+         %  out-
+         %  rate : [nTrial x nTimesteps x nChannels] tensor of rates
+         %  t : [1 x nTimesteps] vector it times (milliseconds)
+         %  meta : Struct containing metadata fields --
+         %     --> .behaviorData : Table of all trial times, corresponds to
+         %              rows of 'rate'
+         %     --> .channelInfo : Struct of all channel info, corresponds
+         %              to 3rd dim of 'rate'
+         
+         if nargin < 5
+            icms = defaults.rat('icms');
+         elseif isempty(icms)
+            icms = defaults.rat('icms');
+         end
+         
+         if nargin < 4
+            area = defaults.rat('area');
+         elseif isempty(area)
+            area = defaults.rat('area');
+         end
+         
+         if nargin < 3
+            align = defaults.rat('align');
+         elseif isempty(align)
+            align = defaults.rat('align');
+         end
+         
+         if nargin < 2
+            includeStruct = defaults.rat('include');
+         elseif isempty(includeStruct)
+            includeStruct = defaults.rat('include');
+         end
+         
+         % Handle input array
+         if numel(obj) > 1
+            [rate,meta] = utils.initEmpty;
+            t = utils.initCellArray(numel(obj),1);
+            for i = 1:numel(obj)
+               [tmprate,t{i},tmpmeta] = obj(i).getTrialData(includeStruct,align,area,icms);
+               rate = [rate; tmprate];
+               meta = [meta; tmpmeta];
+            end
+            t = utils.getFirstNonEmptyCell(t);
+            return;
+         end
+         
+         [rate,t,meta] = getTrialData(obj.Children,includeStruct,align,area,icms);
+         for i = 1:numel(meta)
+            meta{i}.channelInfo = rat.cleanChannelInfo(meta{i}.channelInfo,{obj.Name});
+         end
+      end
       
       % Set the most-recent include and alignment
       function setAlignInclude(obj,align,includeStruct)
@@ -2691,6 +2797,16 @@ classdef rat < handle
       function path = uiPathDialog()
          path = uigetdir('P:\Extracted_Data_To_Move\Rat\TDTRat',...
             'Select RAT folder');
+      end
+      
+      % Static method to "clean" channelInfo struct
+      function channelInfo = cleanChannelInfo(channelInfo,Name)
+         channelInfo = utils.addStructField(channelInfo,Name);
+         channelInfo = rmfield(channelInfo,'file');
+         channelInfo = orderfields(channelInfo,[6,1:5]);
+         for k = 1:numel(channelInfo)
+            channelInfo(k).area = channelInfo(k).area((end-2):end);
+         end
       end
       
       % Sets properties for a given axes for plotting rates

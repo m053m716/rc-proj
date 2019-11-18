@@ -1,5 +1,5 @@
 function p = setParamField(p,name,val)
-% SETPARAMFIELD  p = gfx.setParamField(p,'paramName',paramValue);
+% SETPARAMFIELD  p = utils.setParamField(p,'paramName',paramValue);
 %
 %  Helper function to set field value 
 %     (if matched string-insensitive field exists)
@@ -17,7 +17,7 @@ fnames = fieldnames(p);
 idx = ismember(lower(name),lower(fnames));
 if any(idx)
    name = fnames(idx);
-   p = gfx.setParamField(p,name,val);
+   p = utils.setParamField(p,name,val);
    return;
 end
 

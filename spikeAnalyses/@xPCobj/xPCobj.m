@@ -14,12 +14,14 @@ classdef xPCobj < handle
    % Not displayed by default
    properties (GetAccess = public, SetAccess = immutable, Hidden = true)      
       Area
+      Group
       align
       includeStruct
       StartDay
       StopDay
       ICMS
       NTrial
+      Score
    end
    
    % FLAGS
@@ -113,7 +115,7 @@ classdef xPCobj < handle
                align = 'Grasp';
             end
             
-            if ~isa(g,'group')
+            if (~isa(g,'group')) || (~isa(g,'rat'))
                if isscalar(g) && isnumeric(g)
                   xPC = repmat(xPC,g,1);
                   return;
@@ -125,12 +127,25 @@ classdef xPCobj < handle
          xPC.InitSuccessful = utils.initFalseArray;
          
          xPC.Area = area;
+         if isa(g,'group')
+            xPC.Group = {g.Name}.';
+         elseif isa(g,'rat')
+            if numel(g) > 1
+               for iG = 1:numel(g)
+                  xPC.Group = unique([xPC.Group; {g(iG).Parent.Name}]);
+               end
+            else
+               xPC.Group = {g.Parent.Name};
+            end
+         end
+         
          xPC.align = align;
          xPC.StartDay = startDay;
          xPC.StopDay = stopDay;
          xPC.includeStruct = includeStruct;   
          xPC.ICMS = icms;
-         [X,channelInfo,t,nTrial] = xPCobj.getAllRate(g,align,includeStruct,area,startDay,stopDay,icms);
+         [X,channelInfo,t,nTrial,Score] = xPCobj.getAllRate(g,align,includeStruct,area,startDay,stopDay,icms);
+         xPC.Score = Score;
          xPC.NTrial = nTrial;
          if isempty(X)
             return;
@@ -211,6 +226,14 @@ classdef xPCobj < handle
             return;
          end
          
+         if nReps == 0
+            v = utils.initNaNArray(size(xPC.V,1),xPC.li,1);
+            iPC = utils.initNaNArray(1,size(xPC.X,2),1);
+            v(:,:,1) = xPC.V(:,1:xPC.li);
+            iPC(1,:,1) = 1:size(xPC.X,2);
+            return;
+         end
+         
          
          warning('off','stats:pca:ColRankDefX');
          nTotal = size(xPC.X,2);
@@ -221,6 +244,7 @@ classdef xPCobj < handle
          else
             v = utils.initNaNArray(size(xPC.X,1),xPC.li,nReps);
             iPC = utils.initNaNArray(1,k,nReps);
+
          end
          
          % Do PCA on random subsets
@@ -384,7 +408,7 @@ classdef xPCobj < handle
          % Initialize output args
          iPC_b = utils.initCellArray(numel(xPC.Children),1);
          if xPC.InitSuccessful
-            [cxy,ff,iPC_m] = utils.initNaNArray(numel(xPC.Children),xPC.li,nReps);
+            [cxy,ff,iPC_m] = utils.initNaNArray(numel(xPC.Children),xPC.li,max(nReps,1));
          else
             [cxy,ff,iPC_m] = utils.initEmpty;
             return;
@@ -485,7 +509,7 @@ classdef xPCobj < handle
          end
          
          if numel(xPC) > 1
-            [cxy,ff,iPC_m] = utils.initNaNArray(numel(xPC),nPC,nReps);
+            [cxy,ff,iPC_m] = utils.initNaNArray(numel(xPC),nPC,max(nReps,1));
             iPC_b = utils.initCellArray(numel(xPC),1);
             for i = 1:numel(xPC)
                [cxy(i,:,:),ff(i,:,:),iPC_m(i,:,:),iPC_b{i}] = getParentPCcohere(xPC(i),nPC,nReps,nRemove);
@@ -493,8 +517,12 @@ classdef xPCobj < handle
             return;
          end
          
-         [cxy,ff,iPC_m] = utils.initNaNArray(1,nPC,nReps);
-         iPC_b = utils.initNaNArray(1,size(xPC.X,2)-nRemove,nReps);
+         if nReps == 0
+            nRemove = 0;
+         end
+         
+         [cxy,ff,iPC_m] = utils.initNaNArray(1,nPC,max(nReps,1));
+         iPC_b = utils.initNaNArray(1,size(xPC.X,2)-nRemove,max(nReps,1));
          if ~xPC.hasParentxPCobj
             return;
          end
@@ -898,7 +926,7 @@ classdef xPCobj < handle
       end
       
       % Get rates - can exclude by AREA as well
-      function [X,channelInfo,t,nTrial] = getAllRate(g,align,includeStruct,area,startDay,stopDay,icms)
+      function [X,channelInfo,t,nTrial,Score] = getAllRate(g,align,includeStruct,area,startDay,stopDay,icms)
          if nargin < 7
             icms = {'PF','DF','O','NR','PF-DF'};
          end
@@ -924,14 +952,13 @@ classdef xPCobj < handle
          end
          
          if numel(g) > 1
-            channelInfo = [];
-            X = [];
-            nTrial = [];
+            [X,channelInfo,nTrial,Score] = utils.initEmpty;            
             tFlag = true;
             for i = 1:numel(g)
-               [tmpRate,tmpChannelInfo,ttmp,tmpNTrial] = xPCobj.getAllRate(g(i),align,includeStruct,area,startDay,stopDay,icms);
+               [tmpRate,tmpChannelInfo,ttmp,tmpNTrial,tmpScore] = xPCobj.getAllRate(g(i),align,includeStruct,area,startDay,stopDay,icms);
                X = [X, tmpRate];
                channelInfo = [channelInfo; tmpChannelInfo];
+               Score = [Score; tmpScore];
                nTrial = [nTrial, tmpNTrial];
                if ~isempty(ttmp) && tFlag
                   t = ttmp;
@@ -943,7 +970,14 @@ classdef xPCobj < handle
             end
             return;
          end
-         [rate,t,n] = getMeanRateByDay(g.Children,align,includeStruct,startDay,stopDay); %#ok<*PROPLC>
+         if isa(g,'group')
+            [rate,t,n] = getMeanRateByDay(g.Children,align,includeStruct,startDay,stopDay); %#ok<*PROPLC>
+         else
+            [rate,t,n] = getMeanRateByDay(g,align,includeStruct,startDay,stopDay);
+            if numel(g) == 1
+               rate = {rate};
+            end
+         end
          X = [];
          keepIdx = true(size(g.Children));
          nTrial = [];
@@ -958,16 +992,27 @@ classdef xPCobj < handle
          
          if isempty(X)
             channelInfo = [];
+            Score = [];
             return;
          end
          
-         gc = copy(g);
-         gc.Children = gc.Children(keepIdx);
-         channelInfo = getChannelInfo(gc,false);
+         if isa(g,'group')
+            gc = copy(g);
+            gc.Children = gc.Children(keepIdx);
+            channelInfo = getChannelInfo(gc,false);
+            Score = getBlockNumProp(gc,'TrueScore',true);
+         else
+            channelInfo = getChannelInfo(g,false);
+            Group = g.Parent.Name;
+            channelInfo = utils.addStructField(channelInfo,Group);
+            channelInfo = orderfields(channelInfo,[7,1:6]);
+            Score = getBlockNumProp(g,'TrueScore',true);
+         end
          
          idx = contains({channelInfo.area}.',area) & ...
             ismember({channelInfo.icms}.',icms);
          channelInfo = channelInfo(idx);
+         Score = Score(idx);
          
             
          X = X(:,idx);

@@ -61,7 +61,7 @@ else
 end
 
 %  Parse configured properties of line/patch objects
-p = gfx.parseParams(CFG_KEY,varargin);
+p = utils.parseParams(CFG_KEY,varargin);
 
 %%
 h = hggroup(ax,...

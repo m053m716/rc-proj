@@ -34,7 +34,7 @@ end
 
 %% PARSE PARAMS
 CFG_KEY = 'SignificanceLine_';
-p = gfx.parseParams(CFG_KEY,varargin);
+p = utils.parseParams(CFG_KEY,varargin);
 
 %% RESHAPE INPUTS
 x = reshape(x,numel(x),1); % column vector

@@ -1,5 +1,5 @@
 function f = getParamField(p,name)
-% GETPARAMFIELD  f = gfx.getParamField(p,'paramName');
+% GETPARAMFIELD  f = utlis.getParamField(p,'paramName');
 %
 % Helper function to return field value (if matched string-insensitive
 % field exists) or else returns empty (if not matched)
@@ -18,7 +18,7 @@ fnames = fieldnames(p);
 idx = ismember(lower(name),lower(fnames));
 if any(idx)
    name = fnames(idx);
-   p = gfx.setParamField(p,name);
+   p = utils.setParamField(p,name);
    return;
 end
 end

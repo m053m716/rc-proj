@@ -5,7 +5,7 @@ end
 
 if exist('cxy','var')==0
 %    load('Cross-Days-Coherence_Data.mat','cxy','ff','iPC_m','iPC_b');
-   [cxy,ff,iPC_m,iPC_b] = getChildCoherenceData(x,1000,4);
+   [cxy,ff,iPC_m,iPC_b] = getChildCoherenceData(x,1000,1);
 end
 
 save_coherenceByDay_fig(cxy,'PC Coherence By Day 1000 reps Non-Matched PCs');

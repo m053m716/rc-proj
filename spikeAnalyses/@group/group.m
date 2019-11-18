@@ -10,6 +10,7 @@ classdef group < matlab.mixin.Copyable
    % Properties that can be retrieved publically but only set by class
    % methods.
    properties (GetAccess = public, SetAccess = private, Hidden = false)
+      Parent      % Handle to SPIKEDATA parent object (if set)
       Data        % Struct to hold GROUP-level data
       xPC         % Struct to hold xPCA-related data
       ChannelInfo % Aggregate (masked) channel info
@@ -254,22 +255,26 @@ classdef group < matlab.mixin.Copyable
       end
       
       % Return a numeric property from the BLOCK level
-      function propValArray = getBlockNumProp(obj,propName)
+      function propValArray = getBlockNumProp(obj,propName,byChannel)
          if nargin < 2
             error('Must specify property name as a character array.');
+         end
+         
+         if nargin < 3
+            byChannel = false;
          end
          
          if numel(obj) > 1
             propValArray = [];
             for i = 1:numel(obj)
-               propValArray = [propValArray; obj(i).getBlockNumProp(propName)];
+               propValArray = [propValArray; obj(i).getBlockNumProp(propName,byChannel)];
             end
             return;
          end
          
          propValArray = [];
          for i = 1:numel(obj.Children)
-            propValArray = [propValArray; getNumProp(obj.Children(i).Children,propName)];
+            propValArray = [propValArray; getNumProp(obj.Children(i).Children,propName,byChannel)];
          end
       end
       
@@ -556,7 +561,7 @@ classdef group < matlab.mixin.Copyable
          nameArray = getProp(obj.Children,'Name',false);
       end
       
-      % Get or Set struct fields based on includeStruct format
+      % Get or Set XC-MEAN struct fields based on includeStruct format
       function [rate,t] = getSetIncludeStruct(obj,align,includeStruct,rate,t)
          if (nargout > 0) && (nargin > 3)
             error('Number of inputs suggests a SET call, but number of outputs suggests a GET call.');
@@ -586,6 +591,94 @@ classdef group < matlab.mixin.Copyable
             getSetIncludeStruct(obj.Children,align,includeStruct,rate,t);
          else
             [rate,t] = getSetIncludeStruct(obj.Children,align,includeStruct);
+         end
+      end
+      
+      % Get subset of array using groupName
+      % out = gData.getSubsetByGroup('Intact');
+      % out = gData.getSubsetByGroup({'Intact','Ischemia'});
+      function out = getSubGroup(obj,groupName)
+         names = {obj.Name};
+         idx = ismember(lower(names),lower(groupName));
+         if sum(idx) < 1
+            fprintf(1,'No group in array with that name.\n');
+            if iscell(groupName)
+               fprintf(1,'-->\t%s\n',groupName{:});
+            else
+               fprintf(1,'-->\t%s\n',groupName);
+            end
+            error('Invalid groupName');
+         end
+         out = obj(idx);
+      end      
+      
+      % Return rate data as a tensor of [nTrial x nTimesteps x nChannels],
+      % corresponding time values (milliseconds) in t, and corresponding
+      % channel/trial metadata in meta
+      function [rate,t,meta] = getTrialData(obj,includeStruct,align,area,icms)
+         % GETTRIALDATA    Return trial-aligned spike rates and metadata
+         %
+         %  [rate,t,meta] = GETTRIALDATA(obj);
+         %  [rate,t,meta] = GETTRIALDATA(obj,includeStruct);
+         %  [rate,t,meta] = GETTRIALDATA(obj,includeStruct,align);
+         %  [rate,t,meta] = GETTRIALDATA(obj,includeStruct,align,area);
+         %  [rate,t,meta] = GETTRIALDATA(obj,includeStruct,align,area,icms);
+         %
+         %  in- 
+         %  includeStruct : Returned by utils.makeIncludeStruct
+         %  align : 'Grasp', 'Reach', 'Support', or 'Complete'
+         %  area : 'CFA', 'RFA', or 'Full'
+         %  icms : 'DF' or {'DF','PF','DF-PF','O',...} (to include those)
+         %
+         %  out-
+         %  rate : [nTrial x nTimesteps x nChannels] tensor of rates
+         %  t : [1 x nTimesteps] vector it times (milliseconds)
+         %  meta : Struct containing metadata fields --
+         %     --> .behaviorData : Table of all trial times, corresponds to
+         %              rows of 'rate'
+         %     --> .channelInfo : Struct of all channel info, corresponds
+         %              to 3rd dim of 'rate'
+         
+         if nargin < 5
+            icms = defaults.group('icms');
+         elseif isempty(icms)
+            icms = defaults.group('icms');
+         end
+         
+         if nargin < 4
+            area = defaults.group('area');
+         elseif isempty(area)
+            area = defaults.group('area');
+         end
+         
+         if nargin < 3
+            align = defaults.group('align');
+         elseif isempty(align)
+            align = defaults.group('align');
+         end
+         
+         if nargin < 2
+            includeStruct = defaults.group('include');
+         elseif isempty(includeStruct)
+            includeStruct = defaults.group('include');
+         end
+         
+         % Handle input array
+         if numel(obj) > 1
+            [rate,meta] = utils.initEmpty;
+            t = utils.initCellArray(numel(obj),1);
+            for i = 1:numel(obj)
+               [tmprate,t{i},tmpmeta] = obj(i).getTrialData(includeStruct,align,area,icms);
+               rate = [rate; tmprate];
+               meta = [meta; tmpmeta];
+            end
+            t = utils.getFirstNonEmptyCell(t);
+            return;
+         end
+         
+         [rate,t,meta] = getTrialData(obj.Children,includeStruct,align,area,icms);
+         for i = 1:numel(meta)
+            meta{i}.channelInfo = group.cleanChannelInfo(meta{i}.channelInfo,{obj.Name});
          end
       end
    end
@@ -655,6 +748,20 @@ classdef group < matlab.mixin.Copyable
          
          setCrossCondMean(obj.Children,align,outcome,pellet,reach,grasp,support,complete,forceReset);
          
+      end
+      
+      % Set parent spikeData object
+      function setParent(obj,p)
+         if ~isa(p,'spikeData')
+            error('Parent must be a spikeData class object.');
+         end
+         if numel(obj) > 1
+            for i = 1:numel(obj)
+               obj(i).setParent(p);
+            end
+            return;
+         end
+         obj.Parent = p;
       end
       
       % Set xPC object
@@ -1358,7 +1465,7 @@ classdef group < matlab.mixin.Copyable
       
    end
    
-   % -- DEPRECATED -- methods
+      % -- DEPRECATED -- methods
    methods (Access = public, Hidden = true)
       % Redistribute the combined PCA results to child Rat objects 
       % -- deprecated --
@@ -1979,6 +2086,11 @@ classdef group < matlab.mixin.Copyable
 %          sizeData = size_vals(zi);
          
          
+      end
+      
+      function channelInfo = cleanChannelInfo(channelInfo,Group)
+         channelInfo = utils.addStructField(channelInfo,Group);
+         channelInfo = orderfields(channelInfo,[1,7,2:6]);
       end
       
       % Helper function to get paths consistently because I forget where

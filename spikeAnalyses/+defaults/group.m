@@ -70,6 +70,8 @@ p.xc_fields = {'Outcome','PelletPresent','Reach','Grasp','Support','Complete'};
 
 % Recent-Alignment defaults
 p.align = 'Grasp';
+p.icms = {'DF','PF','DF-PF','PF-DF','O','NR'};
+p.area = 'Full';
 p.include = utils.makeIncludeStruct({'Reach','Grasp','Outcome'},[]);
 
 % Rat skull plots

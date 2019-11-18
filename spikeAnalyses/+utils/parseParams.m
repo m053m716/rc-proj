@@ -1,5 +1,5 @@
-function p = parseParams(cfg_key,arg_pairs)
-%% PARSEPARAMS    p = gfx.parseParams(cfg_key,arg_pairs);
+function p = parseParams(cfg_key,arg_pairs,varargin)
+%% PARSEPARAMS    p = utils.parseParams(cfg_key,arg_pairs);
 %
 %  cfg_key : Leading char array for desired config prop 
 %              (e.g. 'ShadedError_' or 'SignificanceLine_')
@@ -10,7 +10,14 @@ function p = parseParams(cfg_key,arg_pairs)
 %  p : Struct of appropriate output parameters
 
 %% 
-p = gfx.cfg;
+if isstruct(cfg_key)
+	p = cfg_key;
+	cfg_key = arg_pairs;
+	arg_pairs = varargin{1};
+else % DEFAULT PACKAGE PARAMS IS "GFX"
+	p = gfx.cfg;
+end
+
 nKey = numel(cfg_key);
 if isempty(arg_pairs)
    return;
@@ -30,7 +37,7 @@ for i = 1:2:numel(arg_pairs)
       arg_pairs{i} = [cfg_key arg_pairs{i}];
    end
    
-   p = gfx.setParamField(p,arg_pairs{i},arg_pairs{i+1});
+   p = utils.setParamField(p,arg_pairs{i},arg_pairs{i+1});
 end
 
 end
