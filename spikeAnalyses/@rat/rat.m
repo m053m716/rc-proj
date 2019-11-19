@@ -2303,7 +2303,7 @@ classdef rat < handle
    end
    
    % Static methods used by other methods
-   methods (Static = true, Access = private)
+   methods (Static = true, Access = public)
       % Brings up the dialog box for selecting path to rat
       function path = uiPathDialog()
          path = uigetdir('P:\Extracted_Data_To_Move\Rat\TDTRat',...

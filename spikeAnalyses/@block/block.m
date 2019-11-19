@@ -2334,6 +2334,8 @@ classdef block < handle
             area = 'Full';
          elseif isempty(area)
             area = 'Full';
+         elseif iscell(area)
+            % Do nothing
          elseif isnan(area(1))
             area = 'Full';
          end
