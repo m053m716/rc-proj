@@ -1,5 +1,5 @@
 function param = jPCA(name,outcomes,score)
-%% DEFAULTS.JPCA  Default parameters for jPCA analyses
+%DEFAULTS.JPCA  Default parameters for jPCA analyses
 %
 %  param = DEFAULTS.JPCA(name);
 %  param = DEFAULTS.JPCA(name,outcomes,score);
@@ -9,8 +9,7 @@ function param = jPCA(name,outcomes,score)
 %  -> 'analyze_times'
 %  -> 'jpca_align'
 
-
-%% MAKE PARAMS OUTPUT
+%MAKE PARAMS OUTPUT
 p = struct;
 
 % Make jPCA params struct
@@ -132,7 +131,7 @@ p.rosette_fontname = 'Arial';
 p.rosette_fontsize = 16;
 p.rosette_fontweight = 'bold';
 
-%% PARSE OUTPUT
+% PARSE OUTPUT
 if nargin > 0
    if ismember(lower(name),fieldnames(p))
       param = p.(lower(name));

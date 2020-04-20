@@ -471,6 +471,15 @@ classdef group < matlab.mixin.Copyable
             getChannelwiseRateStats(obj.Children,align,outcome);
          else
             stats = getChannelwiseRateStats(obj.Children,align,outcome);
+            stats.Rat = categorical(stats.Rat);
+            stats.Name = categorical(stats.Name);
+            stats.Group = categorical(stats.Group);
+            stats.ml = categorical(stats.ml);
+            stats.icms = categorical(stats.icms);
+            stats.area = categorical(stats.area);
+            stats.Properties.UserData = struct(...
+               'align',align,...
+               'outcome',outcome);
          end
       end
       
@@ -1521,10 +1530,9 @@ classdef group < matlab.mixin.Copyable
             dataType = 'localrepo';
          end
                  
-         
          switch lower(dataType)
             case {'local','localrepo','repo'}
-               pname = defaults.group('local_repo_name');
+               pname = defaults.filenames('local_repo_name');
             case {'skullplots','ratskullplots','maps','skullmaps','map','skull','skullmap'}
                pname = defaults.conditionResponseCorrelations('save_path');
             case {'conditionresponsecorrelations','crossday','crossdayresponses','crossdaycorrelations'}
@@ -1537,26 +1545,50 @@ classdef group < matlab.mixin.Copyable
       end
       
       % Helper function to load and time the loading of group data object
-      function loadGroupData
+      function [gData,ticTimes,pcFitObj,xPC] = loadGroupData
          ticTimes = struct;
          loadTic = tic;
          fprintf(1,'Loading gData object...');
-         fname = defaults.experiment('group_data_name');
+         fname = defaults.files('group_data_name');
          if exist(fname,'file')==0
             fprintf(1,'The file ''%s'' does not exist. Try running main.m\n\n',fname);
             return;
          else
-            load(defaults.experiment('group_data_name'),...
-               'gData',...
-               'pcFitObj',...
-               'xPC');
+            switch nargout
+               case 0
+                  load(fname,'gData','pcFitObj','xPC');
+                  ticTimes.load = round(toc(loadTic));
+                  utils.mtb(gData);
+                  utils.mtb(pcFitObj);
+                  utils.mtb(xPC);
+                  utils.mtb(ticTimes);
+               case 1
+                  in = load(fname,'gData');
+                  ticTimes.load = round(toc(loadTic));
+                  gData = in.gData;
+               case 2
+                  in = load(fname,'gData');
+                  ticTimes.load = round(toc(loadTic));
+                  gData = in.gData;
+               case 3
+                  in = load(fname,'gData','pcFitObj');
+                  ticTimes.load = round(toc(loadTic));
+                  gData = in.gData;
+                  pcFitObj = in.pcFitObj;
+               case 4
+                  in = load(fname,'gData','pcFitObj','xPC');
+                  ticTimes.load = round(toc(loadTic));
+                  gData = in.gData;
+                  pcFitObj = in.pcFitObj;
+                  xPC = in.xPCObj;
+               otherwise
+                  error('Invalid number of outputs (%g) requested.',...
+                     nargout);
+            end
          end
-         ticTimes.load = round(toc(loadTic));
+         utils.addHelperRepos();
          fprintf(1,'complete (%g sec elapsed)\n',ticTimes.load);
-         mtb(ticTimes);
-         mtb(gData);
-         mtb(pcFitObj);
-         mtb(xPC);
+         
       end
       
       % Helper function to parse labeling strings based on

@@ -1,13 +1,10 @@
 function batch_set_channel_masks
-%% BATCH_SET_CHANNEL_MASKS    Initialize channel masks based on prior score
+%BATCH_SET_CHANNEL_MASKS    Initialize channel masks based on prior score
 %
 %  BATCH_SET_CHANNEL_MASKS;
-%
-% By: Max Murphy  v1.0  2019-10-02  Original version (R2017a)
 
-%%
-tank = defaults.experiment('tank');
-mask_loc = defaults.block('channel_mask_loc');
+[tank,mask_loc,mask_tag] = defaults.files('tank',...
+   'channel_mask_loc','channel_mask_tag');
 if exist(mask_loc,'dir')==0
    mkdir(mask_loc);
 end
@@ -19,26 +16,30 @@ for iR = 1:numel(R)
    
    for ii = 1:numel(B)
       ChannelMask = ismember(chIdx_all{ii},chIdx_keep);
-      save(fullfile(mask_loc,[B(ii).name '_ChannelMask.mat']),...
+      save(fullfile(mask_loc,[B(ii).name mask_tag]),...
          'ChannelMask','-v7.3');
    end
    
 end
 
-   function [chIdx_keep,chIdx_all] = getChannelIndex(B,chIdx_keep)
+   function [chIdx_keep,chIdx_all] = getChannelIndex(B,chIdx_keep,spikeFolderTag)
       if nargin < 2
          chIdx_keep = 1:32;
+      end
+      
+      if nargin < 3
+         spikeFolderTag = defaults.files('spike_folder_tag');
       end
       
       if numel(B) > 1
          chIdx_all = cell(numel(B),1);
          for iB = 1:numel(B)
-            [chIdx_keep,chIdx_all{iB}] = getChannelIndex(B(iB),chIdx_keep);
+            [chIdx_keep,chIdx_all{iB}] = getChannelIndex(B(iB),chIdx_keep,spikeFolderTag);
          end
          return;
       end 
 
-      pname = fullfile(B.folder,B.name,[B.name '_wav-sneo_CAR_Spikes']);
+      pname = fullfile(B.folder,B.name,[B.name spikeFolderTag]);
       F = dir(fullfile(pname,'*ptrain*.mat'));
       chIdx_all = nan(numel(F),1);
       for iF = 1:numel(F)

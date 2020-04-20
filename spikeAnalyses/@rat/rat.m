@@ -1877,15 +1877,14 @@ classdef rat < handle
             outcome = tmp{1};
             fig_str = sprintf('%s-%s: %s Normalized Average Rates',obj.Name,align,str);
             save_str = sprintf('%s_%s__%s__Average-Normalized-Spike-Rates',obj.Name,align,str);
-            norm_avg_fig_dir = fullfile(defaults.experiment('tank'),...
-               defaults.rat('norm_avg_fig_dir'),...
-               defaults.rat('norm_includestruct_fig_dir'));
+            [pp,ff,ff2] = defaults.files('tank','norm_avg_fig_dir','norm_includestruct_fig_dir');
+            norm_avg_fig_dir = fullfile(pp,ff,ff2);
          else
             includeStruct = nan;
             fig_str = sprintf('%s: %s-%s Normalized Average Rates',obj.Name,align,outcome);
             save_str = sprintf('%s_%s-%s_Average-Normalized-Spike-Rates',obj.Name,align,outcome);
-            norm_avg_fig_dir = fullfile(defaults.experiment('tank'),...
-               defaults.rat('norm_avg_fig_dir'));
+            [pp,ff] = defaults.files('tank','norm_avg_fig_dir');
+            norm_avg_fig_dir = fullfile(pp,ff);
          end
          
          fprintf(1,'-->\tPlotting: %s\n',fig_str);

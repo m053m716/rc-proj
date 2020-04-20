@@ -2259,7 +2259,7 @@ classdef block < handle
                channel_mask_loc = defaults.block('channel_mask_loc');
                path = fullfile(pwd,channel_mask_loc);
             case 'tank'
-               path = defaults.experiment('tank');
+               path = defaults.files('tank');
             case 'block'
                path = fullfile(obj.Folder,obj.Name);
             case {'digital','scoring','alignment','align'}
