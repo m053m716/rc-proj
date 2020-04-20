@@ -1,30 +1,66 @@
 function [cm,nColorOpts] = load_cm(name)
-%% DEFAULTS.LOAD_CM  Loads a colormap
+%DEFAULTS.LOAD_CM  Loads a colormap
 %
 %  cm = DEFAULTS.LOAD_CM; % Load 'hotcold' default colormap
 %  cm = DEFAULTS.LODA_CM('test'); % Load contents of 'testmap.mat' if it
 %                                      exists, otherwise 'hotcold'
-%
-% By: Max Murphy  v1.0  2019-06-06  Original version (R2017a)
 
-%%
-thispath = mfilename('fullpath');
-thispath = fileparts(thispath);
+[cmap_path_local,cmap_path_remote] = defaults.files('local_tank','tank');
 
 if nargin < 1
-   name = 'hotcold';
+   in = load(fullfile(cmap_path_local,'hotcoldmap.mat'),'cm');
 else
-   fname = sprintf('%smap.mat',name);
-   if exist(fullfile(thispath,fname),'file')==0
-      fprintf(1,'%s does not exist. Loading hotcoldmap.mat instead.\n',fname);
-      name = 'hotcold';
+   [p,f,e] = fileparts(name);
+   if ~isempty(p)
+      if isempty(e)
+         if contains(f,'map')
+            e = '.mat';
+         else
+            e = 'map.mat';
+         end
+      end
+      fname = fullfile(p,[f e]);
+      if exist(fname,'file')==0
+         fname = fullfile(cmap_path_local,[f e]);
+         if exist(fname,'file')==0
+            fname = fullfile(cmap_path_remote,[f e]);
+            if exist(fname,'file')==0
+               error('Bad filename: %s\n',fullfile(p,[f e]));
+            else
+               in = load(fname);
+            end
+         else
+            in = load(fname);
+         end
+      end
+   else
+      if isempty(e)
+         if contains(f,'map')
+            e = '.mat';
+         else
+            e = 'map.mat';
+         end
+      end
+      fname = fullfile(cmap_path_local,[f e]);
+      if exist(fname,'file')==0
+         fname = fullfile(cmap_path_remote,[f e]);
+         if exist(fname,'file') == 0
+            error('Bad filename: %s',name);
+         end
+         in = load(fname);
+      else 
+         in = load(fname);
+      end
    end
 end
 
-fname = sprintf('%smap.mat',name);
-in = load(fullfile(thispath,fname));
 if ~isfield(in,'cm')
-   error('No ''cm'' variable in %s. Is it a valid colormap file?',fname);
+   varFields = fieldnames(in);
+   if numel(varFields) == 1
+      cm = in.(varFields{1});
+   else
+      error('Ambiguous file: multiple variables and none named `cm`');
+   end
 else
    cm = in.cm;
 end

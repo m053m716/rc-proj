@@ -1,7 +1,7 @@
-function param = rat(name)
-%% DEFAULTS.RAT    Return default parameter for GROUP class object
+function varargout = rat(varargin)
+%DEFAULTS.RAT    Return default parameter for GROUP class object
 %
-%  param = DEFAULTS.RAT(name);
+%  param = defaults.rat(name);
 %
 %           -> 'icms_file'
 %           -> 'x_lim_screening'
@@ -11,13 +11,19 @@ function param = rat(name)
 %           -> 'fs'
 %           -> 't_var_interest'
 %           -> 'rate_avg_fig_dir'
-%
-% By: Max Murphy  v1.0  2019-06-06  Original version (R2017a)
 
-%% CHANGE THESE
+% CHANGE THESE
 p = struct; % All field names should be lower-case
+[pname,fname,...
+   p.rate_avg_fig_dir,p.norm_avg_fig_dir,...
+   p.norm_includestruct_fig_dir,...
+   p.channel_mask_loc,coh_fig_str,p.movie_loc,...
+   p.movie_fname_str] = defaults.files('tank','icms_data_name',...
+      'rate_avg_fig_dir','norm_avg_fig_dir','includestruct_fig_dir',...
+      'channel_mask_loc','coh_fig_fname','movie_loc','movie_fname_str');
+
 p.verbose = false; % Set true to see warnings etc.
-p.icms_file = fullfile(defaults.experiment('tank'),defaults.experiment('icms_data_name'));
+p.icms_file = fullfile(pname,fname);
 p.x_lim_screening = [-1750, 750];   % x-limits for screening plots
 p.y_lim_screening = [-15 15];       % y-limits for screening plots
 p.x_lim_norm = [-1250, 750];
@@ -27,9 +33,6 @@ p.lpf_order = 4;
 p.lpf_fc = nan;
 p.fs = 24414.0625;
 p.t_var_interest = [-0.5 0.5];
-p.rate_avg_fig_dir = 'rate-averages-new';
-p.norm_avg_fig_dir = 'norm-rate-averages-new';
-p.norm_includestruct_fig_dir = 'includeStruct';
 p.total_rate_avg_subplots = 35; % Total number of subplots to create
 p.rate_avg_leg_subplot = 35; % Index of the "daily average rate" subplot to contain a legend
 p.suppress_data_curation = true; % should set to false if haven't curated data yet
@@ -41,7 +44,6 @@ p.area = 'Full';
 p.include = utils.makeIncludeStruct({'Reach','Grasp','Outcome'},[]);
 p.batch_outcome = 'All';
 p.batch_area = 'Unified';
-p.channel_mask_loc = defaults.block('channel_mask_loc');
 p.run_jpca_on_construction = defaults.block('run_jpca_on_construction');
 p.do_spike_rate_extraction = defaults.block('do_spike_rate_extraction');
 
@@ -91,25 +93,47 @@ p.ch_by_day_coh_xlim = [0 12];
 p.ch_by_day_coh_ylim = [0 31];
 p.ch_by_day_coh_zlim = [0 1];
 p.coh_plot_type = 'heatmap'; % can be: 'ribbon', 'waterfall', 'surface', or 'heatmap'
+p.coh_fig_fname = [coh_fig_str p.coh_plot_type];
 p.coh_ax_angle = [10 45]; % azimuth, elevation
 p.coh_x_lab = 'Freq (Hz)';
 p.coh_y_lab = 'PO-Day';
 p.cm_name = 'hotcold';
-p.coh_fig_fname = ['%s_%s__%s__' p.coh_plot_type];
 
 % For EXPORTSKULLPLOTMOVIE method
 p.movie_n_frames = 900; % Total number of frames in movie
 p.movie_fs = 30; % Frames per second
-p.movie_loc = 'channel-plot-movies';
-p.movie_fname_str = '%s_%s_power-v-time.avi';
 
-%% PARSE OUTPUT
-if ismember(lower(name),fieldnames(p))
-   param = p.(lower(name));
+
+if nargin < 1
+   varargout = {p};   
 else
-   error('%s is not a valid parameter. Check spelling?',lower(name));
+   F = fieldnames(p);   
+   if (nargout == 1) && (numel(varargin) > 1)
+      varargout{1} = struct;
+      for iV = 1:numel(varargin)
+         idx = strcmpi(F,varargin{iV});
+         if sum(idx)==1
+            varargout{1}.(F{idx}) = p.(F{idx});
+         end
+      end
+   elseif nargout > 0
+      varargout = cell(1,nargout);
+      for iV = 1:nargout
+         idx = strcmpi(F,varargin{iV});
+         if sum(idx)==1
+            varargout{iV} = p.(F{idx});
+         end
+      end
+   else
+      for iV = 1:nargin
+         idx = strcmpi(F,varargin{iV});
+         if sum(idx) == 1
+            fprintf('<strong>%s</strong>:',F{idx});
+            disp(p.(F{idx}));
+         end
+      end
+   end
 end
-
 
 end
 

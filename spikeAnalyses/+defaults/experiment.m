@@ -1,25 +1,81 @@
-function param = experiment(name)
-%% DEFAULTS.EXPERIMENT    Return default parameters associated with experiment
+function varargout = experiment(varargin)
+%DEFAULTS.EXPERIMENT    Return default parameters associated with experiment
 %
-%  param = DEFAULTS.EXPERIMENT(name);
+%  param = defaults.experiment(name);
 %
-%           -> 't'
-%
-% By: Max Murphy  v1.0  2019-06-06  Original version (R2017a)
+%  # Parameters (`name` values) #
+%  -> 't'               : Times (sec) for trial-aligned recording bins
+%  -> 'poday_min'       : Minimum value for post-op day
+%  -> 'poday_max'       : Maximum value for post-op day
 
-%%
 p = struct;
-p.t = linspace(-1.9995,0.9995,3000); % Times (sec) for recording bins
-p.tank = 'P:\Rat\BilateralReach\RC';
-p.group_data_name = 'gData.mat';
-p.icms_data_name = 'icms_data.xlsx';
 p.poday_min = 1;
 p.poday_max = 31;
+p.rat = {     ...
+   'RC-02'; ... 
+   'RC-04'; ... 
+   'RC-05'; ... 
+   'RC-08'; ... 
+   'RC-14'; ... 
+   'RC-18'; ... 
+   'RC-21'; ... 
+   'RC-26'; ... 
+   'RC-30'; ... 
+   'RC-43'  ... 
+   };
+p.group_names = {'Ischemia','Intact'};
+p.group_assignments = {[1:4,8:9],[5:7,10]};
+p.skip_save = false;
 
-if ismember(lower(name),fieldnames(p))
-   param = p.(lower(name));
+% Analysis parameters
+p.t = linspace(-1.9995,0.9995,3000); % Times (sec) for recording bin centers
+p.start_stop_bin = [-2000 1000]; % ms
+p.n_ds_bin_edges = 100; % From [-2000 1000] this yields bin size of 30 ms
+p.spike_bin_w = 1; % ms
+p.spike_smoother_w = 30; % ms
+p.alignment = 'Grasp';
+p.area = 'Full';
+p.outcome = 'Successful';
+
+% Parameters that are parsed from other parameters
+p.t_ds = linspace(p.start_stop_bin(1),p.start_stop_bin(2),p.n_ds_bin_edges);
+
+% % % Display defaults (if no input or output supplied) % % %
+if (nargin == 0) && (nargout == 0)
+   disp(p);
+   return;
+end
+
+% % % Parse output % % %
+if nargin < 1
+   varargout = {p};   
 else
-   error('%s is not a valid parameter. Check spelling?',lower(name));
+   F = fieldnames(p);   
+   if (nargout == 1) && (numel(varargin) > 1)
+      varargout{1} = struct;
+      for iV = 1:numel(varargin)
+         idx = strcmpi(F,varargin{iV});
+         if sum(idx)==1
+            varargout{1}.(F{idx}) = p.(F{idx});
+         end
+      end
+   elseif nargout > 0
+      varargout = cell(1,nargout);
+      for iV = 1:nargout
+         idx = strcmpi(F,varargin{iV});
+         if sum(idx)==1
+            varargout{iV} = p.(F{idx});
+         end
+      end
+   else
+      for iV = 1:nargin
+         idx = strcmpi(F,varargin{iV});
+         if sum(idx) == 1
+            fprintf('<strong>%s</strong>:',F{idx});
+            disp(p.(F{idx}));
+         end
+      end
+   end
 end
 
 end

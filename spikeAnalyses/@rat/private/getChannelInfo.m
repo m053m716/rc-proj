@@ -1,13 +1,12 @@
 function channelInfo = getChannelInfo(ratName,icms_datafile)
-%% GETCHANNELINFO Import information about each microwire channel for a rat
+%GETCHANNELINFO Import information about each microwire channel for a rat
 %
 %   channelInfo = GETCHANNELINFO(ratName);
-%
 
 %% Initialize variables.
 if nargin < 2
-   icms_datafile = fullfile(defaults.experiment('tank'),...
-                            defaults.experiment('icms_data_name'));
+   icms_datafile = fullfile(defaults.files('tank'),...
+                            defaults.files('icms_data_name'));
 end
 
 %% Read channel info from ICMS data spreadsheet

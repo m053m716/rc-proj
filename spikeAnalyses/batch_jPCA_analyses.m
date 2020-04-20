@@ -7,9 +7,12 @@ ticTimes = struct;
 if exist('gData','var')==0
    loadTic = tic;
    fprintf(1,'Loading gData object...');
-   load(defaults.experiment('group_data_name'),'gData');
+   fname = defaults.files('group_data_name');
+   load(fname,'gData');
    ticTimes.load = round(toc(loadTic));
    fprintf(1,'complete (%g sec elapsed)\n',ticTimes.load);
+else
+   fname = defaults.files('group_data_name');
 end
 
 %% Run jPCA initial estimations & reprojections
@@ -44,6 +47,6 @@ fprintf(1,'\t-->\t(%g sec elapsed)\n\n',ticTimes.movie_export);
 %% SAVE AT END
 fprintf(1,'Saving...');
 saveTic = tic;
-save(defaults.experiment('group-data_name'),'gData','-v7.3');
+save(fname,'gData','-v7.3');
 ticTimes.save = round(toc(saveTic));
 fprintf(1,'complete (%g sec elapsed)\n\n\n',ticTimes.save);

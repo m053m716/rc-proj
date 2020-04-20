@@ -1,13 +1,9 @@
 function batch_set_channel_info
-%% BATCH_SET_CHANNEL_INFO    Initialize channel info for all blocks
+%BATCH_SET_CHANNEL_INFO    Initialize channel info for all blocks
 %
-%  BATCH_SET_CHANNEL_INFO;
-%
-%
-% By: Max Murphy  v1.0  2019-10-04  Original version (R2017a)
+%  batch_set_channel_info;
 
-%%
-tank = defaults.experiment('tank');
+tank = defaults.files('tank');
 addpath('libs');
 R = dir(fullfile(tank,'RC*'));
 

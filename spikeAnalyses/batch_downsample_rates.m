@@ -5,9 +5,11 @@ clc;
 %% Load data (if not in workspace already)
 if exist('gData','var')==0
    clear; 
-   load(defaults.experiment('group_data_name'),'gData');
+   fname = defaults.files('group_data_name');
+   load(fname,'gData');
 else
    clearvars -except gData
+   fname = defaults.files('group_data_name');
 end
 
 %% Do batch run of downsampling (assuming LONG rate extraction done already)
@@ -24,5 +26,5 @@ for iO = 1:numel(outcome)
       updateSpikeRateData(gData,align{iA},outcome{iO});
    end
 end
-save(defaults.experiment('group_data_name'),'gData','-v7.3');
+save(fname,'gData','-v7.3');
 toc(maintic);
