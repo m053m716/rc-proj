@@ -1,5 +1,5 @@
 function includeStruct = makeIncludeStruct(Include,Exclude)
-%% MAKEINCLUDESTRUCT    Make "include" struct for GETRATE method of BLOCK
+%MAKEINCLUDESTRUCT    Make "include" struct for GETRATE method of BLOCK
 %
 %  includeStruct = utils.MAKEINCLUDESTRUCT(Include,Exclude);
 %
@@ -17,10 +17,8 @@ function includeStruct = makeIncludeStruct(Include,Exclude)
 %                       a given BLOCK object.
 %
 %                    Default: []
-%
-% By: Max Murphy  v1.0  2019-10-17  Original version (R2017a)
 
-%% Parse input
+% Parse input
 if nargin < 1
    Include = {'Reach','Grasp','PelletPresent'};
 end
@@ -29,7 +27,7 @@ if nargin < 2
    Exclude = [];
 end
 
-%% Check the inputs (since sometimes I accidentally write 'Successful')
+% Check the inputs (since sometimes I accidentally write 'Successful')
 [incSucc,incUnsucc,excSucc,excUnsucc] = utils.initFalseArray(1);
 idx = ismember(Include,'Successful');
 if sum(idx)>0
@@ -74,7 +72,7 @@ if excSucc && excUnsucc
    error('Exclude all trials? Check includeStruct.');
 end
 
-%% Assign output
+% Assign output
 includeStruct = struct;
 if (~isempty(Include)) && (~isempty(Exclude))
    idx = contains(Include,Exclude);

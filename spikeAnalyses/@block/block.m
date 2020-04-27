@@ -146,6 +146,16 @@ classdef block < handle
       
       % Smooth spike rates
       function doBinSmoothing(obj,w)
+         %DOBINSMOOTHING  Smooth spike rates
+         %
+         %  doBinSmoothing(obj,w);
+         %  --> If `w` not specified, uses value in
+         %        `defaults.block('spike_smoother_w');
+         %
+         %   -> Note: This smooths the histogram data and applies a
+         %              square-root transformation to the smoothed data in
+         %              order to help with the distribution skew.
+         
          W = defaults.block('spike_bin_w');
          if nargin < 2 % Smooth width, in bin indices
             w = round(defaults.block('spike_smoother_w')/W);
@@ -164,12 +174,12 @@ classdef block < handle
                if (exist(fullfile(outpath,savename),'file')==0) || ...
                      defaults.block('overwrite_old_spike_data')
                
-                  [data,t] = obj.loadBinnedSpikes(EVENT{iE},ALIGN{iA,1},W); %#ok<ASGLU>
+                  [data,t] = obj.loadBinnedSpikes(EVENT{iE},ALIGN{iA,1},W);
                   if isempty(data)
                      continue;
                   end
                   for iCh = 1:numel(obj.ChannelInfo)
-                     data(:,:,iCh) = sqrt(max(fastsmooth(data(:,:,iCh),w,'pg',1,1)./mode(diff(obj.T)),0));
+                     data(:,:,iCh) = fastsmooth(sqrt(data(:,:,iCh)),w,'pg',1,1)./mode(diff(obj.T));
                   end
 
                   if exist(outpath,'dir')==0
@@ -186,6 +196,12 @@ classdef block < handle
       
       % Put spikes into bins
       function data = doSpikeBinning(obj,behaviorData,w)
+         %DOSPIKEBINNING  Puts spikes into bins
+         %
+         %  data = doSpikeBinning(obj,behaviorData,w);
+         %  --> Note: This is required prior to running `doBinSmoothing`
+         %  --> Note: This extracts non-square-root; non-normalized rates
+         
          if nargin < 3 % Bin width, in ms
             w = defaults.block('spike_bin_w');
          end
@@ -265,11 +281,22 @@ classdef block < handle
       
       % Downsample the smoothed/normalized spike rates (and save)
       function doRateDownsample(obj)
+         %DORATEDOWNSAMPLE  Does rate down-sampling (if needed)
+         %
+         %  doRateDownsample(obj);
+         %
+         %  --> Note: this creates the files for 'NormSpikeRate' and
+         %            requires that the `doSpikeBinning` and
+         %            `doBinSmoothing` methods have already been done (they
+         %            are done in that order)
 
          n_ds_bin_edges = defaults.block('n_ds_bin_edges');
          r_ds = defaults.block('r_ds');
          
          pre_trial_norm = defaults.block('pre_trial_norm');
+         % Note: spike_rate_smoother files will all still be at 1-ms
+         % "sample rate" although the smooth window may be "20-" or "30-"
+         % ms. Those files also have square-root-transform already applied.
          spike_rate_smoother = defaults.block('spike_rate_smoother');
          norm_spike_rate_tag = defaults.block('norm_spike_rate_tag');
          fStr_in = defaults.block('fname_orig_rate');
@@ -941,6 +968,15 @@ classdef block < handle
       
       % Update Spike Rate data
       function flag = updateSpikeRateData(obj,align,outcome)
+         %UPDATESPIKERATEDATA  Updates Block spike rate data
+         %
+         %  flag = updateSpikeRateData(obj,align,outcome);
+         %
+         %  -- Inputs --
+         %  obj : `block` object
+         %  align : `'Grasp'` or `'Reach'`
+         %  outcome : `'Successful'` or `'Unsuccessful'` or `'All'`
+         
          flag = false;
          if nargin < 2
             align = defaults.block('alignment');
@@ -2328,6 +2364,8 @@ classdef block < handle
          %                 rate = getRate(obj,'Reach','All','Full',iS);
          %
          %           Rate: nTrials x nTimesteps x nChannels tensor
+         %              --> `Rate` is the corresponding downsampled,
+         %                    normalized rate data.
          
          % Parse input
          if nargin < 4
@@ -3061,6 +3099,7 @@ classdef block < handle
             idx = defaults.block('pre_trial_norm_ds');
          end
          
+         % % This is skipped because lpf_fc == nan % %
          filter_order = defaults.block('lpf_order');
          fs = defaults.block('fs');
          cutoff_freq = defaults.block('lpf_fc');
@@ -3068,8 +3107,9 @@ classdef block < handle
             [b,a] = butter(filter_order,cutoff_freq/(fs/2),'low');
          end
 
-         z = sqrt(abs(x)) .* sign(x);
-         z = z - mean(z(:,idx,:),2);
+%          z = sqrt(abs(x)) .* sign(x); % This is removed because already
+%          done in the rate estimation step
+         z = x - mean(x(:,idx,:),2);
          if isnan(cutoff_freq)
             y = z;
          else

@@ -1,5 +1,5 @@
 function ax = addToAx_PlotScoreByDay(obj,ax,do_not_modify_properties,legOpts)
-%% ADDTOAX_PLOTSCOREBYDAY    obj.ADDTOAX_PLOTSCOREBYDAY(axToAddPlotTo)
+%ADDTOAX_PLOTSCOREBYDAY    obj.ADDTOAX_PLOTSCOREBYDAY(axToAddPlotTo)
 %
 %  ax = obj.ADDTOAX_PLOTSCOREBYDAY(ax);
 %  ax = obj.ADDTOAX_PLOTSCOREBYDAY(ax,do_not_modify_properties)
@@ -16,7 +16,7 @@ function ax = addToAx_PlotScoreByDay(obj,ax,do_not_modify_properties,legOpts)
 %  
 %
 
-%% PARSE INPUT
+% PARSE INPUT
 if nargin < 2
    ax = gca;
 end
@@ -29,12 +29,12 @@ if nargin < 4
    legOpts = defaults.rat('ch_mod_legopts');
 end
 
-%% GET PARAMETERS
+% GET PARAMETERS
 % Parse parameters for coloring lines, smoothing plots
 [cm,nColorOpts] = defaults.load_cm;
 idx = round(linspace(1,size(cm,1),nColorOpts)); 
 
-%% SET AXES PROPERTIES
+% SET AXES PROPERTIES
 if ~do_not_modify_properties
    ax.NextPlot = 'add';
    ax.XLim = [0 nColorOpts+1];

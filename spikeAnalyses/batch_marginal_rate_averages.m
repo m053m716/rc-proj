@@ -1,9 +1,12 @@
 %% BATCH_MARGINAL_RATE_AVERAGES  Script for batch plot and/or save marginal rate figures
-clearvars -except gData
+clearvars -except gData ticTimes
 clc;
 
 %% Load data
-ticTimes = struct;
+if exist('ticTimes','var')==0
+   ticTimes = struct;
+end
+
 if exist('gData','var')==0
    loadTic = tic;
    fprintf(1,'Loading gData object...');

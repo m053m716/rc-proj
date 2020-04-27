@@ -1455,6 +1455,7 @@ classdef rat < handle
    methods (Access = public)
       % Function to add common plot axes
       ax = addToAx_PlotScoreByDay(obj,ax,do_not_modify_properties,legOpts);
+      ax = basicScorePlot(obj,ax);
       
       % Function to add common plots to a panel container
       p = addToTab_PlotMarginalRateByDay(obj,p,align,includeStructPlot,includeStructMarg);
@@ -1877,13 +1878,13 @@ classdef rat < handle
             outcome = tmp{1};
             fig_str = sprintf('%s-%s: %s Normalized Average Rates',obj.Name,align,str);
             save_str = sprintf('%s_%s__%s__Average-Normalized-Spike-Rates',obj.Name,align,str);
-            [pp,ff,ff2] = defaults.files('tank','norm_avg_fig_dir','norm_includestruct_fig_dir');
+            [pp,ff,ff2] = defaults.files('local_tank','norm_avg_fig_dir','norm_includestruct_fig_dir');
             norm_avg_fig_dir = fullfile(pp,ff,ff2);
          else
             includeStruct = nan;
             fig_str = sprintf('%s: %s-%s Normalized Average Rates',obj.Name,align,outcome);
             save_str = sprintf('%s_%s-%s_Average-Normalized-Spike-Rates',obj.Name,align,outcome);
-            [pp,ff] = defaults.files('tank','norm_avg_fig_dir');
+            [pp,ff] = defaults.files('local_tank','norm_avg_fig_dir');
             norm_avg_fig_dir = fullfile(pp,ff);
          end
          
@@ -1954,8 +1955,8 @@ classdef rat < handle
             tss = defaults.rat('ch_mod_epoch_start_stop');
             t_idx = (t >= tss(1)) & (t <= tss(2));
             % Get average "peak modulation" across channels for the legend
-            obj.chMod(ii) = nanmean(max(x(:,t_idx),[],2) -...
-                                    min(x(:,t_idx),[],2));
+            obj.chMod(ii) = nanmean(nanmax(x(:,t_idx),[],2) -...
+                                    nanmin(x(:,t_idx),[],2));
             for iCh = 1:nAxes  
                ch = obj.Children(ii).matchChannel(iCh);
                if isempty(ch)
@@ -1977,7 +1978,8 @@ classdef rat < handle
          end
          
          % Make "score by day" plot
-         obj.addToAx_PlotScoreByDay(ax(legPlot));
+%          obj.addToAx_PlotScoreByDay(ax(legPlot));
+         basicScorePlot(obj,ax(legPlot));
          
          if nargout < 1
             if exist(norm_avg_fig_dir,'dir')==0

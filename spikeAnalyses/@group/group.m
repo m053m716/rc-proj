@@ -123,6 +123,27 @@ classdef group < matlab.mixin.Copyable
          end
       end
       
+      % Function to save `group` data object
+      function ticTimes = saveGroupData(gData,ticTimes)
+         %SAVEGROUPDATA  Static method to save `group` object
+         %
+         %  ticTimes = saveGroupData(gData);
+         %  ticTimes = saveGroupData(gData,ticTimes);         
+         
+         if nargin < 2
+            ticTimes = struct;
+         end
+         
+         ticTimes.saveTic = tic;
+         fname = defaults.files('group_data_name');
+         if exist(fname,'file')==0
+            save(fname,'gData','-v7.3');
+         else
+            save(fname,'-append','gData');
+         end         
+         ticTimes.saveToc = toc(ticTimes.saveTic);
+      end
+      
       % Break into subgroups
       function subGroupArray = splitSubGroups(obj,groupNameArray,groupIndices)
          if nargin < 2
@@ -827,6 +848,23 @@ classdef group < matlab.mixin.Copyable
       % (e.g. {utils.makeIncludeStruct; utils.makeIncludeStruct([],[])}
       % etc.)
       function fig = plotNormAverages(obj,align,outcome)
+         %PLOTNORMAVERAGES  Plot average rate profiles across days by group
+         %
+         %  plotNormAverages(obj);
+         %  fig = plotNormAverages(obj,align,outcome);
+         %
+         %  -- Inputs --
+         %  obj : `group` object
+         %  align : (Optional) -- alignment event for rate time-series
+         %           --> ('Grasp','Reach','Support','Complete')
+         %  outcome : (Optional) -- 'Successful','Unsuccessful','All' or
+         %           `includeStruct` format (see: utils.makeIncludeStruct)
+         %
+         %  -- Output --
+         %  fig : If specified, does not auto-save figure and then delete
+         %           figure. This is the figure handle to the graphics
+         %           object for the figure.
+         
          % Parse input arguments
          if nargin < 2
             align = defaults.block('all_events');
@@ -986,16 +1024,17 @@ classdef group < matlab.mixin.Copyable
          
          % Parse output (do batch saving if no figure handle requested)
          if nargout < 1
-            pname = fullfile(pwd,defaults.group('marg_fig_loc'));
+            [tank,loc,name] = defaults.files('local_tank','marg_fig_loc','marg_fig_name');
+            pname = fullfile(tank,loc);
             if exist(pname,'dir')==0
                mkdir(pname);
             end
             
-            fname = fullfile(pname,sprintf(defaults.group('marg_fig_name'),...
+            fname = fullfile(pname,sprintf(name,...
                obj.Name,align,strIn,strMarg,'.fig'));
             savefig(fig,fname);
             for ii = 1:numel(pt)
-               fname = fullfile(pname,sprintf(defaults.group('marg_fig_name'),...
+               fname = fullfile(pname,sprintf(name,...
                   obj.Children(ii).Name,align,strIn,strMarg,'.png'));
                tg.SelectedTab = pt(ii);
                saveas(fig,fname);
@@ -1622,8 +1661,6 @@ classdef group < matlab.mixin.Copyable
                error('Unrecognized parameter name: %s',lower(param_name));
          end
       end
-      
-      
    end
    
 end

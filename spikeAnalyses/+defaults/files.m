@@ -29,7 +29,8 @@ p.fname_coh = '%s_%s__%s__coherence_';
 
 % From `rat`
 p.rate_avg_fig_dir = 'rate-averages-new';
-p.norm_avg_fig_dir = 'norm-rate-averages-new';
+% p.norm_avg_fig_dir = 'norm-rate-averages-new';
+p.norm_avg_fig_dir = 'norm-rate-averages_2020';
 p.norm_includestruct_fig_dir = 'includeStruct';
 p.channel_mask_loc = 'channel-masks';
 p.channel_mask_tag = '_ChannelMask.mat';
@@ -44,6 +45,14 @@ p.frame_snaps_loc = 'behavior-snapshots';
 p.spike_analyses_folder = '_SpikeAnalyses';
 p.fname_orig_rate = '%s%s%s_%s.mat';
 p.fname_ds_rate = '%s%s%s_%s_ds-%gx.mat';
+
+% From `group`
+p.session_export_spreadsheet = 'Stats-By-Session.xlsx';
+p.channel_export_spreadsheet = 'Stats-By-Channel.xlsx';
+p.rat_export_spreadsheet = 'Stats-By-Rat.xlsx';
+p.trial_export_spreadsheet = 'Stats-By-Trial.xlsx';
+p.marg_fig_loc = 'marginal-rate-average-figs';
+p.marg_fig_name = '%s-%s_%s__X__%s%s';
 
 % Parse output
 if nargin < 1

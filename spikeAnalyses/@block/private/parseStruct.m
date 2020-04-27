@@ -1,5 +1,5 @@
 function [field_out,field_exists_flag,field_isempty_flag] = parseStruct(struct_in,field_expr)
-%% PARSESTRUCT    Parse struct based on expression in field_expr (e.g. 'structname.field1.field2')
+%PARSESTRUCT    Parse struct based on expression in field_expr (e.g. 'structname.field1.field2')
 %
 %  [field_out,field_exists_flag,field_isempty_flag] = PARSESTRUCT(struct_in,field_expr);
 %
@@ -23,10 +23,6 @@ function [field_out,field_exists_flag,field_isempty_flag] = parseStruct(struct_i
 %
 %  field_isempty_flag:  Optional output flag that returns true if the field
 %                          exists but is empty.
-%
-% By: Max Murphy  v1.0  2019-06-20  Original version (R2017a)
-
-%%
 
 field_exists_flag = true;
 field_isempty_flag = false;

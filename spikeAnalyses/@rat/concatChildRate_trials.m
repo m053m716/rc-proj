@@ -1,5 +1,5 @@
 function [X,t] = concatChildRate_trials(obj,align,includeStruct,area,tIdx)
-%% CONCATCHILDRATE_TRIALS  Concatenate child normalized trial rates
+%CONCATCHILDRATE_TRIALS  Concatenate child normalized trial rates
 %
 %  X = obj.CONCATCHILDRATE_TRIALS;
 %  X = obj.CONCATCHILDRATE_TRIALS(align);
@@ -38,7 +38,7 @@ function [X,t] = concatChildRate_trials(obj,align,includeStruct,area,tIdx)
 %     Concatenate rates for a given condition across all children BLOCK
 %     objects, along "trials" axis (so all the days get lumped together)
 
-%% PARSE INPUT
+%PARSE INPUT
 if nargin < 2
    align = defaults.block('alignment');
 end
@@ -55,7 +55,7 @@ if nargin < 5
    tIdx = nan;
 end
 
-%% HANDLE OBJECT ARRAY INPUT
+%HANDLE OBJECT ARRAY INPUT
 if numel(obj) > 1
    X = cell(numel(obj),1);
    t = [];
@@ -67,11 +67,11 @@ if numel(obj) > 1
    end
    return;
 end
-%% INITIALIZE OUTPUT
+%INITIALIZE OUTPUT
 t = [];
 X = [];
 
-%% FOR EACH CHILD, GET THE RIGHT TRIALS
+%FOR EACH CHILD, GET THE RIGHT TRIALS
 x = cell(size(obj.Children));
 nTrialTotal = 0;
 t_is_set_flag = false;
@@ -107,7 +107,7 @@ if nTrialTotal == 0
    return;
 end
 
-%% FORMAT OUTPUT MATRIX FROM INPUT TENSORS
+%FORMAT OUTPUT MATRIX FROM INPUT TENSORS
 X = zeros(nTrialTotal,nT,sum(obj.ChannelMask));
 
 iTrial = 1;

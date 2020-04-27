@@ -1,14 +1,23 @@
-function gData = construct_gData_array(RAT,skip_save)
-%% CONSTRUCT_GDATA_ARRAY  gData = construct_gData_array(RAT,skip_save);
+function [gData,ticTimes] = construct_gData_array(RAT,skip_save)
+%CONSTRUCT_GDATA_ARRAY  gData = construct_gData_array(RAT,skip_save);
+%
+%  gData = construct_gData_array(RAT);
+%  gData = construct_gData_array(RAT,skip_save);
+%
+%  -- Inputs --
 %  RAT : Cell array of rat names
-% skip_save : Default = false; Set true to skip saving gData object
+%  skip_save : Default = false; Set true to skip saving gData object
 
-%% Parse Input
+% Parse Input
+if nargin < 1
+   RAT = defaults.experiment('rat');
+end
+
 if nargin < 2
    skip_save = false;
 end
 
-%% Build array
+% Build array
 ratArray = [];
 ticTimes.ratArrayTic = tic;
 for ii = 1:numel(RAT) % ~ 2 minutes (have to manually score though)

@@ -1,7 +1,8 @@
-function param = group(name)
-%% DEFAULTS.GROUP    Return default parameter for GROUP class object
+function varargout = group(varargin)
+%GROUP  Subset of defaults that dealing with `group` parameters
 %
-%  param = DEFAULTS.GROUP(name);
+%  p = defaults.group();
+%  [var1,var2,...] = defaults.group('var1Name','var2Name',...);
 %
 %           -> 'decimation_factor'
 %           -> 'min_pca_var'
@@ -11,12 +12,18 @@ function param = group(name)
 %           -> 'somatotopy_pca_behavior_fig_dir'
 %           -> 'icms_opts'
 %           -> 'area_opts'
-%
-% By: Max Murphy  v1.0  2019-06-06  Original version (R2017a)
 
-%% CHANGE THESE
+% % % Parse filename defaults from `defaults.files()` % % %
 p = struct; % All field names should be lower-case
-p.local_repo_name = 'C:\MyRepos\shared\rc-proj\spikeAnalyses'; % specific to your computer
+[p.session_export_spreadsheet,p.channel_export_spreadsheet,...
+   p.rat_export_spreadsheet,p.trial_export_spreadsheet,...
+   p.marg_fig_loc,p.marg_fig_name,p.local_repo_name] = defs.files(...
+   'session_export_spreadsheet','channel_export_spreadsheet',...
+   'rat_export_spreadsheet','trial_export_spreadsheet',...
+   'marg_fig_loc','marg_fig_name','local_repo_name'...
+   );
+
+% % % Change these (maybe) % % %
 p.decimation_factor = 10;  % Amount to decimate time-series for PCA
 p.min_pca_var = 90;        % Minimum % of variance for PCs to explain
 % p.output_score = 'NeurophysScore'; % options are 'BehaviorScore' or 'NeurophysScore'
@@ -55,15 +62,7 @@ p.area_color = defaults.block('area_color');
 % p.w_avg_dp_thresh = 0.90; % threshold for weighted-average trials
 p.w_avg_dp_thresh = 0;
 
-% Export filenames
-p.session_export_spreadsheet = 'Stats-By-Session.xlsx';
-p.channel_export_spreadsheet = 'Stats-By-Channel.xlsx';
-p.rat_export_spreadsheet = 'Stats-By-Rat.xlsx';
-p.trial_export_spreadsheet = 'Stats-By-Trial.xlsx';
 
-% Figure name and location
-p.marg_fig_loc = 'marginal-rate-average-figs';
-p.marg_fig_name = '%s-%s_%s__X__%s%s';
 
 % Cross-condition info
 p.xc_fields = {'Outcome','PelletPresent','Reach','Grasp','Support','Complete'};
@@ -99,12 +98,36 @@ p.skull_std_size = 20;
 e = 0.01 * randn;
 p.big_fig_pos = [0.1 + e, 0.1 + e, 0.8 0.8];
 
-
-%% PARSE OUTPUT
-if ismember(lower(name),fieldnames(p))
-   param = p.(lower(name));
+% % % Parse output % % %
+if nargin < 1
+   varargout = {p};   
 else
-   error('%s is not a valid parameter. Check spelling?',lower(name));
+   F = fieldnames(p);   
+   if (nargout == 1) && (numel(varargin) > 1)
+      varargout{1} = struct;
+      for iV = 1:numel(varargin)
+         idx = strcmpi(F,varargin{iV});
+         if sum(idx)==1
+            varargout{1}.(F{idx}) = p.(F{idx});
+         end
+      end
+   elseif nargout > 0
+      varargout = cell(1,nargout);
+      for iV = 1:nargout
+         idx = strcmpi(F,varargin{iV});
+         if sum(idx)==1
+            varargout{iV} = p.(F{idx});
+         end
+      end
+   else
+      for iV = 1:nargin
+         idx = strcmpi(F,varargin{iV});
+         if sum(idx) == 1
+            fprintf('<strong>%s</strong>:',F{idx});
+            disp(p.(F{idx}));
+         end
+      end
+   end
 end
 
 

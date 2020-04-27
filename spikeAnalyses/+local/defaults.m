@@ -8,6 +8,8 @@ pars = struct;
 pars.CommunalDataTank = 'P:\Rat\BilateralReach\RC';
 pars.LocalDataTank = 'D:\MATLAB\Data\RC';
 pars.LocalMatlabReposFolder = 'D:\MATLAB\Projects';
+% pars.N_DS_EDGES = 100; % 30-ms windows
+pars.N_DS_EDGES = 60; % 50-ms windows
 
 if nargin < 1
    varargout = {pars};   

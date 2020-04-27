@@ -30,7 +30,7 @@ p.skip_save = false;
 % Analysis parameters
 p.t = linspace(-1.9995,0.9995,3000); % Times (sec) for recording bin centers
 p.start_stop_bin = [-2000 1000]; % ms
-p.n_ds_bin_edges = 100; % From [-2000 1000] this yields bin size of 30 ms
+p.n_ds_bin_edges = local.defaults('N_DS_EDGES');
 p.spike_bin_w = 1; % ms
 p.spike_smoother_w = 30; % ms
 p.alignment = 'Grasp';

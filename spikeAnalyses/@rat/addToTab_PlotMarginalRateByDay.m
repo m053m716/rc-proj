@@ -1,5 +1,5 @@
 function p = addToTab_PlotMarginalRateByDay(obj,p,align,includeStructPlot,includeStructMarg)
-%% ADDTOPANEL_PLOTMARGINALRATEBYDAY   Plot marginal (normalized) rate by day
+%ADDTOPANEL_PLOTMARGINALRATEBYDAY   Plot marginal (normalized) rate by day
 %
 %  p = ADDTOPANEL_PLOTMARGINALRATEBYDAY(obj,p,align);
 %  p = ADDTOPANEL_PLOTMARGINALRATEBYDAY(obj,___,includeStructPlot);
@@ -19,7 +19,7 @@ function p = addToTab_PlotMarginalRateByDay(obj,p,align,includeStructPlot,includ
 %           trials with a Reach identified and would only take Successful
 %           trials)
 
-%% PARSE INPUT
+% PARSE INPUT
 if ~isa(obj,'rat')
    error('First input argument must be RAT class object.');
 end
@@ -40,7 +40,7 @@ if nargin < 5
    includeStructPlot = defaults.rat('includeStructMarg');
 end
 
-%% HANDLE OBJECT ARRAYS
+% HANDLE OBJECT ARRAYS
 if numel(obj) > 1
    if numel(p) ~= numel(obj)
       error('If passing an array of RAT objects, must specify a uipanel array as well.');
@@ -51,7 +51,6 @@ if numel(obj) > 1
    return;
 end
 
-%%
 nAxes = numel(obj.ChannelInfo);
 nDays = numel(obj.Children);
 total_rate_avg_subplots = defaults.rat('total_rate_avg_subplots');
@@ -127,6 +126,6 @@ end
 p.Title = [obj.Name sprintf(' [%g]',totalMargTrials)];
 
 % Make "score by day" plot
-obj.addToAx_PlotScoreByDay(ax(legPlot));
+basicScorePlot(obj,ax(legPlot));
 
 end
