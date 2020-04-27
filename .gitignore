@@ -7,3 +7,5 @@
 *.xlsx
 *.jmp
 *.htm
+
+spikeAnalyses/\+local/
