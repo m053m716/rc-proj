@@ -33,6 +33,7 @@ p.skip_save = false;
 % p.start_stop_bin = [-2000 1000]; % ms
 % p.spike_bin_w = 1; % ms
 % p.spike_smoother_w = 30; % ms
+% p.pre_trial_norm_epoch = [-2000 -1500];
 % p.pre_trial_norm = 1:500; % sample indices [deprecated; now parsed from
 %                           % pre_trial_norm_epoch parameter]
 

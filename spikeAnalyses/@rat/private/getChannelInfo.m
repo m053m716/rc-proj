@@ -5,8 +5,7 @@ function channelInfo = getChannelInfo(ratName,icms_datafile)
 
 %% Initialize variables.
 if nargin < 2
-   icms_datafile = fullfile(defaults.files('tank'),...
-                            defaults.files('icms_data_name'));
+   icms_datafile = defaults.files('icms_data_name');
 end
 
 %% Read channel info from ICMS data spreadsheet

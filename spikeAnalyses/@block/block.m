@@ -103,6 +103,7 @@ classdef block < handle
          end
 
          obj.parseElectrodeCoordinates('Full');
+         
       end
 
       % To handle case where obj.behaviorData is referenced accidentally 
@@ -247,17 +248,19 @@ classdef block < handle
                ['\n<strong>[DORATENORMALIZE]:</strong> No such path: %s\n'...
                 '\t->\tMust first run `doSpikeBinning`\n'],ioPath);
          end         
-         [pre_trial_norm,fStr_in,fStr_out,w,o,e] = defaults.block(...
-            'pre_trial_norm','fname_binned_spikes','fname_norm_rate',...
-            'spike_bin_w','all_outcomes','all_events');
+         [pre_trial_norm,pre_trial_norm_epoch,...
+            fStr_in,fStr_out,w,o,e] = defaults.block(...
+            'pre_trial_norm','pre_trial_norm_epoch',...
+            'fname_binned_spikes','fname_norm_rate',...
+            'spike_bin_w','all_outcomes','all_events'); %#ok<ASGLU>
+         defTimes = defaults.experiment('t_ms');
          for iO = 1:numel(o)
             for iE = 1:numel(e)
                % Skip if there is no file to decimate
                str = sprintf(fStr_in,obj.Name,w,e{iE},o{iO});
                fName_In = fullfile(ioPath,str);
                if exist(fName_In,'file')==0
-                  fprintf(1,'\t->\tMissing: <strong>%s</strong>\n',...
-                     fname_In);
+                  fprintf(1,'\t->\tMissing: <strong>%s</strong>\n',str);
                   continue;
                end
                
@@ -267,28 +270,25 @@ classdef block < handle
                if exist(fName_Out,'file')~=0
                   continue;
                else
-                  fprintf(1,'\t->\tExtracting: <strong>%s</strong>...',...
-                     fName_Out);
+                  fprintf(1,'\t->\tExtracting: <strong>%s</strong>...',str);
                end
                in = load(fName_In,'data','t');
                if isfield(in,'t')
                   if ~isempty(in.t)
-                     t = linspace(in.t(1),in.t(end),n_ds_bin_edges);
+                     t = in.t;
+                     % Time should be in milliseconds for everything
+                     if (max(abs(t)) < 10)
+                        t = t * 1e3;
+                     end
                   else
-                     t = linspace(obj.T(1),obj.T(end),n_ds_bin_edges);
+                     t = defTimes;
                   end
                else
-                  t = linspace(obj.T(1),obj.T(end),n_ds_bin_edges);
+                  t = defTimes;
                end
-               
-               % Time should be in milliseconds for everything
-               if (max(abs(t)) < 10)
-                  t = t * 1e3;
-               end
-               
                data = sqrt(abs(in.data));
                data = data - mean(data(:,pre_trial_norm,:),2);
-               save(fName_Out,'data','t','-v7.3');    
+               save(fName_Out,'data','t','pre_trial_norm_epoch','-v7.3');    
                fprintf(1,'complete\n');
             end
          end                  
@@ -801,7 +801,7 @@ classdef block < handle
                   if size(b,1)==nTotal
                      obj.updateNaNBehavior([],b);
                   else
-                     obj.updateNaNBehavior(nTotal);
+                     obj.updateNaNBehavior(nTotal,b);
                   end
                end
             else
@@ -810,11 +810,11 @@ classdef block < handle
                if size(b,1)==nTotal
                   obj.updateNaNBehavior([],b);
                else
-                  obj.updateNaNBehavior(nTotal);
+                  obj.updateNaNBehavior(nTotal,b);
                end
             end
          else
-            obj.updateNaNBehavior(nTotal);            
+            obj.updateNaNBehavior(nTotal,b);            
          end
       end
       
@@ -905,7 +905,10 @@ classdef block < handle
          if (nargin < 3) && (~obj.HasData)
             fprintf(1,'-->\tMissing _Scoring file: %s\n',obj.Name);
          else
-            fprintf(1,'Mismatch between number of spike rate trials (%g) and behaviorData (%g) for %s.\n',...
+            fprintf(1,...
+               ['Mismatch between number of spike rate trials ' ...
+               '<strong>(%g)</strong> ' ...
+               'and behaviorData <strong>(%g)</strong> for %s\n'],...
                nTotal,size(b,1),obj.Name);
          end
       end
@@ -937,18 +940,16 @@ classdef block < handle
             return;
          end
          
-         norm_spike_rate_tag = defaults.block('norm_spike_rate_tag');
-         fname_ds_rate = defaults.block('fname_ds_rate');
-         r_ds = defaults.block('r_ds');
-         
-         fname = fullfile(obj.getPathTo('rate'),sprintf(fname_ds_rate,...
-            obj.Name,norm_spike_rate_tag,align,outcome,r_ds));
+         [input_expr,w] = defaults.block('fname_norm_rate','spike_bin_w');         
+         str = sprintf(input_expr,obj.Name,w,align,outcome);
+         ioPath = obj.getPathTo('rate');
+         fname = fullfile(ioPath,str);
          if (exist(fname,'file')==0) && (~obj.HasData)
-            fprintf(1,'No such file: %s\n',fname);
+            fprintf(1,'No such file: %s\n',str);
             obj.Data.(align).(outcome).rate = [];
             return;
          elseif exist(fname,'file')==0
-            fprintf(1,'No such file: %s\n',fname);
+            fprintf(1,'No such file: %s\n',str);
             obj.Data.(align).(outcome).rate = [];
             return;
          else
@@ -961,7 +962,7 @@ classdef block < handle
                if isfield(in,'t')
                   obj.Data.(align).(outcome).t = in.t;
                else
-                  obj.Data.(align).(outcome).t = linspace(min(obj.T),max(obj.T),size(in.data,2));
+                  obj.Data.(align).(outcome).t = defaults.experiment('t_ms');
                end
             else % For old versions
                obj.Data.rate = in.data;
@@ -979,214 +980,13 @@ classdef block < handle
    end
    
    % "GET" BLOCK methods
-   methods (Access = public)
-       % Return spike rate data and associated metadata
-      function [avgRate,channelInfo] = getAvgSpikeRate(obj,align,outcome,ch)
-         if nargin < 4
-            ch = nan;
-         end
-         if nargin < 3
-            outcome = 'Successful'; % 'Successful' or 'Unsuccessful' or 'All'
-         end
-         if nargin < 2
-            align = 'Grasp'; % 'Grasp' or 'Reach'
-         end
-         
-         if numel(obj) > 1
-            avgRate = [];
-            channelInfo = [];
-            for ii = 1:numel(obj)
-               [tmpRate,tmpCI] = getAverageSpikeRate(obj(ii),align,outcome,ch);
-               avgRate = [avgRate; tmpRate]; %#ok<*AGROW>
-               channelInfo = [channelInfo; tmpCI];
-            end
-            return;
-         end
-         
-         if isnan(ch)
-            ch = 1:numel(obj.ChannelInfo);
-         end
-         
-         obj = obj([obj.HasData]);
-         avgRate = [];
-         channelInfo = [];
-         filter_order = defaults.block('lpf_order');
-         fs = defaults.block('fs');
-         cutoff_freq = defaults.block('lpf_fc');
-         if ~isnan(cutoff_freq)
-            [b,a] = butter(filter_order,cutoff_freq/(fs/2),'low');
-         end
-
-         avgRate = nan(numel(ch),numel(obj.T));
-         channelInfo = [];
-         idx = 0;
-         for iCh = ch
-            idx = idx + 1;
-            channelInfo = [channelInfo; obj.ChannelInfo(iCh)];
-            if obj.ChannelMask(iCh)
-               if isfield(obj.Data,align)
-                  if isfield(obj.Data.(align),outcome)
-                     x = obj.Data.(align).(outcome).rate(:,:,iCh);
-                  else
-                     fprintf('No %s rate extracted for %s alignment for block %s. Extracting...\n',...
-                        outcome,align,obj.Name);
-                     obj.updateSpikeRateData(align,outcome);
-                     if ~isfield(obj.Data.(align),outcome)
-                        continue;
-                     end
-                     x = obj.Data.(align).(outcome).rate(:,:,iCh);
-                  end
-               else
-                  fprintf('No %s rate extracted for block %s. Extracting...\n',...
-                        align,obj.Name);
-                  obj.updateSpikeRateData(align,outcome);
-                  if ~isfield(obj.Data,align)
-                     continue;
-                  elseif ~isfield(obj.Data.(align),outcome)
-                     continue;
-                  end
-                  x = obj.Data.(align).(outcome).rate(:,:,iCh);
-               end
-
-               mu = mean(x,1); %#ok<*PROPLC,*PROP>
-
-               if isnan(cutoff_freq)
-                  avgRate(idx,:) = mu;
-               else
-                  avgRate(idx,:) = filtfilt(b,a,mu);
-               end
-            end
-         end
-
+   methods (Access = public)      
+      function [avgRate,channelInfo] = getAvgSpikeRate(obj,~,~,~) %#ok<*INUSD>
+         error('Deprecated');
       end
       
-      % Return (normalized) spike rate data and associated metadata
-      function [avgRate,channelInfo,t] = getAvgNormRate(obj,align,outcome,ch,updateAreaModulations)
-         % avgRate : Rows are channels, columns are timesteps
-         if nargin < 5
-            updateAreaModulations = false;
-         end
-         if nargin < 4
-            ch = nan;
-         end
-         if nargin < 3
-            outcome = 'Successful'; % 'Successful' or 'Unsuccessful' or 'All'
-         else
-            if isstruct(outcome) % then it's includeStruct instead of outcome
-               includeStruct = outcome;
-               if ismember(includeStruct.Include,'Outcome')
-                  'Successful';
-               elseif ismember(includeStruct.Exclude,'Outcome')
-                  'Unsuccessful';
-               else
-                  outcome = 'All';
-               end
-            end
-         end
-         if nargin < 2
-            align = 'Grasp'; % 'Grasp' or 'Reach'
-         end
-         
-         if numel(obj) > 1
-            avgRate = [];
-            channelInfo = [];
-            for ii = 1:numel(obj)
-               [tmpRate,tmpCI,t] = getAvgNormRate(obj(ii),align,outcome,ch,updateAreaModulations);
-               avgRate = [avgRate; tmpRate]; %#ok<*AGROW>
-               channelInfo = [channelInfo; tmpCI];
-            end
-            return;
-         end
-         
-         if isempty(obj.nTrialRecent)
-            obj.initRecentTrialCounter;
-         end
-         obj.nTrialRecent.rate = 0;
-         
-         if isnan(ch)
-            ch = 1:numel(obj.ChannelInfo);
-         end
-         
-         obj.HasAvgNormRate = false; % Reset flag to false each time method is run
-         avgRate = [];
-         channelInfo = [];
-         t = [];
-         
-         if isfield(obj.Data,align)
-            if isfield(obj.Data.(align),outcome)
-               if isfield(obj.Data.(align).(outcome),'t')
-                  t = obj.Data.(align).(outcome).t;
-               else
-                  fprintf('No %s trials for %s alignment for block %s.\n',...
-                     outcome,align,obj.Name);
-                  if updateAreaModulations
-                     obj.HasAreaModulations = false;
-                     obj.chMod = [];
-                  end
-                  return;
-               end
-            else
-               fprintf('No %s rate extracted for %s alignment for block %s. Extracting...\n',...
-                  outcome,align,obj.Name);
-               obj.updateSpikeRateData(align,outcome);
-               if ~isfield(obj.Data.(align),outcome)
-                  fprintf('Invalid field for %s: %s\n',obj.Name,outcome);
-                  if updateAreaModulations
-                     obj.HasAreaModulations = false;
-                     obj.chMod = [];
-                  end
-                  return;
-               end
-            end
-         else
-            obj.updateSpikeRateData(align,outcome);
-            if ~isfield(obj.Data,align)
-               fprintf('Invalid field for %s: %s\n',obj.Name,align);
-               if updateAreaModulations
-                  obj.HasAreaModulations = false;
-                  obj.chMod = [];
-               end
-               return;
-            elseif ~isfield(obj.Data.(align),outcome)
-               fprintf('Invalid field for %s: %s\n',obj.Name,outcome);
-               if updateAreaModulations
-                  obj.HasAreaModulations = false;
-                  obj.chMod = [];
-               end
-               return;
-            else
-               t = obj.Data.(align).(outcome).t;
-            end
-         end
-         
-         if ~isempty(t)
-            if (max(abs(t)) < 10)
-               t = t.*1e3; % Scale if it is not already scaled to ms
-            end
-         end
-         
-
-         avgRate = nan(numel(ch),numel(t));
-         channelInfo = [];
-         idx = 0;
-         fs = (1/(defaults.block('spike_bin_w')*1e-3))/defaults.block('r_ds');
-
-         for iCh = ch
-            idx = idx + 1;
-            channelInfo = [channelInfo; obj.ChannelInfo(iCh)];
-            if obj.ChannelMask(iCh)
-               x = obj.Data.(align).(outcome).rate(:,:,iCh);
-               avgRate(idx,:) = obj.doSmoothOnly(x,fs);
-            end
-         end
-         
-         obj.nTrialRecent.rate = size(obj.Data.(align).(outcome).rate,1);         
-         obj.HasAvgNormRate = true; % If the method returns successfully, set to true again
-
-         if updateAreaModulations
-            obj.updateChMod(avgRate.',t,false);
-         end
-
+      function [avgRate,channelInfo,t] = getAvgNormRate(obj,~,~,~,~) %#ok<*STOUT>
+         error('Deprecated');
       end
       
       % Get "rates" for a specific area

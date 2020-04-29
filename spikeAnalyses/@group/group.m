@@ -64,11 +64,11 @@ classdef group < matlab.mixin.Copyable
          end
          
          % Set the channel masks to be consistent across days
-         runFun(gData,'unifyChildChannelMask');
+         runFun(obj,'unifyChildChannelMask');
          
          % Update the object's channel info for all channels of all child
          % rat objects (that are not masked)
-         getChannelInfo(gData,true);
+         getChannelInfo(obj,true);
       end
       
       % Load channel mask for child rat objects
@@ -136,12 +136,16 @@ classdef group < matlab.mixin.Copyable
          
          ticTimes.saveTic = tic;
          fname = defaults.files('group_data_name');
+         fprintf(1,'\nSaving ''gData''...');
          if exist(fname,'file')==0
             save(fname,'gData','-v7.3');
          else
             save(fname,'-append','gData');
          end         
          ticTimes.saveToc = toc(ticTimes.saveTic);
+         utils.addHelperRepos();
+         sounds__.play('bell',1.5,-40); % Notify of save
+         fprintf(1,'complete\n');
       end
       
       % Break into subgroups
@@ -1653,49 +1657,106 @@ classdef group < matlab.mixin.Copyable
       
       % Helper function to load and time the loading of group data object
       function [gData,ticTimes,pcFitObj,xPC] = loadGroupData
+         %LOADGROUPDATA  Static method to load group data object
+         %
+         %  group.loadGroupData();
+         %  -> Attempts to move any of the following variables to the base
+         %     workspace, if they are found in the default load file.
+         %     * `gData`      : `group` object array
+         %     * `ticTimes`   : struct with function execution timing info
+         %     * `pcFitObj`   : `pcFit` object array
+         %     * `xPC`        : `xPCobj` object array
+         %
+         %  Can also specify these as named variables using output
+         %  arguments, as:
+         %
+         %  [gData,ticTimes,pcFitObj,xPC] = group.loadGroupData;
+         %
+         %  -- Note --
+         %  This method automatically adds any "helper" repos to the path
+         %  using `utils.addHelperRepos` (see function for details).
+         %  -> List of repos is returned as fields of paths in
+         %     >> paths = defaults.Repos();
+         
+         % Add helper repositories
+         utils.addHelperRepos(); % Use `defaults.Repos()` for `paths`
+         
+         % Initialize timing struct (will only have "load" timing info)
          ticTimes = struct;
          loadTic = tic;
-         fprintf(1,'Loading gData object...');
-         fname = defaults.files('group_data_name');
-         if exist(fname,'file')==0
-            fprintf(1,'The file ''%s'' does not exist. Try running main.m\n\n',fname);
-            return;
-         else
-            switch nargout
-               case 0
-                  load(fname,'gData','pcFitObj','xPC');
-                  ticTimes.load = round(toc(loadTic));
-                  utils.mtb(gData);
-                  utils.mtb(pcFitObj);
-                  utils.mtb(xPC);
-                  utils.mtb(ticTimes);
-               case 1
-                  in = load(fname,'gData');
-                  ticTimes.load = round(toc(loadTic));
-                  gData = in.gData;
-               case 2
-                  in = load(fname,'gData');
-                  ticTimes.load = round(toc(loadTic));
-                  gData = in.gData;
-               case 3
-                  in = load(fname,'gData','pcFitObj');
-                  ticTimes.load = round(toc(loadTic));
-                  gData = in.gData;
-                  pcFitObj = in.pcFitObj;
-               case 4
-                  in = load(fname,'gData','pcFitObj','xPC');
-                  ticTimes.load = round(toc(loadTic));
-                  gData = in.gData;
-                  pcFitObj = in.pcFitObj;
-                  xPC = in.xPCObj;
-               otherwise
-                  error('Invalid number of outputs (%g) requested.',...
-                     nargout);
-            end
-         end
-         utils.addHelperRepos();
-         fprintf(1,'complete (%g sec elapsed)\n',ticTimes.load);
+         [p_local,p_remote,f] = defaults.files(...
+            'local_tank','remote_tank','group_data_file');
+         fname = fullfile(p_local,f);
          
+         % Check that file exists
+         if exist(fname,'file')==0
+            fprintf(1,'The file ''%s'' does not exist in local tank.\n',f);
+            fname = fullfile(p_remote,f);
+            if exist(fname,'file')==0
+               fprintf(1,'The file ''%s'' is missing from remote.\n',f);
+               fprintf(1,'\t->\t<strong>Try running `main.m`</strong>\n');
+               return;
+            else % If it is on remote but not local, copy the file
+               fprintf(1,'Found ''%s'' on remote tank.\n',f);
+               fprintf(1,'\t->\t<strong>Copying to local...</strong>');
+               f_load = fullfile(p_local,f);
+               copyfile(fname,f_load);
+               fprintf(1,'complete\n');
+               fname = f_load;
+            end            
+         end
+         
+         fprintf(1,'Loading gData object...');
+         % Depending on number of output arguments, move variables to base
+         % workspace or return them as output variables.
+         switch nargout
+            case 0
+               in = load(fname);
+               ticTimes.load = round(toc(loadTic));
+               if isfield(in,'gData')
+                  gData = in.gData;
+                  utils.mtb(gData);
+               end
+               if isfield(in,'pcFitObj')
+                  pcFitObj = in.pcFitObj;
+                  utils.mtb(pcFitObj);
+               end
+               if isfield(in,'xPC')
+                  xPC = in.xPC;
+                  utils.mtb(xPC);
+               end
+               utils.mtb(ticTimes);
+               clear gData pcFitObj xPC
+            case 1
+               in = load(fname,'gData');
+               ticTimes.load = round(toc(loadTic));
+               gData = in.gData;
+            case 2
+               in = load(fname,'gData');
+               ticTimes.load = round(toc(loadTic));
+               gData = in.gData;
+            case 3
+               in = load(fname,'gData','pcFitObj');
+               ticTimes.load = round(toc(loadTic));
+               gData = in.gData;
+               pcFitObj = in.pcFitObj;
+            case 4
+               in = load(fname,'gData','pcFitObj','xPC');
+               ticTimes.load = round(toc(loadTic));
+               gData = in.gData;
+               pcFitObj = in.pcFitObj;
+               xPC = in.xPCObj;
+            otherwise
+               error(['RC:' mfilename ':BadOutputArguments'],...
+                  ['\n\t->\t<strong>[LOADGROUPDATA]:</strong> ' ...
+                   'Invalid number of outputs (%g) requested.'],...
+                  nargout);
+         end
+         fprintf(1,'complete (%g sec elapsed)\n',ticTimes.load);
+         if nargout < 1
+            clear ticTimes
+         end
+         sounds__.play('bell',1.5,-40); % Notify of load
       end
       
       % Helper function to parse labeling strings based on

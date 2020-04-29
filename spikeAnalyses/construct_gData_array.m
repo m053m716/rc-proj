@@ -20,14 +20,12 @@ end
 % Build array
 ratArray = [];
 ticTimes.ratArrayTic = tic;
+tank = defaults.files('tank');
 for ii = 1:numel(RAT) % ~ 2 minutes (have to manually score though)
-   ratArray = [ratArray; rat(fullfile(...
-      'P:\Rat\BilateralReach\RC',RAT{ii}))]; %#ok<*AGROW>
+   ratArray = [ratArray; rat(fullfile(tank,RAT{ii}))]; %#ok<*AGROW>
 end
 gData = [group('Ischemia',ratArray([1:4,8:9]));
          group('Intact',ratArray([5:7,10]))];
-
-      
 clear ratArray
 
 if ~skip_save
