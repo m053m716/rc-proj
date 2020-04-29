@@ -342,7 +342,7 @@ classdef rat < handle
             end
             return;
          end
-         x = []; y = []; ch = [];
+         x = []; y = []; ch = []; %#ok<NASGU>
          
          E = readtable(defaults.block('elec_info_xlsx'));
          E = E(ismember(E.Rat,obj.Name),:);
@@ -1248,6 +1248,12 @@ classdef rat < handle
          id = strsplit(obj.Name,'-');
          id = str2double(id{end});
          
+         [rat_ids,rat_names,icms_all,area_all,ml_all,align_all] = ...
+            defaults.experiment(...
+               'rat_id','rat',...
+               'icms_opts','area_opts','ml_opts','event_opts'...
+               );
+         
          PostOpDay = [];
          BlockID = [];
          ML = [];
@@ -1255,6 +1261,7 @@ classdef rat < handle
          Area = [];
          Alignment = [];
          Rate = [];
+         Probe = [];
          Channel = [];
          BehaviorData = table.empty;
          for ii = 1:nChild
@@ -1289,6 +1296,9 @@ classdef rat < handle
                      channel = [channelInfo.channel];
                      channel = repmat(channel,nTrial,1);
                      Channel = [Channel; channel(:)];
+                     probe = [channelInfo.probe];
+                     probe = repmat(probe,nTrial,1);
+                     Probe = [Probe; probe(:)];
                      BehaviorData = [BehaviorData; repmat(b,nCh,1)];
                      Area = [Area; repmat(area(iArea),nRow,1)];
                      Alignment = [Alignment; repmat(align(iAlign),nRow,1)];
@@ -1300,9 +1310,18 @@ classdef rat < handle
                end
             end
          end
-         
+         % Get unique channel ID for each animal
+         Channel = Channel + (Probe - 1).*16 + (32*id); 
+         % Get unique probe ID for each animal
+         Probe = Probe + 2*id; 
          AnimalID = repmat(id,numel(BlockID),1);
-         T = [table(AnimalID,BlockID,PostOpDay,Alignment,ML,ICMS,Area),...
+         AnimalID = categorical(AnimalID,rat_ids,rat_names);
+         ICMS = categorical(ICMS,icms_all);
+         ML = categorical(ML,ml_all);
+         Area = categorical(Area,area_all);
+         Alignment = categorical(Alignment,align_all);
+         T = [table(AnimalID,BlockID,PostOpDay,Alignment,...
+                     ML,ICMS,Area,Probe,Channel),...
               BehaviorData(:,[1:5,7,9]), table(Rate)];
          T.Properties.UserData = struct('t',t);
          
@@ -1909,7 +1928,7 @@ classdef rat < handle
          
          ax = obj.createChannelAxes(fig,xLim,yLim,xAxLoc,legOpts);
          
-         chIdx = 0;
+         chIdx = 0; %#ok<NASGU>
          axLabFlag = false;
          for p = 1:2
             for ch = 1:16
@@ -2164,7 +2183,7 @@ classdef rat < handle
 %             vec = vec + numel(poday);
 %          end
 %          
-         chIdx = 0;
+         chIdx = 0; %#ok<NASGU>
          axLabFlag = false;
          for iPC = 1:size(A,2)
             for p = 1:2

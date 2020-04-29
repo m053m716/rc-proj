@@ -21,6 +21,11 @@ p.lpf_order = 4;     % Rate lowpass filter (butterworth) order
 p.lpf_fc = nan;      % Rate lowpass filter cutoff frequency
 p.fs = 24414.0625;   % Sampling frequency for acquisition
 
+% For constructor
+p.do_spike_rate_extraction = true;
+p.overwrite_old_spike_data = false;
+p.run_jpca_on_construction = false;
+
 % Optimizer for fitting the "rebase" projection matrix
 p.optimization_options = optimoptions(... 
    @fminunc,...
@@ -31,39 +36,23 @@ p.optimization_options = optimoptions(...
    'StepTolerance',1e-9);
 
 % Spike analyses data variables
-[p.start_stop_bin,p.n_ds_bin_edges,p.spike_bin_w,p.spike_smoother_w,...
+[p.start_stop_bin,p.n_ds_bin_edges,p.spike_bin_w,...
    p.alignment,p.area,p.outcome,p.r_ds,...
-   p.pre_trial_norm_epoch,p.pre_trial_norm,p.pre_trial_norm_ds] = ...
+   p.pre_trial_norm_epoch,p.pre_trial_norm,p.pre_trial_norm_ds,...
+   p.icms,p.area_color,p.event_color,p.area_opts,p.all_events] = ...
       defaults.experiment('start_stop_bin','n_ds_bin_edges','spike_bin_w',...
-         'spike_smoother_w','alignment','area','outcome','r_ds',...
-         'pre_trial_norm_epoch','pre_trial_norm','pre_trial_norm_ds');
+         'alignment','area','outcome','r_ds',...
+         'pre_trial_norm_epoch','pre_trial_norm','pre_trial_norm_ds',...
+         'icms_cats','area_color','event_color','area_opts','event_opts');
       
-% Factor to decimate spike rate by:
-
-p.spike_rate_smoother = sprintf('_SpikeRate%03gms_',p.spike_smoother_w);
-p.norm_spike_rate_tag = sprintf('_NormSpikeRate%03gms_',p.spike_smoother_w);
-
 p.align = p.alignment; % same as "alignment" but just to make it compatible keep both
 p.include = utils.makeIncludeStruct({'Reach','Grasp','Outcome'},[]);
 p.all_alignments = {'Successful',1;...
                     'Unsuccessful',0;...
                     'All',[0,1]};
-p.all_events = {'Reach','Grasp','Support','Complete'};
-p.event_color = {[0.1 0.1 0.7],[0 0 0],[0.8 0.1 0.8],[0.7 0.8 0.1]};
 p.all_outcomes = {'Successful','Unsuccessful','All'};
-p.icms = categorical({'DF','PF','DF-PF','PF-DF','O','NR'});
-p.do_spike_rate_extraction = true;
-p.overwrite_old_spike_data = false;
-p.run_jpca_on_construction = false;
 
-% % worthless "warp rates" parameters... deprecated
-% p.warp.pre_reach = 350;  % ms
-% p.warp.post_grasp = 500; % ms
-% p.warp.nPoints = 850;
-% p.warp.trim = 50; % samples to trim from ends
-
-p.area_opts = {'RFA','CFA'};
-p.area_color = {'b','r'};
+% For spike rate figure axes
 p.x_lim = [-1250 750];
 p.y_lim = [-5.0 5.0];
 

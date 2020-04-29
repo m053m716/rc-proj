@@ -69,6 +69,11 @@ classdef group < matlab.mixin.Copyable
          % Update the object's channel info for all channels of all child
          % rat objects (that are not masked)
          getChannelInfo(obj,true);
+         
+         % If rate was extracted, then set cross condition mean
+         if defaults.block('do_spike_rate_extraction')
+            setCrossCondMean(gData);
+         end
       end
       
       % Load channel mask for child rat objects
@@ -636,7 +641,7 @@ classdef group < matlab.mixin.Copyable
          end
          
          if nargin < 2
-            align = {'Reach','Grasp'};
+            align = defaults.experiment('event_opts');
          elseif ~iscell(align)
             align = {align};
          end
@@ -646,21 +651,32 @@ classdef group < matlab.mixin.Copyable
             for i = 1:numel(obj)
                T = [T; getRateTable(obj(i),align,includeStruct,area)];
             end
+            T.Channel = categorical(T.Channel);
+            T.BlockID = categorical(T.BlockID);
+            T.Probe = categorical(T.Probe);
+            sounds__.play('bell',1.25);
             return;
          end
          
          T = getRateTable(obj.Children,align,includeStruct,area);
-         Group = repmat(categorical({obj.Name},{'Ischemia','Intact'}),...
+         T = T(any(T.Rate,2),:); % Remove rows where rate is "zero"
+         Group = repmat(...
+            categorical({obj.Name},defaults.experiment('group_names')),...
             size(T,1),1);
          T = [table(Group), T];
-         T.ML = categorical(T.ML,{'M','L'});
-         T.Area = categorical(T.Area,{'CFA','RFA'});
-         T.Alignment = categorical(T.Alignment,{'Reach','Grasp'});
-         T.PelletPresent = categorical(T.PelletPresent,[0,1],{'Missing','Present'});
-         T.Outcome = categorical(T.Outcome,[0,1],{'Successful','Unsuccessful'});
-         T.Properties.UserData.Transform = @(rate)sgolayfilt(rate,3,11,ones(1,11),2);
-         T.Rate = feval(T.Properties.UserData.Transform,T.Rate);
-         T.Properties.Description = 'Table of normalized rate time-series for each trial';
+         
+         % Set "binary" categorical to labels so they're clear on sheet
+         T.PelletPresent = categorical(T.PelletPresent,...
+            [0,1],{'Missing','Present'});
+         T.Outcome = categorical(T.Outcome,...
+            [0,1],{'Successful','Unsuccessful'});
+         
+%          % Associate properties for Transformed rate etc. on UserData
+%          T.Properties.UserData.Transform = ...
+%             defaults.experiment('rate_smoothing_fcn');
+%          T.Rate = feval(T.Properties.UserData.Transform,T.Rate);
+         T.Properties.Description = ...
+            'Table of normalized rate time-series for each trial';
       end
       
       % Get or Set XC-MEAN struct fields based on includeStruct format
@@ -1132,7 +1148,7 @@ classdef group < matlab.mixin.Copyable
             error('scoreType must be: ''TrueScore'', ''NeurophysScore'', or ''BehaviorScore''');
          end         
          
-         legText = [];
+         legText = []; %#ok<NASGU>
          rat_marker = defaults.group('rat_marker');
          rat_color = defaults.group('rat_color');
          hg = gobjects(numel(obj),1);
@@ -1211,8 +1227,8 @@ classdef group < matlab.mixin.Copyable
          legend(hg);
          xlim([min(plotDayVec)-0.25,max(plotDayVec)+0.25]);
          
-         startFlag = true;
-         endFlag = false;
+         startFlag = true; %#ok<NASGU>
+         endFlag = false; %#ok<NASGU>
          
          % Append whether it was significant or not using a line above the
          % plot
@@ -1239,7 +1255,7 @@ classdef group < matlab.mixin.Copyable
 %                end
 %             end
 %          end
-         sigGroup = gfx.addSignificanceLine(gca,plotDayVec,data(2,:),data(1,:),0.05);
+         sigGroup = gfx.addSignificanceLine(gca,plotDayVec,data(2,:),data(1,:),0.05); %#ok<NASGU>
       end
       
       % Plot channelwise cross-day condition response correlations
@@ -1351,7 +1367,7 @@ classdef group < matlab.mixin.Copyable
                ratObj = obj(ii).Children(ij);
                E = ratObj.Electrode;
                if nargin < 2
-                  sizeData = ones(size(E,1),1) .* 15;
+                  sizeData = ones(size(E,1),1) .* 15; %#ok<NASGU>
                else
                   if ischar(mSizeData)
                      switch mSizeData
@@ -1361,13 +1377,13 @@ classdef group < matlab.mixin.Copyable
                            
                            % One option: normalize to a subset of channels
                            %             in a consistent way
-                           c_all = ratObj.getMeanBandCoherence;
+                           c_all = ratObj.getMeanBandCoherence; %#ok<NASGU>
 %                            cfa_idx = ratObj.getAreaIndices('CFA',true);
 %                            cmu = nanmean(c(cfa_idx));
 %                            cstd = nanstd(c(cfa_idx));
                            cmu = nanmean(c);
                            cstd = nanstd(c);
-                           sizeData = group.c2sizeData(c,cmu,cstd);
+                           sizeData = group.c2sizeData(c,cmu,cstd); %#ok<NASGU>
 
 %                            % Second option: pick an empirically-determined
 %                            %                value that is an approximate
@@ -1381,7 +1397,7 @@ classdef group < matlab.mixin.Copyable
                            fprintf(1,'->\tUsing default value (%g) for all\n',sizeData(1));
                      end
                   else
-                     sizeData = mSizeData;
+                     sizeData = mSizeData; %#ok<NASGU>
                   end
                end
                

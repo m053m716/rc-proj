@@ -128,7 +128,7 @@ classdef block < handle
                else
                   [tmp,flag(ii)] = behaviorData(obj(ii),trialIdx);
                end
-               b = [b; tmp];
+               b = [b; tmp]; %#ok<AGROW>
             end
          end
          
@@ -195,7 +195,7 @@ classdef block < handle
                'start_stop_bin','fname_binned_spikes');
 
          vec = start_stop_bin(1):w:start_stop_bin(2);      
-         t = vec(1:(end-1)) + mode(diff(vec))/2;
+         t = vec(1:(end-1)) + mode(diff(vec))/2; %#ok<PROPLC>
          outpath = obj.getPathTo('spikerate');
          if exist(outpath,'dir')==0
             mkdir(outpath);
@@ -252,7 +252,7 @@ classdef block < handle
             fStr_in,fStr_out,w,o,e] = defaults.block(...
             'pre_trial_norm','pre_trial_norm_epoch',...
             'fname_binned_spikes','fname_norm_rate',...
-            'spike_bin_w','all_outcomes','all_events'); %#ok<ASGLU>
+            'spike_bin_w','all_outcomes','all_events'); 
          defTimes = defaults.experiment('t_ms');
          for iO = 1:numel(o)
             for iE = 1:numel(e)
@@ -275,7 +275,7 @@ classdef block < handle
                in = load(fName_In,'data','t');
                if isfield(in,'t')
                   if ~isempty(in.t)
-                     t = in.t;
+                     t = in.t; %#ok<*PROP>
                      % Time should be in milliseconds for everything
                      if (max(abs(t)) < 10)
                         t = t * 1e3;
@@ -301,7 +301,7 @@ classdef block < handle
          if numel(obj) > 1
             T = [];
             for ii = 1:numel(obj)
-               T = [T; exportTrialStats(obj(ii))];
+               T = [T; exportTrialStats(obj(ii))]; %#ok<AGROW>
             end
             return;
          end
@@ -567,20 +567,20 @@ classdef block < handle
                cch = ch_info(ii).channel;
                iParent = find([obj.Parent.ChannelInfo.probe]==p & ...
                   [obj.Parent.ChannelInfo.channel]==cch,1,'first');
-               ch = [ch; iParent];
-               x = [x; x_grid_cfa(ch_grid_cfa == cch)];
-               y = [y; y_grid_cfa(ch_grid_cfa == cch)];
+               ch = [ch; iParent]; %#ok<AGROW>
+               x = [x; x_grid_cfa(ch_grid_cfa == cch)]; %#ok<AGROW>
+               y = [y; y_grid_cfa(ch_grid_cfa == cch)]; %#ok<AGROW>
             else % RFA
                rch = ch_info(ii).channel;
                iParent = find([obj.Parent.ChannelInfo.probe]==p & ...
                   [obj.Parent.ChannelInfo.channel]==rch,1,'first');
-               ch = [ch; iParent];
-               x = [x; x_grid_rfa(ch_grid_rfa == rch)];
-               y = [y; y_grid_rfa(ch_grid_rfa == rch)];
+               ch = [ch; iParent]; %#ok<AGROW>
+               x = [x; x_grid_rfa(ch_grid_rfa == rch)]; %#ok<AGROW>
+               y = [y; y_grid_rfa(ch_grid_rfa == rch)]; %#ok<AGROW>
             end
-            Probe = [Probe; p];
-            Channel = [Channel; ch_info(ii).channel];
-            ICMS = [ICMS; {ch_info(ii).icms}];
+            Probe = [Probe; p]; %#ok<AGROW>
+            Channel = [Channel; ch_info(ii).channel]; %#ok<AGROW>
+            ICMS = [ICMS; {ch_info(ii).icms}]; %#ok<AGROW>
          end
          ICMS = categorical(ICMS);
          
@@ -814,7 +814,7 @@ classdef block < handle
                end
             end
          else
-            obj.updateNaNBehavior(nTotal,b);            
+            obj.updateNaNBehavior(nTotal);            
          end
       end
       
@@ -825,7 +825,7 @@ classdef block < handle
          end
          
          if nargin < 4
-            alreadymasked = true;
+            alreadyMasked = true;
          end
          
          if nargin < 3
@@ -1007,8 +1007,8 @@ classdef block < handle
             elseif isempty(obj.Data.(align).Successful.rate) && ...
                   isempty(obj.Data.(align).Unsuccessful.rate)
                fprintf(1,'No rate data in %s. Unified jPCA not possible.\n',obj.Name);
-               Projection = [];
-               Summary = [];
+               Projection = []; %#ok<NASGU>
+               Summary = []; %#ok<NASGU>
                return;
             else
                x = cat(1,...
@@ -1041,7 +1041,7 @@ classdef block < handle
             channelInfo = [];
             for ii = 1:numel(obj)
                channelInfo = [channelInfo; ...
-                  obj(ii).getBlockChannelInfo(useMask)];
+                  obj(ii).getBlockChannelInfo(useMask)]; %#ok<AGROW>
             end
             return;
          end
@@ -1055,8 +1055,8 @@ classdef block < handle
             fprintf(1,'Did not retrieve channelInfo.\n');
          end
          Rat = {obj.Parent.Name};
-         Name = {obj.Name};
-         PostOpDay = obj.PostOpDay;
+         Name = {obj.Name}; %#ok<PROPLC>
+         PostOpDay = obj.PostOpDay; %#ok<PROPLC>
          Score = obj.TrueScore;
          if useMask
             if isempty(obj.ChannelMask)
@@ -1068,7 +1068,8 @@ classdef block < handle
             channelInfo = obj.ChannelInfo;
          end
          channelInfo = rmfield(channelInfo,'file');
-         channelInfo = utils.addStructField(channelInfo,Rat,Name,PostOpDay,Score);
+         channelInfo = utils.addStructField(channelInfo,Rat,...
+            Name,PostOpDay,Score); %#ok<PROPLC>
          channelInfo = orderfields(channelInfo,[6:9,1:5]);
       end
       
@@ -1150,19 +1151,20 @@ classdef block < handle
                   getChannelwiseRateStats(obj(ii),align,outcome);
                else
                   stats = [stats; ...
-                     getChannelwiseRateStats(obj(ii),align,outcome)];
+                     getChannelwiseRateStats(...
+                        obj(ii),align,outcome)]; %#ok<AGROW>
                end
             end
             return;
          end
          
          field_expr = sprintf('Data.%s.%s.rate',align,outcome);
-         [x,isFieldPresent] = parseStruct(obj.Data,field_expr);         
-         if ~isFieldPresent || isempty(x)
+         [x,isFieldPresent] = parseStruct(obj.Data,field_expr);%#ok<PROPLC>
+         if ~isFieldPresent || isempty(x) %#ok<PROPLC>
             fprintf(1,'%s: missing rate for %s.\n',obj.Name,field_expr);
             return;
          end
-         t = obj.Data.(align).(outcome).t;
+         t = obj.Data.(align).(outcome).t; %#ok<PROPLC>
          
          % Do some rearranging of data
          file = {obj.ChannelInfo.file}.';
@@ -1172,7 +1174,7 @@ classdef block < handle
          icms = {obj.ChannelInfo.icms}.';
          area = {obj.ChannelInfo.area}.';
          
-         mu = squeeze(mean(x,1)); % result: nTimestep x nChannel array
+         mu = squeeze(mean(x,1)); %#ok<PROPLC> % result: nTimestep x nChannel array
 %          [mu,t] = obj.applyLPF2Rate(mu,obj.T*1e3,false);
 %          start_stop = defaults.jPCA('jpca_start_stop_times');
 %          idx = (t >= start_stop(1)) & (t <= start_stop(2));
@@ -1185,10 +1187,10 @@ classdef block < handle
          % Get correct orientation/format         
 %          maxRate = num2cell((sqrt(abs(max(maxRate,eps)./mode(diff(obj.T))))).');
          maxRate = num2cell(maxRate.');
-         tMaxRate = num2cell(t(tMaxRate).');
+         tMaxRate = num2cell(t(tMaxRate).'); %#ok<PROPLC>
 %          minRate = num2cell(sqrt(abs((max(minRate,eps)./mode(diff(obj.T))))).');
          minRate = num2cell(minRate.');
-         tMinRate = num2cell(t(tMinRate).');
+         tMinRate = num2cell(t(tMinRate).'); %#ok<PROPLC>
 %          muRate = num2cell(mean(abs(sqrt(max(mu,eps)./mode(diff(obj.T)))),1).');
 %          medRate = num2cell(median(abs(sqrt(max(mu,eps)./mode(diff(obj.T)))),1).');
          
@@ -1201,15 +1203,15 @@ classdef block < handle
          
 %          x = sqrt(abs(max(x./mode(diff(obj.T)),eps)));
 %          stdRate = num2cell(sqrt(mean(squeeze(var(x(:,idx,:),[],1)),1).'));
-         NV = squeeze(c * (e + sum((x - mean(x,1)).^2,1)./(size(x,1)-1))./(c*e + mean(x,1)));
+         NV = squeeze(c * (e + sum((x - mean(x,1)).^2,1)./(size(x,1)-1))./(c*e + mean(x,1))); %#ok<PROPLC>
 %          NV = obj.applyLPF2Rate(NV,obj.T,false).';
          NV = NV.';
          dNV = min(NV(:,(t >   100) & (t <= 300)),[],2) ... % min var AFTER GRASP
-             - max(NV(:,(t >= -300) & (t < -100)),[],2);    % max var BEFORE GRASP
+             - max(NV(:,(t >= -300) & (t < -100)),[],2);    %#ok<PROPLC> % max var BEFORE GRASP
          
          NV = mat2cell(NV,ones(1,size(NV,1)),size(NV,2));
          dNV = num2cell(dNV);
-         normRate = mat2cell(mu.',ones(1,numel(maxRate)),numel(t));
+         normRate = mat2cell(mu.',ones(1,numel(maxRate)),numel(t)); %#ok<PROPLC>
          
          
          tmp = struct(...
@@ -1242,8 +1244,8 @@ classdef block < handle
                Group = num2cell(nan(numel(tmp),1));
             end
             
-            Name = repmat({obj.Name},numel(tmp),1);
-            PostOpDay = repmat(obj.PostOpDay,numel(tmp),1);
+            Name = repmat({obj.Name},numel(tmp),1); %#ok<PROPLC>
+            PostOpDay = repmat(obj.PostOpDay,numel(tmp),1); %#ok<PROPLC>
             output_score = defaults.group('output_score');
             Score = repmat(obj.(output_score),numel(tmp),1);
             switch outcome
@@ -1257,7 +1259,7 @@ classdef block < handle
                   error('Unrecognized outcome: %s.',outcome);
             end
             
-            stats = [table(Rat,Name,Group,PostOpDay,Score,nTrial),struct2table(tmp)];
+            stats = [table(Rat,Name,Group,PostOpDay,Score,nTrial),struct2table(tmp)]; %#ok<PROPLC>
             stats.area = cellfun(@(x) {x((end-2):end)},stats.area);
          end
          
@@ -1299,15 +1301,15 @@ classdef block < handle
          
          % Get parameterization and cross-condition mean
          p = defaults.conditionResponseCorrelations;
-         [xcmean,t] = getCrossCondMean(obj,align,includeStruct,'Full');
+         [xcmean,t] = getCrossCondMean(obj,align,includeStruct,'Full'); %#ok<PROPLC>
          if isempty(xcmean)
             % Cross-condition mean doesn't exist for this condition
             return;
          end
-         t_idx = (t >= p.t_start) & (t <= p.t_stop);
+         t_idx = (t >= p.t_start) & (t <= p.t_stop); %#ok<PROPLC>
          xcmean = xcmean(t_idx,:); 
          
-         [rate,flag_exists,flag_isempty,t] = obj.getRate(align,'All','Full',includeStruct);
+         [rate,flag_exists,flag_isempty,t] = obj.getRate(align,'All','Full',includeStruct); %#ok<PROPLC>
          if (~flag_exists)
             fprintf(1,'No rate for %s: %s\n',obj.Name,utils.parseIncludeStruct(includeStruct));
             return;
@@ -1315,12 +1317,12 @@ classdef block < handle
             fprintf(1,'No trials for %s: %s\n',obj.Name,utils.parseIncludeStruct(includeStruct));
             return;
          end
-         t_idx = (t >= p.t_start) & (t <= p.t_stop);
+         t_idx = (t >= p.t_start) & (t <= p.t_stop); %#ok<PROPLC>
          rate = rate(:,t_idx,:);
          
          n = size(rate,1);
          
-         fs = 1/(mode(diff(t.*1e-3)));
+         fs = 1/(mode(diff(t.*1e-3))); %#ok<PROPLC>
          f = defaults.conditionResponseCorrelations('f');
          
          for iCh = 1:size(rate,3)
@@ -1332,7 +1334,7 @@ classdef block < handle
             
             % Compute magnitude-squared coherence
             cxy = mscohere(rate(:,:,iCh).',xcmean(:,iCh),[],[],f,fs);
-            cm = nanmean(cxy,1);
+            cm = nanmean(cxy,1); %#ok<NASGU>
 %             c(iCh) = nanmean(cm);
 %             err_c(iCh) = nansum(cm)./numel(f); 
             [cmax,f_ind] = nanmax(cxy,[],1);
@@ -1352,16 +1354,16 @@ classdef block < handle
          obj.HasAreaModulations = true;
          
          if ~isempty(obj.Parent)
-            Name = repmat({obj.Name},sum(obj.ChannelMask),1);
+            Name = repmat({obj.Name},sum(obj.ChannelMask),1); %#ok<PROPLC>
             chInf = obj.ChannelInfo(obj.ChannelMask);
             Probe = [chInf.probe].';
             Channel = [chInf.channel].';
             ICMS = {chInf.icms}.';
             Area = categorical({chInf.area}.');
-            PostOpDay = repmat(obj.PostOpDay,numel(Probe),1);
+            PostOpDay = repmat(obj.PostOpDay,numel(Probe),1); %#ok<PROPLC>
             N = ones(numel(Probe),1)*n;
             obj.Parent.CR = [obj.Parent.CR; ...
-               table(Name,PostOpDay,Probe,Channel,ICMS,Area,r,err_r,c,err_c,f_c,N)];
+               table(Name,PostOpDay,Probe,Channel,ICMS,Area,r,err_r,c,err_c,f_c,N)]; %#ok<PROPLC>
          end
          
       end
@@ -1389,12 +1391,12 @@ classdef block < handle
             return;
          end
          % Get frequencies for channels indexed by masked parent channels
-         f = nan(1,numel(obj.Parent.ChannelInfo(obj.Parent.ChannelMask)));
-         p = nan(1,numel(obj.Parent.ChannelInfo(obj.Parent.ChannelMask)));
+         f = nan(1,numel(obj.Parent.ChannelInfo(obj.Parent.ChannelMask))); %#ok<NASGU>
+         p = nan(1,numel(obj.Parent.ChannelInfo(obj.Parent.ChannelMask))); %#ok<NASGU>
          
          % Get cross-condition mean to recover "dominant" frequency power
-         [xcmean,t] = getCrossCondMean(obj,align,includeStruct,'Full');
-         fs = 1/(mode(diff(t*1e-3)));
+         [xcmean,t] = getCrossCondMean(obj,align,includeStruct,'Full'); %#ok<PROPLC>
+         fs = 1/(mode(diff(t*1e-3))); %#ok<PROPLC>
          
          % Get the indexes into the parent frequencies
          nChannel = sum(obj.ChannelMask);
@@ -1413,7 +1415,7 @@ classdef block < handle
          out = [];
          if numel(obj) > 1
             for ii = 1:numel(obj)
-               out = [out;getPropForEachChannel(obj(ii),propName)];
+               out = [out;getPropForEachChannel(obj(ii),propName)]; %#ok<AGROW>
             end
             return;
          end
@@ -1509,7 +1511,7 @@ classdef block < handle
             poday = [];
             for ii = 1:numel(obj)
                [cxy{ii},f,potmp] = getMeanCoherence(obj(ii),align,includeStruct);
-               poday = [poday,potmp];
+               poday = [poday,potmp]; %#ok<AGROW>
             end
             return;
          end
@@ -1518,15 +1520,15 @@ classdef block < handle
          f = defaults.conditionResponseCorrelations('f_coh');
          poday = obj.PostOpDay;
          
-         [xcmean,t] = getCrossCondMean(obj,align,includeStruct);
+         [xcmean,t] = getCrossCondMean(obj,align,includeStruct); %#ok<PROPLC>
          if isempty(xcmean)
             return;
          end
          
          t_idx = (t >= defaults.conditionResponseCorrelations('t_start')) & ...
-            (t <= defaults.conditionResponseCorrelations('t_stop'));
+            (t <= defaults.conditionResponseCorrelations('t_stop')); %#ok<PROPLC>
          xcmean = xcmean(t_idx,:);
-         fs = 1/(mode(diff(t.*1e-3)));
+         fs = 1/(mode(diff(t.*1e-3))); %#ok<PROPLC>
          
          [rate,t_rate,~,flag] = obj.getMeanRate(align,includeStruct,'Full',true);
          if ~flag
@@ -1579,13 +1581,13 @@ classdef block < handle
          
          p = []; 
          
-         [rate,t,~,flag] = getMeanRate(obj,align,includeStruct,'Full',false);
+         [rate,t,~,flag] = getMeanRate(obj,align,includeStruct,'Full',false); %#ok<PROPLC>
          if ~flag
             fprintf(1,'No mean rate for %s.\n',obj.Name);
             return;
          end
          
-         fs = 1/(mode(diff(t))*1e-3);
+         fs = 1/(mode(diff(t))*1e-3); %#ok<PROPLC>
          [pxx,ff] = periodogram(rate,[],[],fs,'power');
          p = nan(1,sum(obj.ChannelMask));
          F = nan(1,numel(p));
@@ -1827,7 +1829,7 @@ classdef block < handle
          if numel(obj) > 1
             out = [];
             for ii = 1:numel(obj)
-               out = [out; getNumProp(obj(ii),propName,byChannel)];
+               out = [out; getNumProp(obj(ii),propName,byChannel)]; %#ok<AGROW>
             end
             return;
          end
@@ -1997,7 +1999,7 @@ classdef block < handle
          if numel(obj) > 1
             phaseData = [];
             for ii = 1:numel(obj)
-               phaseData = [phaseData; getPhase(obj(ii),align,outcome,area)];
+               phaseData = [phaseData; getPhase(obj(ii),align,outcome,area)]; %#ok<AGROW>
             end
             return;
          end
@@ -2011,9 +2013,9 @@ classdef block < handle
                out.Summary.outcomes);
          end
          
-         Name = {obj.Name};
+         Name = {obj.Name}; %#ok<PROPLC>
          Score = obj.(defaults.group('output_score'));
-         PostOpDay = obj.PostOpDay;
+         PostOpDay = obj.PostOpDay; %#ok<PROPLC>
          if ~isempty(obj.Parent)
             Rat = {obj.Parent.Name};
             if ~isempty(obj.Parent.Parent)
@@ -2027,7 +2029,7 @@ classdef block < handle
          Align = {align};
          Outcome = {outcome};
          Area = {area};
-         phaseData = table(Rat,Name,Group,PostOpDay,Score,Align,Outcome,Area,{tmp});
+         phaseData = table(Rat,Name,Group,PostOpDay,Score,Align,Outcome,Area,{tmp}); %#ok<PROPLC>
          phaseData.Properties.VariableNames{end} = 'phaseData';
          
       end
@@ -2069,9 +2071,9 @@ classdef block < handle
          out = [];
          for ii = 1:numel(obj)
             if isprop(obj(ii),propName) && ~strcmpi(propName,'Data')
-               out = [out; obj(ii).(propName)];
+               out = [out; obj(ii).(propName)]; %#ok<AGROW>
             elseif isprop(obj(ii),propName)
-               out = [out; {obj(ii).(propName)}];
+               out = [out; {obj(ii).(propName)}]; %#ok<AGROW>
             end
          end
       end
@@ -2417,7 +2419,7 @@ classdef block < handle
          if numel(obj) > 1
             out = [];
             for ii = 1:numel(obj)
-               out = [out; obj(ii).Parent.Data.(propName)];
+               out = [out; obj(ii).Parent.Data.(propName)]; %#ok<AGROW>
             end
             return;
          end
@@ -2682,15 +2684,15 @@ classdef block < handle
 %             x = getAreaRate(obj,area{ii},align,outcome);
 %             y = obj.doSmoothNorm(x);
 %             z = squeeze(mean(y,1));
-            [rate,flag_exists,flag_isempty,t] = getRate(obj,align,outcome,area{ii});
+            [rate,flag_exists,flag_isempty,t] = getRate(obj,align,outcome,area{ii}); %#ok<PROPLC>
             if (~flag_exists) || (flag_isempty)
                continue;
             end
             z = squeeze(mean(rate,1));
-            if (max(abs(t)) < 10)
-               t = t * 1e3;
+            if (max(abs(t)) < 10) %#ok<PROPLC>
+               t = t * 1e3; %#ok<PROPLC>
             end
-            plot(ax,t,z,'Color',col{ii},'LineWidth',1.5);
+            plot(ax,t,z,'Color',col{ii},'LineWidth',1.5); %#ok<PROPLC>
          end
          
          e_col = defaults.block('event_color');
@@ -2716,7 +2718,7 @@ classdef block < handle
          if numel(obj) > 1
             fig = [];
             for ii = 1:numel(obj)
-               fig = [fig; plotAllAlignmentsRate(obj(ii),outcome)];
+               fig = [fig; plotAllAlignmentsRate(obj(ii),outcome)]; %#ok<AGROW>
             end
             return;
          end
@@ -2838,11 +2840,11 @@ classdef block < handle
          times = times(:,warp_params.trim:(end-warp_params.trim+1));
       end
       
-      function y = doSmoothNorm(~,~) %#ok<STOUT>
+      function y = doSmoothNorm(~,~)
          error('Deprecated');
       end
       
-      function y = doSmoothOnly(~,~) %#ok<STOUT>
+      function y = doSmoothOnly(~,~)
          error('Deprecated');
       end
       
