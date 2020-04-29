@@ -2366,6 +2366,8 @@ classdef block < handle
          %           Rate: nTrials x nTimesteps x nChannels tensor
          %              --> `Rate` is the corresponding downsampled,
          %                    normalized rate data.
+         %              --> Must be assigned to the rate `.Data` struct
+         %                  property field using `updateSpikeRateData`
          
          % Parse input
          if nargin < 4

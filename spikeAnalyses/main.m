@@ -15,3 +15,8 @@ batch_marginal_rate_averages;
 
 %% Set the cross-condition means and get condition response correlations
 % batch_set_xc_means_run_condition_response_correlations;
+
+%% Export rate statistics
+T = getRateTable(gData);
+save(defaults.files('rate_table'),'T','-v7.3');
+writetable(T,defaults.files('rate_csv'));

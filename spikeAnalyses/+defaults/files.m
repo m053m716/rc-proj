@@ -20,6 +20,8 @@ p.local_tank = pname;
 p.group_data_name = fullfile(pname,'gData.mat');
 p.icms_data_name = fullfile(pname,'icms_data.xlsx');
 p.behavior_data_file = fullfile(pname,'behavior_data.xlsx');
+p.rate_table = fullfile(pname,'rate_data.mat');
+p.rate_csv = fullfile(pname,'rate_data.csv');
 
 % From analyses
 p.spike_folder_tag = '_wav-sneo_CAR_Spikes';
@@ -30,7 +32,7 @@ p.fname_coh = '%s_%s__%s__coherence_';
 % From `rat`
 p.rate_avg_fig_dir = 'rate-averages-new';
 % p.norm_avg_fig_dir = 'norm-rate-averages-new';
-p.norm_avg_fig_dir = 'norm-rate-averages_2020';
+p.norm_avg_fig_dir = 'norm-rate-averages_2020_ds-50x';
 p.norm_includestruct_fig_dir = 'includeStruct';
 p.channel_mask_loc = 'channel-masks';
 p.channel_mask_tag = '_ChannelMask.mat';
@@ -51,7 +53,7 @@ p.session_export_spreadsheet = 'Stats-By-Session.xlsx';
 p.channel_export_spreadsheet = 'Stats-By-Channel.xlsx';
 p.rat_export_spreadsheet = 'Stats-By-Rat.xlsx';
 p.trial_export_spreadsheet = 'Stats-By-Trial.xlsx';
-p.marg_fig_loc = 'marginal-rate-average-figs';
+p.marg_fig_loc = 'marginal-rate-average-figs_ds-50x';
 p.marg_fig_name = '%s-%s_%s__X__%s%s';
 
 % Parse output

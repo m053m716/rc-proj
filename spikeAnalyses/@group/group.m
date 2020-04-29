@@ -100,25 +100,25 @@ classdef group < matlab.mixin.Copyable
       end
       
       % Run function on children Rat objects
-      function runFun(obj,f)
-         % Parse function handle input
-         if isa(f,'function_handle')
-            f = char(f); 
-         end
+      function runFun(obj,f,varargin)
+         %RUNFUN  Run function on children rats or sub-children blocks
+         %
+         %  runFun(gData,'function');
+         %  runFun(gData,'function',arg1,arg2,...,argk);
          
          % Handle array input
          if numel(obj) > 1
             for ii = 1:numel(obj)
-               runFun(obj(ii),f);
+               runFun(obj(ii),f,varargin{:});
             end
             return;
          end
          
          for ii = 1:numel(obj.Children)
             if ismethod(obj.Children(ii),f)
-               obj.Children(ii).(f);
+               feval(f,obj.Children(ii),varargin{:});
             else
-               obj.Children(ii).runFun(f);
+               runFun(obj.Children(ii),f,varargin{:});
             end
          end
       end
@@ -589,6 +589,74 @@ classdef group < matlab.mixin.Copyable
          
          % Flag false: fromChild
          nameArray = getProp(obj.Children,'Name',false);
+      end
+      
+      % Return table of rates
+      function T = getRateTable(obj,align,includeStruct,area)
+         %GETRATETABLE  Returns table of per-trial rate trajectories
+         %
+         %  T = getRateTable(obj);
+         %  * Note: Default behavior is to construct FULL table of
+         %     alignments. Specify optional arguments in case you want to
+         %     save space or speed up pulling a subset of the table.
+         %
+         %  T = getRateTable(obj,align,includeStruct,area);
+         %
+         %  -- Inputs --
+         %  obj : `rat` class object
+         %
+         %  align :  'Reach','Grasp','Complete','Support' or cell
+         %           combination of some of those options
+         %  -> Default is {'Reach','Grasp'}
+         %
+         %  includeStruct: see: `utils.makeIncludeStruct` 
+         %  -> Default (if not specified) is
+         %     {utils.makeIncludeStruct({'Reach','Grasp','Complete','Outcome'},[]);
+         %      utils.makeIncludeStruct({'Reach','Grasp','Complete'},{'Outcome'})}
+         %
+         %  area : 'RFA', 'CFA', or {'RFA','CFA'} (which areas to pull)
+         %  -> Default is {'RFA','CFA'} (pulls channels from both areas)
+         
+         if nargin < 4
+            area = {'RFA','CFA'};
+         elseif ~iscell(area)
+            area = {area};
+         end
+         
+         if nargin < 3
+            includeStruct = ...
+             {utils.makeIncludeStruct({'Reach','Grasp','Complete','Outcome'},[]); ...
+              utils.makeIncludeStruct({'Reach','Grasp','Complete'},{'Outcome'})};
+         elseif ~iscell(includeStruct)
+            includeStruct = {includeStruct};
+         end
+         
+         if nargin < 2
+            align = {'Reach','Grasp'};
+         elseif ~iscell(align)
+            align = {align};
+         end
+         
+         if numel(obj) > 1
+            T = table.empty;
+            for i = 1:numel(obj)
+               T = [T; getRateTable(obj(i),align,includeStruct,area)];
+            end
+            return;
+         end
+         
+         T = getRateTable(obj.Children,align,includeStruct,area);
+         Group = repmat(categorical({obj.Name},{'Ischemia','Intact'}),...
+            size(T,1),1);
+         T = [table(Group), T];
+         T.ML = categorical(T.ML,{'M','L'});
+         T.Area = categorical(T.Area,{'CFA','RFA'});
+         T.Alignment = categorical(T.Alignment,{'Reach','Grasp'});
+         T.PelletPresent = categorical(T.PelletPresent,[0,1],{'Missing','Present'});
+         T.Outcome = categorical(T.Outcome,[0,1],{'Successful','Unsuccessful'});
+         T.Properties.UserData.Transform = @(rate)sgolayfilt(rate,3,11,ones(1,11),2);
+         T.Rate = feval(T.Properties.UserData.Transform,T.Rate);
+         T.Properties.Description = 'Table of normalized rate time-series for each trial';
       end
       
       % Get or Set XC-MEAN struct fields based on includeStruct format
