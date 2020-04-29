@@ -86,18 +86,16 @@ classdef block < handle
                return;
             end
             obj.doSpikeBinning(behaviorData); % No transform
-%             obj.doBinSmoothing;     % Does square-root transform (old)
-%             obj.doRateDownsample;   % (old)
-            obj.doRateNormalize;
+%             obj.doBinSmoothing;     % (old) Does square-root transform
+%             obj.doRateDownsample;   % (old) Downsample rates & normalize
+            obj.doRateNormalize; % Square-root transform + mean-subtract
             fprintf(1,'Rate extraction for %s complete.\n\n',obj.Name);
-
          end
          
          % Regardless if doing rate extraction or not, update behavior data
          % and try and associate spike rate data with object
          updateBehaviorData(obj);
-         o = defaults.block('all_outcomes');
-         e = defaults.block('all_events');
+         [o,e] = defaults.block('all_outcomes','all_events');
          for iE = 1:numel(e)
             for iO = 1:numel(o)
                updateSpikeRateData(obj,e{iE},o{iO});
@@ -110,6 +108,11 @@ classdef block < handle
       % To handle case where obj.behaviorData is referenced accidentally 
       % instead of using loadbehaviorData method.
       function [b,flag] = behaviorData(obj,trialIdx)
+         %BEHAVIORDATA  Handles incorrect reference
+         %
+         %  [b,flag] = obj.behaviorData;
+         %  [b,flag] = obj.behaviorData(trialIdx);
+         
          if nargin < 2
             trialIdx = [];
          end
@@ -139,62 +142,16 @@ classdef block < handle
       
       % Remove "Outlier" status
       function clearOutlier(obj)
+         %CLEAROUTLIER  Removes "outlier" status for this Block
+         %
+         %  clearOutlier(obj);
+         
          if obj.IsOutlier
             obj.IsOutlier = false;
             fprintf(1,'%s marked as NOT an Outlier.\n',obj.Name);
          end
       end
-      
-      % Smooth spike rates
-      function doBinSmoothing(obj,w)
-         %DOBINSMOOTHING  Smooth spike rates
-         %
-         %  doBinSmoothing(obj,w);
-         %  --> If `w` not specified, uses value in
-         %        `defaults.block('spike_smoother_w');
-         %
-         %   -> Note: This smooths the histogram data and applies a
-         %              square-root transformation to the smoothed data in
-         %              order to help with the distribution skew.
-         
-         W = defaults.block('spike_bin_w');
-         if nargin < 2 % Smooth width, in bin indices
-            w = round(defaults.block('spike_smoother_w')/W);
-         end
-         
-         [ALIGN,EVENT] = defaults.block('all_alignments','all_events');
-         outpath = obj.getPathTo('spikerate');
-         spikeRateExpr = defaults.files('spike_rate_expr');
-         
-         for iE = 1:numel(EVENT)
-            for iA = 1:size(ALIGN,1)
-               savename = sprintf(...
-                  spikeRateExpr,obj.Name,w,...
-                  EVENT{iE},ALIGN{iA,1});
-               
-               if (exist(fullfile(outpath,savename),'file')==0) || ...
-                     defaults.block('overwrite_old_spike_data')
-               
-                  [data,t] = obj.loadBinnedSpikes(EVENT{iE},ALIGN{iA,1},W); %#ok<ASGLU>
-                  if isempty(data)
-                     continue;
-                  end
-                  for iCh = 1:numel(obj.ChannelInfo)
-                     data(:,:,iCh) = fastsmooth(sqrt(data(:,:,iCh)),w,'pg',1,1)./mode(diff(obj.T));
-                  end
 
-                  if exist(outpath,'dir')==0
-                     mkdir(outpath);
-                  end
-                  save(fullfile(outpath,savename),'data','t');
-                  fprintf(1,'-->\tSaved %s\n',savename);
-               end
-            end
-         end
-         
-         
-      end
-      
       % Put spikes into bins
       function data = doSpikeBinning(obj,behaviorData,w)
          %DOSPIKEBINNING  Puts spikes into bins
@@ -232,27 +189,20 @@ classdef block < handle
             return;
          end
          
-         ALIGN = defaults.block('all_alignments');
-         EVENT = defaults.block('all_events');
-         start_stop_bin = defaults.block('start_stop_bin');
+         [ALIGN,EVENT,start_stop_bin,outExpr] = ...
+            defaults.block('all_alignments','all_events',...
+               'start_stop_bin','fname_binned_spikes');
+
          vec = start_stop_bin(1):w:start_stop_bin(2);      
          t = vec(1:(end-1)) + mode(diff(vec))/2;
          outpath = obj.getPathTo('spikerate');
          if exist(outpath,'dir')==0
             mkdir(outpath);
          end
-%          [~,idx] = unique(behaviorData.Grasp);
-%          behaviorData = behaviorData(idx,:); % ensure only unique grasps
-         
          for iE = 1:numel(EVENT)
             for iA = 1:size(ALIGN,1)
-               
-               
-               savename = sprintf(...
-                  '%s_BinnedSpikes%03gms_%s_%s.mat',obj.Name,w,...
-                  EVENT{iE},ALIGN{iA,1});
-               
-               
+               savename = sprintf(outExpr,obj.Name,w,...
+                  EVENT{iE},ALIGN{iA,1});               
                if (exist(fullfile(outpath,savename),'file')==0) || ...
                      defaults.block('overwrite_old_spike_data')
                   
@@ -266,89 +216,82 @@ classdef block < handle
                         data(iTrial,:,iCh) = histcounts(ds,vec);
                      end
                   end
-
-
                   save(fullfile(outpath,savename),'data','t');
                   fprintf(1,'-->\tSaved %s\n',savename);
-                  
-               end
-               
-               
-               
+               end               
             end
          end
          
       end
       
-      % Downsample the smoothed/normalized spike rates (and save)
-      function doRateDownsample(obj)
-         %DORATEDOWNSAMPLE  Does rate down-sampling (if needed)
+      % Normalize & save rates (if needed)
+      function doRateNormalize(obj)
+         %DORATENORMALIZE  Does rate normalization (if needed)
          %
-         %  doRateDownsample(obj);
+         %  doRateNormalize(obj);
          %
          %  --> Note: this creates the files for 'NormSpikeRate' and
-         %            requires that the `doSpikeBinning` and
-         %            `doBinSmoothing` methods have already been done (they
-         %            are done in that order)
+         %            requires that the `doSpikeBinning` has already been
+         %            done)
 
-         n_ds_bin_edges = defaults.block('n_ds_bin_edges');
-         r_ds = defaults.block('r_ds');
+         if numel(obj) > 1
+            for i = 1:numel(obj)
+               doRateNormalize(obj(i));
+            end
+            return;
+         end
          
-         pre_trial_norm = defaults.block('pre_trial_norm');
-         % Note: spike_rate_smoother files will all still be at 1-ms
-         % "sample rate" although the smooth window may be "20-" or "30-"
-         % ms. Those files also have square-root-transform already applied.
-         spike_rate_smoother = defaults.block('spike_rate_smoother');
-         norm_spike_rate_tag = defaults.block('norm_spike_rate_tag');
-         fStr_in = defaults.block('fname_orig_rate');
-         fStr_out = defaults.block('fname_ds_rate');
-         o = defaults.block('all_outcomes');
-         e = defaults.block('all_events');
+         ioPath = obj.getPathTo('spikerate');
+         if exist(ioPath,'dir')==0
+            error(['RC:' mfilename ':MissingData'],...
+               ['\n<strong>[DORATENORMALIZE]:</strong> No such path: %s\n'...
+                '\t->\tMust first run `doSpikeBinning`\n'],ioPath);
+         end         
+         [pre_trial_norm,fStr_in,fStr_out,w,o,e] = defaults.block(...
+            'pre_trial_norm','fname_binned_spikes','fname_norm_rate',...
+            'spike_bin_w','all_outcomes','all_events');
          for iO = 1:numel(o)
             for iE = 1:numel(e)
                % Skip if there is no file to decimate
-               str = sprintf(fStr_in,obj.Name,spike_rate_smoother,e{iE},o{iO});
-               fName_In = fullfile(obj.getPathTo('rate'),str);
+               str = sprintf(fStr_in,obj.Name,w,e{iE},o{iO});
+               fName_In = fullfile(ioPath,str);
                if exist(fName_In,'file')==0
+                  fprintf(1,'\t->\tMissing: <strong>%s</strong>\n',...
+                     fname_In);
                   continue;
                end
                
                % Skip if it's already been extracted
-               str = sprintf(fStr_out,obj.Name,norm_spike_rate_tag,e{iE},o{iO},r_ds);
-               fName_Out = fullfile(obj.getPathTo('rate'),str);
+               str = sprintf(fStr_out,obj.Name,w,e{iE},o{iO});
+               fName_Out = fullfile(ioPath,str);
                if exist(fName_Out,'file')~=0
                   continue;
                else
-                  fprintf(1,'Extracting %s...\n',fName_Out);
+                  fprintf(1,'\t->\tExtracting: <strong>%s</strong>...',...
+                     fName_Out);
                end
                in = load(fName_In,'data','t');
                if isfield(in,'t')
                   if ~isempty(in.t)
-                     out.t = linspace(in.t(1),in.t(end),n_ds_bin_edges);
+                     t = linspace(in.t(1),in.t(end),n_ds_bin_edges);
                   else
-                     out.t = linspace(obj.T(1),obj.T(end),n_ds_bin_edges);
+                     t = linspace(obj.T(1),obj.T(end),n_ds_bin_edges);
                   end
                else
-                  out.t = linspace(obj.T(1),obj.T(end),n_ds_bin_edges);
+                  t = linspace(obj.T(1),obj.T(end),n_ds_bin_edges);
                end
                
-               if (max(abs(out.t)) < 10)
-                  out.t = out.t * 1e3;
+               % Time should be in milliseconds for everything
+               if (max(abs(t)) < 10)
+                  t = t * 1e3;
                end
                
-               data = obj.doSmoothNorm(in.data,pre_trial_norm);
-               out.data = zeros(size(data,1),n_ds_bin_edges,size(data,3));
-               for ii = 1:size(data,1)
-                  for ik = 1:size(data,3)
-                     out.data(ii,:,ik) = decimate(data(ii,:,ik),r_ds);
-                  end
-               end
-               save(fName_Out,'-struct','out');
-                                                            
+               data = sqrt(abs(in.data));
+               data = data - mean(data(:,pre_trial_norm,:),2);
+               save(fName_Out,'data','t','-v7.3');    
+               fprintf(1,'complete\n');
             end
-         end
-         
-                  
+         end                  
       end
       
       % Returns table of stats for all child Block objects where each row
@@ -3095,54 +3038,12 @@ classdef block < handle
          times = times(:,warp_params.trim:(end-warp_params.trim+1));
       end
       
-      % Static function to apply "smoothing" (lowpass filter) and
-      % normalization (square-root transform & mean-subtraction)
-      function y = doSmoothNorm(x,idx)
-         if nargin < 2
-            idx = defaults.block('pre_trial_norm_ds');
-         end
-         
-         % % This is skipped because lpf_fc == nan % %
-         filter_order = defaults.block('lpf_order');
-         fs = defaults.block('fs');
-         cutoff_freq = defaults.block('lpf_fc');
-         if ~isnan(cutoff_freq)
-            [b,a] = butter(filter_order,cutoff_freq/(fs/2),'low');
-         end
-
-%          z = sqrt(abs(x)) .* sign(x); % This is removed because already
-%          done in the rate estimation step
-         z = x - mean(x(:,idx,:),2);
-         if isnan(cutoff_freq)
-            y = z;
-         else
-            y = nan(size(z));
-            for iZ = 1:size(z,3)
-               for iT = 1:size(z,1)
-                  y(iT,:,iZ) = filtfilt(b,a,z(iT,:,iZ));
-               end
-            end
-         end
+      function y = doSmoothNorm(~,~) %#ok<STOUT>
+         error('Deprecated');
       end
       
-      % Static function to apply "smoothing" (lowpass filter)
-      function y = doSmoothOnly(x,fs)
-         filter_order = defaults.block('lpf_order');
-         if nargin < 2
-            fs = defaults.block('fs');
-         end
-         cutoff_freq = defaults.block('lpf_fc');
-         if ~isnan(cutoff_freq)
-            [b,a] = butter(filter_order,cutoff_freq/(fs/2),'low');
-         end
-         
-         mu = mean(x,1).'; 
-
-         if isnan(cutoff_freq)
-            y = mu.';
-         else
-            y = filtfilt(b,a,mu).';
-         end
+      function y = doSmoothOnly(~,~) %#ok<STOUT>
+         error('Deprecated');
       end
       
       % Make "probechannel" array from ChannelInfo struct

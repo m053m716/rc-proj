@@ -28,21 +28,35 @@ p.group_assignments = {[1:4,8:9],[5:7,10]};
 p.skip_save = false;
 
 % Analysis parameters
+% (Old)
 % p.t = linspace(-1.9995,0.9995,3000); % Times (sec) for recording bin centers
-p.t = linspace(-1.470,870,40); % Times (sec) for bin centers
 % p.start_stop_bin = [-2000 1000]; % ms
-p.start_stop_bin = [-1500 900]; % ms
-p.n_ds_bin_edges = local.defaults('N_DS_EDGES');
 % p.spike_bin_w = 1; % ms
-p.spike_bin_w = 60; % ms
 % p.spike_smoother_w = 30; % ms
-p.spike_smoother_w = 240; % ms
-p.alignment = 'Grasp';
-p.area = 'Full';
-p.outcome = 'Successful';
+% p.pre_trial_norm = 1:500; % sample indices [deprecated; now parsed from
+%                           % pre_trial_norm_epoch parameter]
 
-% Parameters that are parsed from other parameters
+% (New) - Apr-2020
+p.t = linspace(-1.470,870,40);   % Times (sec) for bin centers
+p.start_stop_bin = [-1500 900];  % ms
+p.n_ds_bin_edges = local.defaults('N_DS_EDGES');
+p.t_ms = p.t*1e3;
+p.spike_bin_w = 60; % ms
+p.spike_smoother_w = 240; % ms
+p.pre_trial_norm_epoch = [-1500 -1000];
+
+% Default subset of trials to look at
+p.alignment = 'Grasp';     % 'Grasp' or 'Reach' alignment
+p.area = 'Full';           % Recording unit area ('CFA','RFA','Full')
+p.outcome = 'Successful';  % 'Successful' or 'Unsuccessful' or 'All'
+
+% Parsed parameters
 p.t_ds = linspace(p.start_stop_bin(1),p.start_stop_bin(2),p.n_ds_bin_edges);
+p.r_ds = round((p.start_stop_bin(2) - p.start_stop_bin(1))/p.spike_bin_w/p.n_ds_bin_edges); 
+p.pre_trial_norm = find(...
+   (p.t_ms >= p.pre_trial_norm_epoch(1)) & ...
+   (p.t_ms <= p.pre_trial_norm_epoch(2)));
+p.pre_trial_norm_ds = p.pre_trial_norm(1):round(p.pre_trial_norm(end)/p.r_ds);
 
 % % % Display defaults (if no input or output supplied) % % %
 if (nargin == 0) && (nargout == 0)
