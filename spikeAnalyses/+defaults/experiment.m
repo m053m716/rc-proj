@@ -28,11 +28,15 @@ p.group_assignments = {[1:4,8:9],[5:7,10]};
 p.skip_save = false;
 
 % Analysis parameters
-p.t = linspace(-1.9995,0.9995,3000); % Times (sec) for recording bin centers
-p.start_stop_bin = [-2000 1000]; % ms
+% p.t = linspace(-1.9995,0.9995,3000); % Times (sec) for recording bin centers
+p.t = linspace(-1.470,870,40); % Times (sec) for bin centers
+% p.start_stop_bin = [-2000 1000]; % ms
+p.start_stop_bin = [-1500 900]; % ms
 p.n_ds_bin_edges = local.defaults('N_DS_EDGES');
-p.spike_bin_w = 1; % ms
-p.spike_smoother_w = 30; % ms
+% p.spike_bin_w = 1; % ms
+p.spike_bin_w = 60; % ms
+% p.spike_smoother_w = 30; % ms
+p.spike_smoother_w = 240; % ms
 p.alignment = 'Grasp';
 p.area = 'Full';
 p.outcome = 'Successful';

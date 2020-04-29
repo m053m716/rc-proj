@@ -6,10 +6,13 @@ function varargout = defaults(varargin)
 
 pars = struct;
 pars.CommunalDataTank = 'P:\Rat\BilateralReach\RC';
-pars.LocalDataTank = 'D:\MATLAB\Data\RC';
-pars.LocalMatlabReposFolder = 'D:\MATLAB\Projects';
+% pars.LocalDataTank = 'D:\MATLAB\Data\RC';
+pars.LocalDataTank = 'P:\Rat\BilateralReach\RC';
+% pars.LocalMatlabReposFolder = 'D:\MATLAB\Projects';
+pars.LocalMatlabReposFolder = 'C:\MyRepos\shared\rc-proj\spikeAnalyses';
 % pars.N_DS_EDGES = 100; % 30-ms windows
-pars.N_DS_EDGES = 60; % 50-ms windows
+% pars.N_DS_EDGES = 60; % 50-ms windows
+pars.N_DS_EDGES = 40; % 60-ms windows (updated times; uses new bin sizes)
 
 if nargin < 1
    varargout = {pars};   

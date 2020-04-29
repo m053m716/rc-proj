@@ -47,6 +47,7 @@ p.frame_snaps_loc = 'behavior-snapshots';
 p.spike_analyses_folder = '_SpikeAnalyses';
 p.fname_orig_rate = '%s%s%s_%s.mat';
 p.fname_ds_rate = '%s%s%s_%s_ds-%gx.mat';
+p.spike_rate_expr = '%s_SpikeRate%03gms_%s_%s.mat';
 
 % From `group`
 p.session_export_spreadsheet = 'Stats-By-Session.xlsx';

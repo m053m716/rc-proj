@@ -85,9 +85,10 @@ classdef block < handle
                fprintf(1,'-->\tCould not load behaviorData.\n');
                return;
             end
-            obj.doSpikeBinning(behaviorData);            
-            obj.doBinSmoothing;
-            obj.doRateDownsample;
+            obj.doSpikeBinning(behaviorData); % No transform
+%             obj.doBinSmoothing;     % Does square-root transform (old)
+%             obj.doRateDownsample;   % (old)
+            obj.doRateNormalize;
             fprintf(1,'Rate extraction for %s complete.\n\n',obj.Name);
 
          end
@@ -161,20 +162,20 @@ classdef block < handle
             w = round(defaults.block('spike_smoother_w')/W);
          end
          
-         ALIGN = defaults.block('all_alignments');
-         EVENT = defaults.block('all_events');
+         [ALIGN,EVENT] = defaults.block('all_alignments','all_events');
          outpath = obj.getPathTo('spikerate');
+         spikeRateExpr = defaults.files('spike_rate_expr');
          
          for iE = 1:numel(EVENT)
             for iA = 1:size(ALIGN,1)
                savename = sprintf(...
-                  '%s_SpikeRate%03gms_%s_%s.mat',obj.Name,w,...
+                  spikeRateExpr,obj.Name,w,...
                   EVENT{iE},ALIGN{iA,1});
                
                if (exist(fullfile(outpath,savename),'file')==0) || ...
                      defaults.block('overwrite_old_spike_data')
                
-                  [data,t] = obj.loadBinnedSpikes(EVENT{iE},ALIGN{iA,1},W);
+                  [data,t] = obj.loadBinnedSpikes(EVENT{iE},ALIGN{iA,1},W); %#ok<ASGLU>
                   if isempty(data)
                      continue;
                   end
