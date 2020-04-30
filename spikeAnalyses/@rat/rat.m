@@ -1302,8 +1302,7 @@ classdef rat < handle
                      trialID = b.Properties.RowNames;
                      b.Trial_ID = trialID;
                      b.Properties.RowNames = {};
-                     BehaviorData = [BehaviorData; ...
-                        repmat(b(:,[1:5,7,9,11]),nCh,1)];
+                     BehaviorData = [BehaviorData; repmat(b,nCh,1)];
                      Area = [Area; repmat(area(iArea),nRow,1)];
                      Alignment = [Alignment; repmat(align(iAlign),nRow,1)];
                      % Concatenate so columns are timesteps, rows are
@@ -1326,7 +1325,7 @@ classdef rat < handle
          Alignment = categorical(Alignment,align_all);
          T = [table(AnimalID,BlockID,PostOpDay,Alignment,...
                      ML,ICMS,Area,ProbeID,Probe,ChannelID,Channel),...
-               BehaviorData, ...
+               BehaviorData(:,[1:5,7,9,11]), ...
                table(Rate)];
          T.Properties.UserData = struct('t',t);
          
