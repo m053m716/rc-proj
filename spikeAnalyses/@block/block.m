@@ -383,8 +383,11 @@ classdef block < handle
                   trialID{i} = sprintf('%s_%03g',obj.Name,i);
                end               
                behaviorData.Properties.RowNames = trialID;
-               behaviorData.Properties.DimensionNames{1} = 'Trial ID';
+               behaviorData.Properties.DimensionNames{1} = 'Trial_ID';
                % Make sure it's saved for next time:
+               save(fname,'behaviorData','-append');
+            elseif strcmp(behaviorData.Properties.DimensionNames{1},'TrialID')
+               behaviorData.Properties.DimensionNames{1} = 'Trial_ID';
                save(fname,'behaviorData','-append');
             end
             obj.HasData = true;
