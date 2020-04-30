@@ -27,6 +27,9 @@ p.behavior_data_file = fullfile(pname,'behavior_data.xlsx');
 p.rate_table = fullfile(pname,'rate_data.mat');
 p.rate_csv = fullfile(pname,'rate_data.csv');
 
+% For "Tableau" visualization:
+p.rate_tableau_table = 'S:\Data\Grasp-Aligned Rates.xlsx';
+
 % From analyses
 p.spike_folder_tag = '_wav-sneo_CAR_Spikes';
 p.condition_response_corr_loc = 'cross-day-correlations';
@@ -61,6 +64,10 @@ p.rat_export_spreadsheet = 'Stats-By-Rat.xlsx';
 p.trial_export_spreadsheet = 'Stats-By-Trial.xlsx';
 p.marg_fig_loc = 'marginal-rate-average-figs_ds-50x';
 p.marg_fig_name = '%s-%s_%s__X__%s%s';
+p.default_rowtimes_file = 'S:\Data\All Times.xlsx';
+
+% For Tableau files
+p.table_rows_file = 'S:\Data\All Rates__RowNames.mat';
 
 % Parse output
 if nargin < 1

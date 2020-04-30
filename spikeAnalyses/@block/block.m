@@ -377,6 +377,16 @@ classdef block < handle
                behaviorData.PelletPresent(iPresent) = 1;
                behaviorData.PelletPresent(iAbsent) = 0;
             end
+            if ~ismember(behaviorData.Properties.VariableNames,'Trial_ID')
+               trialID = cell(size(behaviorData,1),1);
+               for i = 1:numel(trialID)
+                  trialID{i} = sprintf('%s_%03g',obj.Name,i);
+               end               
+               behaviorData.Properties.RowNames = trialID;
+               behaviorData.Properties.DimensionNames{1} = 'Trial ID';
+               % Make sure it's saved for next time:
+               save(fname,'behaviorData','-append');
+            end
             obj.HasData = true;
          else
             fprintf(1,'Scoring file found, but no behaviorData table (%s)\n',obj.Name);

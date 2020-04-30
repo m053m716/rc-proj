@@ -1299,7 +1299,11 @@ classdef rat < handle
                      probe = [channelInfo.probe];
                      probe = repmat(probe,nTrial,1);
                      Probe = [Probe; probe(:)];
-                     BehaviorData = [BehaviorData; repmat(b,nCh,1)];
+                     trialID = b.Properties.RowNames;
+                     b.Trial_ID = trialID;
+                     b.Properties.RowNames = {};
+                     BehaviorData = [BehaviorData; ...
+                        repmat(b(:,[1:5,7,9,11]),nCh,1)];
                      Area = [Area; repmat(area(iArea),nRow,1)];
                      Alignment = [Alignment; repmat(align(iAlign),nRow,1)];
                      % Concatenate so columns are timesteps, rows are
@@ -1311,9 +1315,9 @@ classdef rat < handle
             end
          end
          % Get unique channel ID for each animal
-         Channel = Channel + (Probe - 1).*16 + (32*id); 
+         ChannelID = Channel + (Probe - 1).*16 + (32*id); 
          % Get unique probe ID for each animal
-         Probe = Probe + 2*id; 
+         ProbeID = Probe + 2*id; 
          AnimalID = repmat(id,numel(BlockID),1);
          AnimalID = categorical(AnimalID,rat_ids,rat_names);
          ICMS = categorical(ICMS,icms_all);
@@ -1321,8 +1325,9 @@ classdef rat < handle
          Area = categorical(Area,area_all);
          Alignment = categorical(Alignment,align_all);
          T = [table(AnimalID,BlockID,PostOpDay,Alignment,...
-                     ML,ICMS,Area,Probe,Channel),...
-              BehaviorData(:,[1:5,7,9]), table(Rate)];
+                     ML,ICMS,Area,ProbeID,Probe,ChannelID,Channel),...
+               BehaviorData, ...
+               table(Rate)];
          T.Properties.UserData = struct('t',t);
          
       end

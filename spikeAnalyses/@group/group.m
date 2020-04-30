@@ -651,13 +651,22 @@ classdef group < matlab.mixin.Copyable
             for i = 1:numel(obj)
                T = [T; getRateTable(obj(i),align,includeStruct,area)];
             end
-            T.Channel = categorical(T.Channel);
+            T.ChannelID = categorical(T.ChannelID);
+            T.ProbeID = categorical(T.ProbeID);
             T.BlockID = categorical(T.BlockID);
-            T.Probe = categorical(T.Probe);
+            f = defaults.files('table_rows_file');
+            if exist(f,'file')~=0
+               fprintf(1,'\t->\tFound RowNames file: ');
+               fprintf(1,'<strong>%s</strong>...loading...',f);
+               in = load(f,'RowNames');
+               fprintf(1,'complete\n');
+               T.Properties.RowNames = in.RowNames;
+            end            
             sounds__.play('bell',1.25);
             return;
          end
          
+         utils.addHelperRepos(); % Make sure "Utility" repo is present
          T = getRateTable(obj.Children,align,includeStruct,area);
          T = T(any(T.Rate,2),:); % Remove rows where rate is "zero"
          Group = repmat(...
@@ -675,6 +684,7 @@ classdef group < matlab.mixin.Copyable
 %          T.Properties.UserData.Transform = ...
 %             defaults.experiment('rate_smoothing_fcn');
 %          T.Rate = feval(T.Properties.UserData.Transform,T.Rate);
+         T.Properties.RowNames = tag__.makeKey(size(T,1),'unique','ROWID_');
          T.Properties.Description = ...
             'Table of normalized rate time-series for each trial';
       end
