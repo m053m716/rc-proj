@@ -11,7 +11,7 @@ function varargout = files(varargin)
 %  -> 'icms_data_name'  : Name of icms excel spreadsheet
 
 p = struct;
-[tank,pname] = local.defaults('CommunalDataTank','LocalDataTank');
+[tank,pname,ptableau] = local.defaults('CommunalDataTank','LocalDataTank','TableauFolder');
 p.tank = tank;
 p.local_tank = pname;
 p.remote_tank = tank;
@@ -28,7 +28,9 @@ p.rate_table = fullfile(pname,'rate_data.mat');
 p.rate_csv = fullfile(pname,'rate_data.csv');
 
 % For "Tableau" visualization:
-p.rate_tableau_table = 'S:\Data\Grasp-Aligned Rates.xlsx';
+p.rate_tableau_table = fullfile(ptableau,'All Rates.xlsx');
+p.rate_tableau_rownames = fullfile(ptableau,'All Rates__RowNames.mat');
+p.rate_tableau_alltimes = fullfile(ptableau,'All Times.xlsx');
 
 % From analyses
 p.spike_folder_tag = '_wav-sneo_CAR_Spikes';
