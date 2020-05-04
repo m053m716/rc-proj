@@ -18,7 +18,8 @@ end
 T.Properties.DimensionNames{1} = 'Trial ID';
 Meta = T(:,[1:12,18,19]);
 Events = T(:,11:15);
-Data = T(:,20);
+% Data = table(T.Rate);
+data = T.Rate;
 Time = milliseconds(T.Properties.UserData.t).';
 TT = table(Time);
 Locations = make.location_table(T);
@@ -31,10 +32,13 @@ Locations = make.location_table(T);
 
 % Make sure the variable names stay in alphabetical order (e.g. not Rate_1
 % ... Rate_10, Rate_11, ... Rate_100, etc)
-Data = splitvars(Data,'Rate');
-for i = 1:numel(Data.Properties.VariableNames)
+% Data = splitvars(Data,'Rate');
+Data = table.empty;
+% for i = 1:numel(Data.Properties.VariableNames)
+for i = 1:size(data,2)
    rateName = sprintf('Rate_%02g',i);
-   Data.Properties.VariableNames{i} = rateName;
+   Data = [Data, table(data(:,i),'VariableNames',{rateName})]; %#ok<AGROW>
+%    Data.Properties.VariableNames{i} = rateName;
    TT.Properties.RowNames{i} = rateName;
 end
 
