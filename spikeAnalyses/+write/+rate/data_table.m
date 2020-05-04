@@ -16,9 +16,9 @@ end
 
 % Split up table
 T.Properties.DimensionNames{1} = 'Trial ID';
-RecordingMeta = T(:,[1:10,16,17]);
-TrialMeta = T(:,11:15);
-Data = T(:,18);
+Meta = T(:,[1:12,18,19]);
+Events = T(:,11:15);
+Data = T(:,20);
 Time = milliseconds(T.Properties.UserData.t).';
 TT = table(Time);
 Locations = make.location_table(T);
@@ -64,23 +64,23 @@ sounds__.play('pop',1.0,-15);
 fprintf(1,'complete\n');
 
 fprintf(1,'Writing %s::<strong>Recording Metadata</strong>...',f);
-writetable(RecordingMeta,fname,...
+writetable(Meta,fname,...
    'WriteRowNames',true,...
-   'Sheet','Recording Metadata');
+   'Sheet','Meta');
 fprintf(1,'complete\n');
 sounds__.play('pop',0.9,-15);
 
 fprintf(1,'Writing %s::<strong>Trial Metadata</strong>...',f);
-writetable(TrialMeta,fname,...
+writetable(Events,fname,...
    'WriteRowNames',true,...
-   'Sheet','Trial Metadata');
+   'Sheet','Events');
 sounds__.play('pop',0.8,-15);
 fprintf(1,'complete\n');
 
 fprintf(1,'Writing %s::<strong>Time-Series</strong>...',f);
 writetable(Data,fname,...
    'WriteRowNames',true,...
-   'Sheet','Time-Series');
+   'Sheet','Rate');
 sounds__.play('bell',1.0,-15);
 fprintf(1,'complete\n\n\t');
 toc;
