@@ -17,6 +17,8 @@ function Locations = location_table(T,E)
 %                 {'Rat','CFA_AP','CFA_ML','RFA_AP','RFA_ML'}
 %                 Which is used to give the coordinates of both electrodes
 %                 (centers; units: mm)
+%              -> Can be supplied without giving `T` input by calling:
+%                 Locations = make.location_table([],E);
 %
 %  -- Output --
 %  Locations : Table with X, Y coordinate data for Tableau background image
@@ -30,9 +32,13 @@ if nargin < 2
    E = readtable(defaults.block('elec_info_xlsx'));
 end
 
+if nargin < 1
+   T = defaults.files('default_rowmeta_matfile');
+elseif isempty(T)
+   T = defaults.files('default_rowmeta_matfile');
+end
+
 if ischar(T)
-   % This can be accessed using: 
-   % 'P:\Rat\BilateralReach\RC\RowMetadata.mat'
    in = load(T,'RowMeta');
    T = in.RowMeta; clear in;
 end
@@ -71,7 +77,7 @@ for i = 1:numel(area_cats)
 end
 Key = table(AnimalID,Area,Xc,Yc);
 
-Locations = innerjoin(Locations,Key);
+Locations = innerjoin(Locations,Key,'Keys',{'AnimalID','Area'});
 
 X = Locations.Xc;
 Y = Locations.Yc;
@@ -83,7 +89,9 @@ end
 Locations.X = X;
 Locations.Y = Y;
 Locations.Properties.RowNames = T.Properties.RowNames;
+Locations.Properties.DimensionNames{1} = 'Trial_ID';
 Locations = unique(Locations,'rows');
+utils.addHelperRepos();
 sounds__.play('pop',1.2,-20);
 
 end

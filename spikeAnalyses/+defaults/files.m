@@ -29,8 +29,9 @@ p.rate_csv = fullfile(pname,'rate_data.csv');
 
 % For "Tableau" visualization:
 p.rate_tableau_table = fullfile(ptableau,'All Rates.xlsx');
-p.rate_tableau_rownames = fullfile(ptableau,'All Rates__RowNames.mat');
-p.rate_tableau_alltimes = fullfile(ptableau,'All Times.xlsx');
+p.table_rows_file = fullfile(ptableau,'All Rates__RowNames.mat');
+p.default_rowtimes_file = fullfile(ptableau,'All Times.xlsx');
+p.default_rowmeta_matfile = fullfile(tank,'RowMetadata.mat');
 
 % From analyses
 p.spike_folder_tag = '_wav-sneo_CAR_Spikes';
@@ -67,9 +68,7 @@ p.trial_export_spreadsheet = 'Stats-By-Trial.xlsx';
 p.marg_fig_loc = 'marginal-rate-average-figs_ds-50x';
 p.marg_fig_name = '%s-%s_%s__X__%s%s';
 
-% For Tableau files
-[p.default_rowtimes_file,p.table_rows_file] = ...
-   local.defaults('TableTimesFile','TableRowsFile');
+
 
 % Parse output
 if nargin < 1
