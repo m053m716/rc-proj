@@ -65,6 +65,19 @@ p.outcome = 'Successful';  % 'Successful' or 'Unsuccessful' or 'All'
 %  * 'TrueScore'        (based on only trials WITH pellets; revised)
 p.output_score = 'TrueScore';
 
+% "Includes": includeStruct determines what alignments are used based on
+% tagged video metadata
+p.rate_table_includes = ...
+   {utils.makeIncludeStruct({'Reach','Grasp','Complete','Outcome'},[]); ...
+    utils.makeIncludeStruct({'Reach','Grasp','Complete'},{'Outcome'})};
+
+% For output Tableau tables, "metadata" variables and "event" variables go
+% into different files
+p.meta_vars = {'Group','AnimalID','BlockID','PostOpDay','Alignment','ML',...
+      'ICMS','Area','ProbeID','Probe','ChannelID','Channel','Trial_ID',...
+      'PelletPresent','Outcome'};
+p.event_vars = {'Reach','Grasp','Support','Complete'};
+ 
 % Default "rate-smoothing" function (only applied to `getRateTable`
 % extracted rates, not anything in .mat files)
 p.rate_smoothing_fcn = @(rate)sgolayfilt(rate,3,11,ones(1,11),2);

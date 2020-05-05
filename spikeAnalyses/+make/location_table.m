@@ -42,11 +42,13 @@ if ischar(T)
    in = load(T,'RowMeta');
    T = in.RowMeta; clear in;
 end
-
-Locations = T(:,[2,8,12]);
-[AnimalID,id] = defaults.experiment('rat_cats','rat_id');
-ID = table(AnimalID,id);
-Locations = innerjoin(Locations,ID);
+keepVars = {'AnimalID','BlockID','Area','Probe','Channel'};
+keepIdx = ismember(T.Properties.VariableNames,keepVars);
+Locations = T(:,keepIdx);
+[AnimalID,Rat] = defaults.experiment('rat_cats','rat_id');
+ID = table(AnimalID,Rat);
+Locations = innerjoin(Locations,ID,'Keys',{'AnimalID'});
+Locations = Locations(:,[end,(1:(end-1))]);
 
 % % Get other info related to electrode positions % %
 [grid_x,grid_y,grid_ord,area_cats] = defaults.block(...
@@ -77,6 +79,7 @@ for i = 1:numel(area_cats)
 end
 Key = table(AnimalID,Area,Xc,Yc);
 
+% Assigns "area centers" to `Locations` table
 Locations = innerjoin(Locations,Key,'Keys',{'AnimalID','Area'});
 
 X = Locations.Xc;
@@ -89,8 +92,7 @@ end
 Locations.X = X;
 Locations.Y = Y;
 Locations.Properties.RowNames = T.Properties.RowNames;
-Locations.Properties.DimensionNames{1} = 'Trial_ID';
-Locations = unique(Locations,'rows');
+Locations.Properties.DimensionNames{1} = 'Series_ID';
 utils.addHelperRepos();
 sounds__.play('pop',1.2,-20);
 

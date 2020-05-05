@@ -601,7 +601,7 @@ classdef group < matlab.mixin.Copyable
       end
       
       % Return table of rates
-      function T = getRateTable(obj,align,includeStruct,area)
+      function T = getRateTable(obj,align,includeStruct,area,autoSave)
          %GETRATETABLE  Returns table of per-trial rate trajectories
          %
          %  T = getRateTable(obj);
@@ -609,7 +609,7 @@ classdef group < matlab.mixin.Copyable
          %     alignments. Specify optional arguments in case you want to
          %     save space or speed up pulling a subset of the table.
          %
-         %  T = getRateTable(obj,align,includeStruct,area);
+         %  T = getRateTable(obj,align,includeStruct,area,autoSave);
          %
          %  -- Inputs --
          %  obj : `rat` class object
@@ -625,17 +625,40 @@ classdef group < matlab.mixin.Copyable
          %
          %  area : 'RFA', 'CFA', or {'RFA','CFA'} (which areas to pull)
          %  -> Default is {'RFA','CFA'} (pulls channels from both areas)
+         %
+         %  autoSave : Default is false. Specify as true to automatically
+         %              save the aggregated data table to a matfile prior
+         %              to returning the table to calling workspace.
+         
+         if nargin < 5
+            autoSave = false;
+         end
          
          if nargin < 4
             area = {'RFA','CFA'};
+         elseif islogical(area) && (nargin < 5)
+            autoSave = area;
+            area = {'RFA','CFA'};
+         elseif islogical(area) && (nargin >= 5)
+            tmpSave = area;
+            if ischar(autoSave)
+               area = {autoSave};
+            elseif iscell(autoSave)
+               area = autoSave;
+            else
+               error(['RC:' mfilename ':BadInputType'],...
+                  ['\n\t->\t<strong>[GROUP.GETRATETABLE]:</strong> ' ...
+                   'Unexpected input class: %s; check inputs\n'...
+                   '\t\t\t(Could be problem with `area` input)\n'],...
+                   class(autoSave));
+            end
+            autoSave = tmpSave;
          elseif ~iscell(area)
             area = {area};
          end
          
          if nargin < 3
-            includeStruct = ...
-             {utils.makeIncludeStruct({'Reach','Grasp','Complete','Outcome'},[]); ...
-              utils.makeIncludeStruct({'Reach','Grasp','Complete'},{'Outcome'})};
+            includeStruct = defaults.experiment('rate_table_includes');
          elseif ~iscell(includeStruct)
             includeStruct = {includeStruct};
          end
@@ -651,16 +674,58 @@ classdef group < matlab.mixin.Copyable
             for i = 1:numel(obj)
                T = [T; getRateTable(obj(i),align,includeStruct,area)];
             end
+            
+            fprintf(1,'\n--\t--\t--\n');
+            fprintf(1,'<strong>Table aggregation complete</strong>');
+            fprintf(1,'\n--\t--\t--\n');
+            
             T.ChannelID = categorical(T.ChannelID);
             T.ProbeID = categorical(T.ProbeID);
             T.BlockID = categorical(T.BlockID);
-            f = defaults.files('table_rows_file');
-            if exist(f,'file')~=0
-               fprintf(1,'\t->\tFound RowNames file: ');
-               fprintf(1,'<strong>%s</strong>...loading...',f);
-               in = load(f,'RowNames');
-               fprintf(1,'complete\n');
-               T.Properties.RowNames = in.RowNames;
+            [f_rows,f_tab,f_def] = defaults.files('table_rows_file',...
+               'rate_tableau_table_matfile','default_rowmeta_matfile');
+            if (exist(f_rows,'file')~=0) 
+               if autoSave
+                  fprintf(1,'\t->\tFound RowNames file: ');
+                  fprintf(1,'<strong>%s</strong>...overwriting...',f_rows);
+                  RowNames = T.Properties.RowNames;
+                  save(f_rows,'RowNames','-v7.3');
+                  fprintf(1,'complete\n');
+                  
+                  fprintf(1,'\t->\tAuto-saving Table: ');
+                  fprintf(1,'<strong>%s</strong>...overwriting...',f_tab);
+                  save(f_tab,'T','-v7.3');
+                  fprintf(1,'complete\n');
+                  
+                  metaVars = defaults.experiment('meta_vars');
+                  metaIdx = ismember(T.Properties.VariableNames,metaVars);
+                  RowMeta = T(:,metaIdx);
+                  save(f_def,'RowMeta','-v7.3');
+               else
+                  fprintf(1,'\t->\tFound RowNames file: ');
+                  fprintf(1,'<strong>%s</strong>...loading...',f_rows);
+                  in = load(f_rows,'RowNames');
+                  fprintf(1,'complete\n');
+                  T.Properties.RowNames = in.RowNames;
+               end
+            else
+               if autoSave
+                  fprintf(1,'\t->\Writing RowNames file: ');
+                  fprintf(1,'<strong>%s</strong>...saving...',f_rows);
+                  RowNames = T.Properties.RowNames;
+                  save(f_rows,'RowNames','-v7.3');
+                  fprintf(1,'complete\n');
+                  
+                  fprintf(1,'\t->\tAuto-saving Table: ');
+                  fprintf(1,'<strong>%s</strong>...overwriting...',f_tab);
+                  save(f_tab,'T','-v7.3');
+                  fprintf(1,'complete\n');
+                  
+                  metaVars = defaults.experiment('meta_vars');
+                  metaIdx = ismember(T.Properties.VariableNames,metaVars);
+                  RowMeta = T(:,metaIdx);
+                  save(f_def,'RowMeta','-v7.3');
+               end
             end            
             sounds__.play('bell',1.25);
             return;
