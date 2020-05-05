@@ -355,8 +355,22 @@ classdef block < handle
       end
       
       % Load behavior scoring file
-      function behaviorData = loadBehaviorData(obj)
-         path = obj.getPathTo('scoring');
+      function behaviorData = loadBehaviorData(obj,path)
+         %LOADBEHAVIORDATA  Returns table where rows are trials
+         %
+         %  behaviorData = loadBehaviorData(obj,path);
+         %
+         %  -- Inputs --
+         %  obj : `block` class object
+         %  path : char array to path of behaviorData object
+         %
+         %  -- Output --
+         %  behaviorData : Table of behavior data where columns are either
+         %                    timestamps or metadata
+         
+         if nargin < 2
+            path = obj.getPathTo('scoring');
+         end
          fname = fullfile(path,[obj.Name '_Scoring.mat']);
          if exist(fname,'file')==0
             behaviorData = [];
@@ -385,15 +399,19 @@ classdef block < handle
                behaviorData.Properties.RowNames = trialID;
                behaviorData.Properties.DimensionNames{1} = 'Trial_ID';
                % Make sure it's saved for next time:
-               save(fname,'behaviorData','-append');
+               save(fname,'behaviorData','-v7.3');
             elseif strcmp(behaviorData.Properties.DimensionNames{1},'TrialID')
                behaviorData.Properties.DimensionNames{1} = 'Trial_ID';
-               save(fname,'behaviorData','-append');
+               save(fname,'behaviorData','-v7.3');
             end
             obj.HasData = true;
          else
             fprintf(1,'Scoring file found, but no behaviorData table (%s)\n',obj.Name);
             behaviorData = [];
+         end
+         if nargout < 1
+            disp(behaviorData);
+            clear behaviorData
          end
       end
       
