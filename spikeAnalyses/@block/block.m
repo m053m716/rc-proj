@@ -2145,6 +2145,10 @@ classdef block < handle
          %                    normalized rate data.
          %              --> Must be assigned to the rate `.Data` struct
          %                  property field using `updateSpikeRateData`
+         %              --> Rate has the BLOCK channel mask applied. Any
+         %                    other returned "channels" info (e.g.
+         %                    `channelInfo` struct array) also has the
+         %                    channel mask applied to it.
          
          % Parse input
          if nargin < 4

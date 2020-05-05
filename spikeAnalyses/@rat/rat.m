@@ -1263,7 +1263,14 @@ classdef rat < handle
          Rate = [];
          Probe = [];
          Channel = [];
-         BehaviorData = table.empty;
+         Trial_ID = [];
+         Trial = [];
+         Reach = [];
+         Grasp = [];
+         Support = [];
+         Complete = [];
+         PelletPresent = [];
+         Outcome = [];
          for ii = 1:nChild
             for iAlign = 1:nAlign
                for iArea = 1:nArea
@@ -1285,26 +1292,53 @@ classdef rat < handle
                      if nRow == 0
                         continue;
                      end
-                     PostOpDay = [PostOpDay; repmat(obj.Children(ii).PostOpDay,nRow,1)];
-                     BlockID = [BlockID; repmat(30*id+ii,nRow,1)];
-                     ml = {channelInfo.ml};
+                     % Day: Same for each element
+                     PostOpDay = [PostOpDay; ...
+                        repmat(obj.Children(ii).PostOpDay,nRow,1)];
+                     % Block: Same for all members of this iteration
+                     BlockID = [BlockID; ...
+                        repmat(30*id+ii,nRow,1)];
+                     % Area: Same for all members of this iteration
+                     Area = [Area; repmat(area(iArea),nRow,1)];
+                     % Alignment: Same for all memebers of this iteration
+                     Alignment = [Alignment; repmat(align(iAlign),nRow,1)];
+                     
+                     % Mediolateral Location: Repeated  [1,1,1,...2,2,2....]
+                     ml = reshape({channelInfo.ml},1,nCh);
                      ml = repmat(ml,nTrial,1);
                      ML = [ML; ml(:)];
-                     icms = {channelInfo.icms};
+                     % ICMS: Repeated channels info [1,1,1,...2,2,2....]
+                     icms = reshape({channelInfo.icms},1,nCh);
                      icms = repmat(icms,nTrial,1);
                      ICMS = [ICMS; icms(:)];
-                     channel = [channelInfo.channel];
+                     % Channel Index: Repeated  [1,1,1,...2,2,2....]
+                     channel = reshape([channelInfo.channel],1,nCh);
                      channel = repmat(channel,nTrial,1);
                      Channel = [Channel; channel(:)];
-                     probe = [channelInfo.probe];
+                     % Probe Index: Repeated  [1,1,1,...2,2,2....]
+                     probe = reshape([channelInfo.probe],1,nCh);
                      probe = repmat(probe,nTrial,1);
                      Probe = [Probe; probe(:)];
-                     trialID = b.Properties.RowNames;
-                     b.Trial_ID = trialID;
-                     b.Properties.RowNames = {};
-                     BehaviorData = [BehaviorData; repmat(b,nCh,1)];
-                     Area = [Area; repmat(area(iArea),nRow,1)];
-                     Alignment = [Alignment; repmat(align(iAlign),nRow,1)];
+                     
+                     % Trial ID: Repeated  [1,2,3,...1,2,3...]
+                     Trial_ID = [Trial_ID; ...
+                        repmat(b.Properties.RowNames,nCh,1)];
+
+                     % Reach (ts; sec): Repeated  [1,2,3,...1,2,3...]
+                     Reach = [Reach; repmat(b.Reach,nCh,1)];
+                     % Grasp (ts; sec): Repeated  [1,2,3,...1,2,3...]
+                     Grasp = [Grasp; repmat(b.Grasp,nCh,1)];
+                     % Support (ts; sec): Repeated  [1,2,3,...1,2,3...]
+                     Support = [Support; repmat(b.Support,nCh,1)];
+                     % Complete (ts; sec): Repeated  [1,2,3,...1,2,3...]
+                     Complete = [Complete; repmat(b.Complete,nCh,1)];
+                     
+                     % Pellet Present flag: Repeated  [1,2,3,...1,2,3...]
+                     PelletPresent = [PelletPresent; ...
+                        repmat(b.PelletPresent,nCh,1)];
+                     % Success flag: Repeated  [1,2,3,...1,2,3...]
+                     Outcome = [Outcome; repmat(b.Outcome,nCh,1)];
+                     
                      % Concatenate so columns are timesteps, rows are
                      % channel/trial combinations.
                      r = permute(rate,[3 1 2]);
@@ -1323,10 +1357,10 @@ classdef rat < handle
          ML = categorical(ML,ml_all);
          Area = categorical(Area,area_all);
          Alignment = categorical(Alignment,align_all);
-         T = [table(AnimalID,BlockID,PostOpDay,Alignment,...
-                     ML,ICMS,Area,ProbeID,Probe,ChannelID,Channel),...
-               BehaviorData(:,[1:5,7,9,end]), ...
-               table(Rate)];
+         T = table(AnimalID,BlockID,PostOpDay,Alignment,...
+                     ML,ICMS,Area,ProbeID,Probe,ChannelID,Channel,...
+                     Trial_ID,Reach,Grasp,Support,Complete, ...
+                     PelletPresent,Outcome,Rate);
          T.Properties.UserData = struct('t',t);
          
       end
