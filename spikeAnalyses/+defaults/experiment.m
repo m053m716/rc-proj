@@ -80,7 +80,8 @@ p.event_vars = {'Reach','Grasp','Support','Complete'};
  
 % Default "rate-smoothing" function (only applied to `getRateTable`
 % extracted rates, not anything in .mat files)
-p.rate_smoothing_fcn = @(rate)sgolayfilt(rate,3,11,ones(1,11),2);
+p.rate_smoothing_fcn = @(rate)sgolayfilt(rate,3,17,ones(1,17),2);
+p.pca_exclusion_fcn = @(T)T(T.PelletPresent=={'Present'},:);
 
 % Default colors (for figures, etc.)
 p.event_color = {[0.1 0.1 0.7], ... 'reach'
@@ -114,6 +115,10 @@ p.rat_color = struct(...
       0.10  0.10  0.75;    % RC-21
       0.15  0.15  0.80]);  % RC-43
 p.rat_marker = {'o','*','square','x','v','hexagram'};
+
+% % For PCA stuff (2020) % %
+p.pca_n = 3;
+p.pca_opts = statset('Display','off');
 
 % % % Parameters that are parsed from other parameters % % %
 p.t_ms = p.t*1e3;

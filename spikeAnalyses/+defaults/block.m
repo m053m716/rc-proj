@@ -23,7 +23,7 @@ p.fs = 24414.0625;   % Sampling frequency for acquisition
 
 % For constructor
 p.do_spike_rate_extraction = true;
-p.overwrite_old_spike_data = false;
+p.overwrite_old_spike_data = true;
 p.run_jpca_on_construction = false;
 
 % Optimizer for fitting the "rebase" projection matrix

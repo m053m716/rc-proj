@@ -684,6 +684,7 @@ classdef group < matlab.mixin.Copyable
             T.BlockID = categorical(T.BlockID);
             [f_rows,f_tab,f_def] = defaults.files('table_rows_file',...
                'rate_tableau_table_matfile','default_rowmeta_matfile');
+            
             if (exist(f_rows,'file')~=0) 
                if autoSave
                   fprintf(1,'\t->\tFound RowNames file: ');
@@ -745,13 +746,17 @@ classdef group < matlab.mixin.Copyable
          T.Outcome = categorical(T.Outcome,...
             [0,1],{'Successful','Unsuccessful'});
          
-%          % Associate properties for Transformed rate etc. on UserData
-%          T.Properties.UserData.Transform = ...
-%             defaults.experiment('rate_smoothing_fcn');
-%          T.Rate = feval(T.Properties.UserData.Transform,T.Rate);
+         % Associate properties for Transformed rate etc. on UserData
+         [rate_smooth_fcn,pca_exclusion_fcn] = ...
+            defaults.experiment('rate_smoothing_fcn','pca_exclusion_fcn');
+         T.Properties.UserData.Transform = rate_smooth_fcn;
+         T.Rate = feval(T.Properties.UserData.Transform,T.Rate);
+         T.Properties.UserData.IsTransformed = true;
          T.Properties.RowNames = tag__.makeKey(size(T,1),'unique','ROWID_');
          T.Properties.Description = ...
             'Table of normalized rate time-series for each trial';
+         T.Properties.UserData.PCA_Exclude_Fcn = pca_exclusion_fcn;
+         
       end
       
       % Get or Set XC-MEAN struct fields based on includeStruct format

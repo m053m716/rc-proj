@@ -154,12 +154,21 @@ classdef block < handle
       end
 
       % Put spikes into bins
-      function data = doSpikeBinning(obj,behaviorData,w)
+      function data = doSpikeBinning(obj,behaviorData,w,forceOverwrite)
          %DOSPIKEBINNING  Puts spikes into bins
          %
          %  data = doSpikeBinning(obj,behaviorData,w);
          %  --> Note: This is required prior to running `doBinSmoothing`
          %  --> Note: This extracts non-square-root; non-normalized rates
+         %
+         %  data = doSpikeBinning(obj,behaviorData,w,forceOverwrite);
+         %  --> By default, forceOverwrite is set to
+         %  `defaults.block('overwrite_old_spike_data')`; can also be set
+         %  manually using the 4th input argument.
+         
+         if nargin < 4
+            forceOverwrite = defaults.block('overwrite_old_spike_data');
+         end
          
          if nargin < 3 % Bin width, in ms
             w = defaults.block('spike_bin_w');
@@ -204,9 +213,7 @@ classdef block < handle
             for iA = 1:size(ALIGN,1)
                savename = sprintf(outExpr,obj.Name,w,...
                   EVENT{iE},ALIGN{iA,1});               
-               if (exist(fullfile(outpath,savename),'file')==0) || ...
-                     defaults.block('overwrite_old_spike_data')
-                  
+               if (exist(fullfile(outpath,savename),'file')==0) || forceOverwrite
                   ts = behaviorData.(EVENT{iE})(...
                      ismember(behaviorData.Outcome,ALIGN{iA,2}));
                   data = zeros(numel(ts),numel(vec)-1,numel(obj.ChannelInfo));
@@ -944,6 +951,32 @@ classdef block < handle
          end
       end
       
+      % Re-parse scores from behaviorData etc.
+      function updateScores(obj)
+         %UPDATESCORES  Re-parse scores from behaviorData etc
+         %
+         %  updateScores(obj);
+         
+         if numel(obj) > 1
+            for i = 1:numel(obj)
+               updateScores(obj(i));
+            end
+            return;
+         end
+         
+         behaviorData = obj.loadBehaviorData; 
+         if ~isempty(behaviorData)
+            x = behaviorData(~isnan(behaviorData.PelletPresent),:);
+            [~,idx] = unique(x.Grasp);
+            x = x(idx,:);
+            nTotal = sum(x.PelletPresent);
+            nSuccess = sum(x.PelletPresent & x.Outcome);
+            obj.TrueScore = nSuccess/nTotal;
+         else
+            warning('Could not load behaviorData for %s',obj.Name);
+         end
+      end
+      
       % Update Spike Rate data
       function flag = updateSpikeRateData(obj,align,outcome)
          %UPDATESPIKERATEDATA  Updates Block spike rate data
@@ -1496,7 +1529,7 @@ classdef block < handle
       % Get jPCA Projection and Summary fields for specific alignment etc
       function [Projection,Summary] = getjPCA(obj,field_expr)
          if nargin < 2
-            error('Must provide field_expr argument (e.g. ''Data.Grasp.All.jPCA.Unified.CFA'')');
+            error('Must provide field_expr argument (e.g. ''Data.Grasp.All.analyze.jPCA.Unified.CFA'')');
          end
          
          if numel(obj) > 1
@@ -2039,7 +2072,7 @@ classdef block < handle
             tmp = [];
          else
             fprintf(1,'\t-->\tGetting phase data for %s...\n',obj.Name);
-            tmp = jPCA.getPhase(out.Projection,...
+            tmp = analyze.jPCA.getPhase(out.Projection,...
                out.Summary.sortIndices(1),...
                out.Summary.outcomes);
          end

@@ -512,7 +512,7 @@ classdef rat < handle
          fprintf(1,'\nCollecting jPCs from all %s successful %s trials (%s).\n',...
             obj.Name,align,area);
          [D,idx] = jPCA_format(obj.Children,align,'Successful',area);
-         [Projection, Summary] = jPCA.jPCA(D);
+         [Projection, Summary] = analyze.jPCA.jPCA(D);
          Summary.outcomes = idx;
          
          % Store the unified data
@@ -2486,7 +2486,6 @@ classdef rat < handle
                                     min(x(:,t_idx),[],2));
          end
       end
-      
    end
    
    % Static methods used by other methods
