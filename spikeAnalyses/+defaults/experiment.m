@@ -49,6 +49,7 @@ p.group_assignments = {[1:4,8:9], ...  % (Rat indices): 'Ischemia'
 % (New) - Apr-2020
 p.t = linspace(-1.470,870,40);   % Times (sec) for bin centers
 p.start_stop_bin = [-1500 900];  % ms
+p.t_start_stop_reduced = [-1000 650]; % ms (restricted)
 p.n_ds_bin_edges = local.defaults('N_DS_EDGES');
 p.spike_bin_w = 60; % ms
 p.spike_smoother_w = 240; % ms
@@ -117,8 +118,11 @@ p.rat_color = struct(...
 p.rat_marker = {'o','*','square','x','v','hexagram'};
 
 % % For PCA stuff (2020) % %
-p.pca_n = 3;
+p.pca_n = 5;
 p.pca_opts = statset('Display','off');
+p.pca_group_var_indices = [3 5 6 9 20];
+p.pca_marg_vars = {'AnimalID','PostOpDay','Area','Outcome'};
+p.pca_iterate_on = 'Alignment';
 
 % % % Parameters that are parsed from other parameters % % %
 p.t_ms = p.t*1e3;

@@ -1,11 +1,14 @@
-function [coeff,score,explained,mu] = apply(Y,K,opts)
+function [coeff,score,explained,mu] = apply(Y,K,opts,colMask)
 %APPLY  Applies PCA using `splitapply` built-in syntax
 %
-%  [coeff,score,latent] = analyze.pc.apply(Y,opts);
+%  [coeff,score,latent] = analyze.pc.apply(Y);
+%  [coeff,score,latent] = analyze.pc.apply(Y,K,opts,colMask);
 %
 %  -- Inputs --
-%  Y : Matrix where rows are observations and columns are variables
-%  opts : `statset` struct (e.g. `opts = statset('Display','off');`)
+%  Y     : Matrix where rows are observations and columns are variables
+%  K     : Number of principal components to return
+%  opts  : `statset` struct (e.g. `opts = statset('Display','off');`)
+%  colMask : Logical indexing vector of size [1, size(Y,2)].
 %
 %  -- Output --
 %  [coeff,score,latent] : See `pca`
@@ -20,10 +23,24 @@ function [coeff,score,explained,mu] = apply(Y,K,opts)
 %              splitapply(@(Y)applyPCA(Y,K,opts),data,groupings);
 %        ```
 
+if nargin < 2
+   K = defaults.experiment('pca_n');
+end
+
+if nargin < 3
+   opts = defaults.experiment('pca_opts');
+end
+
+if nargin < 4
+   colMask = true(1,size(Y,2));
+end
+
 warning('off','stats:pca:ColRankDefX');
-[coeff,score,~,~,explained,mu] = pca(Y,...
+[coeff,score,~,~,explained,mu] = pca(...
+   Y(:,colMask),...
    'Algorithm','svd',...
    'NumComponents',K,...
+   'Economy',true,...
    'Options',opts);
 warning('on','stats:pca:ColRankDefX');
 coeff = {coeff};

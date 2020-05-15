@@ -747,14 +747,20 @@ classdef group < matlab.mixin.Copyable
             [0,1],{'Successful','Unsuccessful'});
          
          % Associate properties for Transformed rate etc. on UserData
-         [rate_smooth_fcn,pca_exclusion_fcn] = ...
-            defaults.experiment('rate_smoothing_fcn','pca_exclusion_fcn');
+         [rate_smooth_fcn,pca_exclusion_fcn,group_var_indices] = ...
+            defaults.experiment(...
+               'rate_smoothing_fcn',...
+               'pca_exclusion_fcn',...
+               'pca_group_var_indices');
          T.Properties.UserData.Transform = rate_smooth_fcn;
          T.Rate = feval(T.Properties.UserData.Transform,T.Rate);
          T.Properties.UserData.IsTransformed = true;
          T.Properties.RowNames = tag__.makeKey(size(T,1),'unique','ROWID_');
+         T.RowID = T.Properties.RowNames;
+         T = T(:,[end, 1:(end-1)]);
          T.Properties.Description = ...
             'Table of normalized rate time-series for each trial';
+         T.Properties.UserData.GroupVarIndices = group_var_indices;
          T.Properties.UserData.PCA_Exclude_Fcn = pca_exclusion_fcn;
          
       end

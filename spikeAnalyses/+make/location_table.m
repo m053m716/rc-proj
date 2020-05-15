@@ -27,6 +27,9 @@ function Locations = location_table(T,E)
 %              co-registered onto a background of the rat's skull from a
 %              dorsal view.
 
+% Ensure other repos are present
+utils.addHelperRepos();
+
 % Read in data tables %
 if nargin < 2
    E = readtable(defaults.block('elec_info_xlsx'));
@@ -42,13 +45,16 @@ if ischar(T)
    in = load(T,'RowMeta');
    T = in.RowMeta; clear in;
 end
-keepVars = {'AnimalID','BlockID','Area','Probe','Channel'};
+T.RowID = T.Properties.RowNames;
+keepVars = {'Group','AnimalID','BlockID','PostOpDay','Alignment','ICMS',...
+   'Area','Probe','Channel','RowID'};
 keepIdx = ismember(T.Properties.VariableNames,keepVars);
 Locations = T(:,keepIdx);
 [AnimalID,Rat] = defaults.experiment('rat_cats','rat_id');
 ID = table(AnimalID,Rat);
-Locations = innerjoin(Locations,ID,'Keys',{'AnimalID'});
+Locations = outerjoin(Locations,ID,'Keys',{'AnimalID'},'MergeKeys',true);
 Locations = Locations(:,[end,(1:(end-1))]);
+sounds__.play('pop',0.8,-25);
 
 % % Get other info related to electrode positions % %
 [grid_x,grid_y,grid_ord,area_cats] = defaults.block(...
@@ -78,6 +84,7 @@ for i = 1:numel(area_cats)
    end
 end
 Key = table(AnimalID,Area,Xc,Yc);
+sounds__.play('pop',1.0,-20);
 
 % Assigns "area centers" to `Locations` table
 Locations = innerjoin(Locations,Key,'Keys',{'AnimalID','Area'});
@@ -91,9 +98,8 @@ for i = 1:numel(grid_ord)
 end
 Locations.X = X;
 Locations.Y = Y;
-Locations.Properties.RowNames = T.Properties.RowNames;
+Locations.Properties.RowNames = Locations.RowID;
 Locations.Properties.DimensionNames{1} = 'Series_ID';
-utils.addHelperRepos();
-sounds__.play('pop',1.2,-20);
+sounds__.play('pop',1.2,-15);
 
 end
