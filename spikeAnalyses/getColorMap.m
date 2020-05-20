@@ -10,6 +10,7 @@ function cm = getColorMap(nRows,style)
 %     * 'red'
 %     * 'blue'
 %     * 'pastel'
+%     * 'vibrant'
 
 % % Hard-coded params % %
 N = 512;
@@ -32,9 +33,11 @@ switch lower(style)
    case 'pastel'
       cm = gfx__.cubehelix(N,[0.5625 -1.1827 1.2327 0.66635],[0.5 0.8],[0.3 0.7]);
    case 'red'
-      cm = gfx__.cubehelix(N,[0.10096 0.40385 0.75769 0.6024],[0.2 0.7],[0.3 0.6]);
+      cm = gfx__.cubehelix(N,[0.28096 0.40385 1.6894 0.5834],[0.2 0.7],[0.3 0.6]);
    case 'blue'
       cm = gfx__.cubehelix(N,[0.22596 -0.016152 0.75769 0.6024],[0.2 0.7],[0.3 0.6]);
+   case 'vibrant'
+      cm = gfx__.cubehelix(N,[0.37981 1.8173 1.4337 0.73942],[0.2 0.8],[0.3 0.7]);
    otherwise
       cm = gfx__.cubehelix(N,[0.05 -1 0.9 0.8],[0.2 0.9],[0.1 0.5]);
 end

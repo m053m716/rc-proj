@@ -94,6 +94,20 @@ p.pca_view_figs = '%s -- Top %g PCs';
 p.pca_tableau = 'RC-Tableau_PCs.xlsx';
 p.pca_jmp = 'RC-JMP_PCs.xlsx';
 
+% From Fails analysis
+p.fails_dir = fullfile(pname,'2020_FAILS');
+p.fails_fig_dir = fullfile(pname,'scratchwork','FAILS');
+p.fails_view_figs = '%s -- Top %g Fails-PCs';
+p.fails_tableau = 'RC-Tableau_Fails-PCs.xlsx';
+p.fails_jmp = 'RC-JMP_Fails-PCs.xlsx';
+
+% From Successful analysis
+p.success_dir = fullfile(pname,'2020_COMPLETE');
+p.success_fig_dir = fullfile(pname,'scratchwork','COMPLETE');
+p.success_view_figs = '%s -- Top %g Complete-PCs';
+p.success_tableau = 'RC-Tableau_Complete-PCs.xlsx';
+p.success_jmp = 'RC-JMP_Complete-PCs.xlsx';
+
 % Parse output
 if nargin < 1
    varargout = {p};   
