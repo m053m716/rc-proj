@@ -1,9 +1,9 @@
-function [S,C] = stack(S,K,opts,colMask,grouping)
+function [S,C] = stack(S,colMask,varname,keyname)
 %STACK Output table to "stack" for `splitapply` workflow
 %
 %  [S,C] = analyze.pc.stack(S);
-%  [S,C] = analyze.pc.stack(S,K,opts,colMask);
-%  [S,C] = analyze.pc.stack(S,K,opts,colMask,grouping);
+%  [S,C] = analyze.pc.stack(S,colMask);
+%  [S,C] = analyze.pc.stack(S,colMask,varname,keyname);
 %
 %  -- Inputs --
 %  S     : "Sliced" table, based on filtered rate table:
@@ -12,10 +12,10 @@ function [S,C] = stack(S,K,opts,colMask,grouping)
 %                    S = analyze.pc.slice(T,'Filter1','val',...);
 %                 ```
 %        
-%  K     : Number of principal components to return
 %  opts  : `statset` struct (e.g. `opts = statset('Display','off');`)
 %  colMask : Logical indexing vector of size [1, size(S.Rate,2)].
-%  grouping
+%  varname : (Optional) Name of new variable
+%  keyname : (Optional) Name of new key
 %
 %  -- Output --
 %  S : "Sliced" table updated with individual trial values. 
@@ -23,60 +23,38 @@ function [S,C] = stack(S,K,opts,colMask,grouping)
 %  C : Table with actual PCA coefficients, means, and % explained
 
 if nargin < 2
-   K = defaults.experiment('pca_n');
-end
-
-if nargin < 3
-   opts = defaults.experiment('pca_opts');
-end
-
-if nargin < 4
    colMask = true(1,size(S.Rate,2));
 end
 
-if nargin < 5
-   grouping = '';
+if nargin < 3
+   varname = 'PC_Scores';
+end
+
+if nargin < 4
+   keyname = 'Key';
 end
 
 utils.addHelperRepos();
-
-
 Y = S.Rate - median(S.Rate(:,colMask),2);
 warning('off','stats:pca:ColRankDefX');
 [PCA_Coeffs,score,~,~,PCA_Explained,PCA_Means] = pca(...
    Y(:,colMask),...
    'Algorithm','svd',...
-   'NumComponents',K,...
-   'Economy',true,...
-   'Options',opts);
+   'NumComponents',3,...
+   'Economy',true);
 warning('on','stats:pca:ColRankDefX');
+Key = tag__.makeKey(1,'unique',[varname '_']);
 
-if isempty(grouping)
-   Key = tag__.makeKey(1,'unique','PC_');
-else
-   grouping = strrep(grouping,' ','_');
-   grouping = strrep(grouping,'-','_');
-   if ~strcmp(grouping(1),'_')
-      grouping = ['_' grouping];
-   end
-   Key = tag__.makeKey(1,'unique',['PC' grouping '_']);
-end
 PCA_Coeffs = {PCA_Coeffs};
-PCA_Explained = {PCA_Explained(1:K)};
-PCA_Means = {PCA_Means(1:K)};
+PCA_Explained = {PCA_Explained(1:3)};
+PCA_Means = {PCA_Means(1:3)};
 C = table(PCA_Coeffs,PCA_Explained,PCA_Means);
 C.Properties.UserData.t = S.Properties.UserData.t(1,colMask);
 nRow = size(S,1);
 
-if isempty(grouping)
-   C.Key = Key;
-   S.Key = repmat(Key,nRow,1);
-   S.PCA_Scores = score;
-else
-   S.(['Key' grouping]) = repmat(Key,nRow,1);
-   C.(['Key' grouping]) = Key;
-   S.(['PCA_Scores' grouping]) = score;
-end
+S.(keyname) = repmat(Key,nRow,1);
+C.(keyname) = Key;
+S.(varname) = score;
 C = C(:,[end, 1:(end-1)]);
 
 end

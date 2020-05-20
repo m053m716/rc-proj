@@ -1,17 +1,17 @@
 function S = slice(T,varargin)
 %SLICE  Return "sliced" table using filters in `varargin`
 %
-%  S = analyze.pc.slice(T,varargin);
+%  S = analyze.slice(T,varargin);
 %
 %     ## Example 1: Return only successful rows ##
 %     ```(matlab)
-%        S = analyze.pc.slice(T,...
+%        S = analyze.slice(T,...
 %           'Outcome','Successful');
 %     ```
 %
 %     ## Example 2: Return only successful rows for RC-43 ##
 %     ```(matlab)
-%        S = analyze.pc.slice(T,...
+%        S = analyze.slice(T,...
 %           'AnimalID','RC-43',...
 %           'Outcome','Successful');
 %     ```
@@ -25,7 +25,7 @@ if numel(varargin) < 2
    S = T;
    return;
 elseif numel(varargin) >= 2
-   T = analyze.pc.slice(T,varargin{1:(end-2)});
+   T = analyze.slice(T,varargin{1:(end-2)});
    if ismember(varargin{end-1},T.Properties.VariableNames)
       S = T(ismember(T.(varargin{end-1}),varargin{end}),:);
    else

@@ -41,8 +41,8 @@ Meta = T(:,metaIdx);
 Events = T(:,evtIdx);
 
 data = T.Rate;
-Time = milliseconds(T.Properties.UserData.t).';
-TT = table(Time);
+Time_ms = T.Properties.UserData.t.';
+TT = table(Time_ms);
 Locations = make.location_table(T);
 
 % Data = table(T.Rate);
@@ -62,8 +62,8 @@ for i = 1:size(data,2)
 %    Data.Properties.VariableNames{i} = rateName;
    TT.Properties.RowNames{i} = rateName;
 end
-Data.Properties.DimensionNames{1} = 'Series_ID';
 Data.Properties.RowNames = T.Properties.RowNames;
+Data.Properties.DimensionNames{1} = 'Series_ID';
 
 % First, write a .mat file containing the row names of the Table, in case
 % we want to retrieve the matching row names for future export of a
@@ -77,6 +77,15 @@ save(fullfile(p,[f '__RowNames.mat']),'RowNames','-v7.3');
 warning('off','MATLAB:xlswrite:AddSheet');
 tic;
 sNames = defaults.files('tableau_spreadsheet_tag_struct');
+
+ff = [f sNames.Rates e];
+fprintf(1,'Writing %s::<strong>Rate</strong>...',ff);
+writetable(Data,fullfile(p,ff),...
+   'WriteRowNames',true,...
+   'Sheet','Rate');
+sounds__.play('pop',0.7,-15);
+fprintf(1,'complete\n');
+
 ff = [f sNames.Times e];
 fprintf(1,'Writing %s::<strong>Times</strong>...',ff);
 writetable(TT,fullfile(p,ff),...
@@ -107,15 +116,9 @@ writetable(Events,fullfile(p,ff),...
    'WriteRowNames',true,...
    'Sheet','Events');
 sounds__.play('pop',0.8,-15);
-fprintf(1,'complete\n');
-
-ff = [f sNames.Rates e];
-fprintf(1,'Writing %s::<strong>Rate</strong>...',ff);
-writetable(Data,fullfile(p,ff),...
-   'WriteRowNames',true,...
-   'Sheet','Rate');
-sounds__.play('bell',1.0,-15);
 fprintf(1,'complete\n\n\t');
 toc;
+fprintf(1,'\n');
 warning('on','MATLAB:xlswrite:AddSheet');
+sounds__.play('bell',1.0,-15);
 end

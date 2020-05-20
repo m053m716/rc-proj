@@ -42,24 +42,23 @@ e = T.Properties.UserData.PCA_Exclude_Fcn;
 tSub = feval(e,T);
 
 % Get different groupings
-[marginalizations,iterations] = defaults.experiment(...
-   'pca_marg_vars','pca_iterate_on');
+[fixed_grouping,marginalizations] = defaults.experiment(...
+   'pca_iterate_on','pca_marg_vars');
 
-uIter = unique(tSub.(iterations));
-nIter = numel(uIter);
-
-% Since order matters, do this part in a loop
-nMarg = numel(marginalizations);
-marg_idx = nan(1,nMarg);
-for iMarg = 1:nMarg
-   marg_idx(iMarg) = find(strcmpi(T.Properties.VariableNames,...
-      marginalizations{iMarg}),1,'first');
-end
-
-[G,TID] = findgroups(tSub(:,marg_idx));
-for ii = 1:nIter
-   iter_idx = tSub.(iterations) == uIter(ii);
-   g = G(iter_idx);
+[Gf,T_Fixed] = findgroups(tSub(:,fixed_grouping));
+[Gm,T_Marg] = findgroups(tSub(:,marginalizations));
+P = table.empty;
+for iFixed = 1:max(Gf)
+   fixed_idx = Gf == iFixed;
+   fixed_val = T_Fixed.(fixed_grouping)(iFixed);
+   m = Gm(fixed_idx);
+   tm = tSub(fixed_idx,:);
+   for iMarg = 1:max(m)
+      S = analyze.slice(tm,fixed_grouping,fixed_val,...
+      
+   end
+   
+   
    pc = analyze.pc.get(tSub,K,opts,t_start_stop);
 end
 

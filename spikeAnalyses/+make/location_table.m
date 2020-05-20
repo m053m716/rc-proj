@@ -49,7 +49,11 @@ T.RowID = T.Properties.RowNames;
 keepVars = {'Group','AnimalID','BlockID','PostOpDay','Alignment','ICMS',...
    'Area','Probe','Channel','RowID'};
 keepIdx = ismember(T.Properties.VariableNames,keepVars);
-Locations = T(:,keepIdx);
+T = T(:,keepIdx);
+[Locations,iSorted] = innerjoin(T,Original,'Keys',{'Series_ID'});
+[~,iRestore] = sort(iSorted,'ascend');
+Locations = Locations(iRestore,:);
+
 [AnimalID,Rat] = defaults.experiment('rat_cats','rat_id');
 ID = table(AnimalID,Rat);
 Locations = outerjoin(Locations,ID,'Keys',{'AnimalID'},'MergeKeys',true);
@@ -87,7 +91,12 @@ Key = table(AnimalID,Area,Xc,Yc);
 sounds__.play('pop',1.0,-20);
 
 % Assigns "area centers" to `Locations` table
-Locations = innerjoin(Locations,Key,'Keys',{'AnimalID','Area'});
+[Locations,iSorted] = outerjoin(Locations,Key,...
+   'Keys',{'AnimalID','Area'},...
+   'RightVariables',{'Xc','Yc'},...
+   'MergeKeys',true);
+[~,iRestore] = sort(iSorted,'ascend');
+Locations = Locations(iRestore,:);
 
 X = Locations.Xc;
 Y = Locations.Yc;
@@ -101,5 +110,30 @@ Locations.Y = Y;
 Locations.Properties.RowNames = Locations.RowID;
 Locations.Properties.DimensionNames{1} = 'Series_ID';
 sounds__.play('pop',1.2,-15);
+
+   function T = fixName(T,var,tabName)
+      %FIXNAME  Helper function to fix variable names messed up by joins
+      %
+      %  T = fixName(T,var);
+      %
+      %  T : Table
+      %  var : Name of variable to fix (original); e.g. 'AnimalID' if it
+      %  gets converted to 'AnimalID_Locations' for a table named
+      %  "Locations"
+      %  tabName : Name of table variable from outerjoin procedure
+      %     (In above example, 'Locations')
+      
+      if iscell(var)
+         for iVar = 1:numel(var)
+            T = fixName(T,var{iVar},tabName);
+         end
+         return;
+      end
+      
+      badName = [var '_' tabName];
+      badVarIdx = ismember(T.Properties.VariableNames,badName);
+      T.Properties.VariableNames{badVarIdx} = var;
+      
+   end
 
 end

@@ -76,7 +76,23 @@ p.trial_export_spreadsheet = 'Stats-By-Trial.xlsx';
 p.marg_fig_loc = 'marginal-rate-average-figs_ds-50x';
 p.marg_fig_name = '%s-%s_%s__X__%s%s';
 
+% For `nnmf` analyses
+p.nnmf_dir = fullfile(pname,'2020_NNMF');
+p.nnmf_h0 = 'NNMF_h0.mat';
+p.nnmf_tableau = 'RC-NNMF.xlsx';
+p.nnmf_tableau_blocked = 'RC-NNMF_Blocked.xlsx';
+p.nnmf_jmp = 'RC-JMP.xlsx';
+p.nnmf_jmp_blocked = 'RC-JMP_Blocked.xlsx';
+p.nnmf_mat_fig = fullfile(pname,'scratchwork\\NNMF\\NNMF Factor Correlations %s vs %s');
+p.nnmf_overlay_fig = fullfile(pname,'scratchwork\\NNMF\\NNMF Factor Overlay %s vs %s');
+p.nnmf_summary_fig = fullfile(pname,'scratchwork','NNMF','NNMF Factors Summary');
 
+% From PCA analysis
+p.pca_dir = fullfile(pname,'2020_PCA');
+p.pca_fig_dir = fullfile(pname,'scratchwork','PCA');
+p.pca_view_figs = '%s -- Top %g PCs';
+p.pca_tableau = 'RC-Tableau_PCs.xlsx';
+p.pca_jmp = 'RC-JMP_PCs.xlsx';
 
 % Parse output
 if nargin < 1

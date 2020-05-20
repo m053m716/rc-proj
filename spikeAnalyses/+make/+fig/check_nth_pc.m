@@ -1,8 +1,8 @@
-function fig = check_nth_pc(pc_struct,nth_pc)
+function fig = check_nth_pc(pc_struct,nth_pc,align)
 %CHECK_NTH_PC  Checks the "n-th" principal-component overlay
 %
 %  fig = make.fig.check_nth_pc(pc_struct);
-%  fig = make.fig.check_nth_pc(pc_struct,n);
+%  fig = make.fig.check_nth_pc(pc_struct,n,align);
 %
 %  -- Inputs --
 %  pc_struct : `struct` returned by `pc = analyze.pc.get(T);` called on
@@ -11,10 +11,16 @@ function fig = check_nth_pc(pc_struct,nth_pc)
 %  n : (Optional) If not given, default is first PC. Specify as index
 %           (1,2,3,... etc) of the "n-th" largest PC to overlay and check
 %
+%  align : (Optional) Default is 'Grasp'
+%
 %  -- Output --
 %  fig : Figure handle
 
 % % Handle inputs % %
+if nargin < 3
+   align = 'Grasp';
+end
+
 if nargin < 2
    nth_pc = 1;
 elseif numel(nth_pc) > 1
@@ -23,7 +29,7 @@ elseif numel(nth_pc) > 1
       close all force;
    end
    for ii = 1:numel(nth_pc)
-      fig = [fig; make.fig.check_nth_pc(pc_struct,nth_pc(ii))]; %#ok<AGROW>
+      fig = [fig; make.fig.check_nth_pc(pc_struct,nth_pc(ii),align)]; %#ok<AGROW>
    end   
    return;
 end
@@ -43,10 +49,12 @@ cols = defaults.experiment('rat_color');
 ax = ui__.panelizeAxes(fig,10);
 
 rat = unique(pc_struct.groups.table.AnimalID);
-iKeep = cellfun(@(C)size(C,2)>=nth_pc,pc_struct.coeff);
+iKeep = cellfun(@(C)size(C,2)>=nth_pc,pc_struct.coeff) & ...
+   pc_struct.groups.table.Alignment==align & ...
+   pc_struct.groups.table.Outcome=='Successful';
 coeffs = pc_struct.coeff(iKeep);
 tab = pc_struct.groups.table(iKeep,:);
-d = tab.PostOpDay;
+% d = tab.PostOpDay;
 for iRat = 1:numel(rat)   
    hg_cfa = hggroup(ax(iRat),...
       'DisplayName',...
@@ -61,9 +69,7 @@ for iRat = 1:numel(rat)
    T = [t; flipud(t)];
    F = [1:numel(T),1]; % faces
 
-   idx = find((tab.AnimalID == rat(iRat)) & ...
-              (tab.Outcome=={'Successful'}) & ...
-              (tab.Alignment=={'Grasp'}));
+   idx = find(tab.AnimalID == rat(iRat));
    idx = reshape(idx,1,numel(idx));
    
    c_rfa = cols.All(iRat,:);
@@ -80,12 +86,12 @@ for iRat = 1:numel(rat)
             'FaceColor',c_cfa,...
             'EdgeColor','none');
          h_cfa.Annotation.LegendInformation.IconDisplayStyle = 'off';
-         datatip(h_cfa,'DataIndex',1,'Visible','off');
-         h_cfa.DataTipTemplate.DataTipRows(1) = ...
-            dataTipTextRow('Relative Time','XData',...
-               ['%#4.4g ms (Day ' num2str(d(ii)) ')']);
-         h_cfa.DataTipTemplate.DataTipRows(2) = ...
-            dataTipTextRow('PC Coeff (CFA)','YData','%#3.4g');
+%          datatip(h_cfa,'DataIndex',1,'Visible','off');
+%          h_cfa.DataTipTemplate.DataTipRows(1) = ...
+%             dataTipTextRow('Relative Time','XData',...
+%                ['%#4.4g ms (Day ' num2str(d(ii)) ')']);
+%          h_cfa.DataTipTemplate.DataTipRows(2) = ...
+%             dataTipTextRow('PC Coeff (CFA)','YData','%#3.4g');
          
       else
          Y = [y+0.0065; flipud(y)-0.0065];
@@ -95,12 +101,12 @@ for iRat = 1:numel(rat)
             'FaceColor',c_rfa,...
             'EdgeColor','none');
          h_rfa.Annotation.LegendInformation.IconDisplayStyle = 'off';
-         datatip(h_rfa,'DataIndex',1,'Visible','off');
-         h_rfa.DataTipTemplate.DataTipRows(1) = ...
-            dataTipTextRow('Relative Time','XData',...
-               ['%#4.4g ms (Day ' num2str(d(ii)) ')']);
-         h_rfa.DataTipTemplate.DataTipRows(2) = ...
-            dataTipTextRow('PC Coeff (RFA)','YData','%#3.4g');
+%          datatip(h_rfa,'DataIndex',1,'Visible','off');
+%          h_rfa.DataTipTemplate.DataTipRows(1) = ...
+%             dataTipTextRow('Relative Time','XData',...
+%                ['%#4.4g ms (Day ' num2str(d(ii)) ')']);
+%          h_rfa.DataTipTemplate.DataTipRows(2) = ...
+%             dataTipTextRow('PC Coeff (RFA)','YData','%#3.4g');
       end
       
    end
