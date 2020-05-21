@@ -1,10 +1,35 @@
 %% MAIN     Main code for initializing and running analyses
-%  Serves as an outline for processing done in `rc-proj`
+%  Serves as an outline/notes for processing/analysis done in `rc-proj`
+%
+%  Note: if matfile containing `gData` variable (`group` class object)
+%        already exists, then a standard workflow consists of:
+%        ```
+%           gData = group.loadGroupData;
+%           T = getRateTable(gData); % Can specify other args
+%        ```
+%        Once in the "table" format (`T`) many of the ensuing analyses take
+%        just that table as the argument, for example:
+%        ```
+%           % Get subset of table to use for "failures" analyses:
+%           U = analyze.fails.get_subset(T);
+%           [P,C] = analyze.successful.pca_table(U,4);
+%        ```
+%        or
+%        ```
+%           % Get subset of table to use for nullspace analyses:
+%           X = analyze.nullspace.get_subset(T);
+%        ```
+%        or
+%        ```
+%           % Get subset of table to use for non-negative matrix factors:
+%           [N,C,exclusions] = analyze.nnm.nnmf_table(T,false);
+%        ```
 
+%% Clear the workspace and command window
 close all force;
 clear; clc;
 
-%% Constants
+%% Load constants into workspace
 % Note: correct indexing into gData depends on ordering of RAT in array
 [rat,skip_save] = defaults.experiment('rat','skip_save');
 
@@ -13,8 +38,10 @@ clear; clc;
 [gData,ticTimes] = construct_gData_array(rat,skip_save);
 
 %% Export rate statistics
-T = getRateTable(gData);
-save(defaults.files('rate_table'),'T','-v7.3');
+% Force save non-smoothed Rates:
+T = getRateTable(gData,[],[],[],true,false); % (allow ~15-30 minutes)
+T = applyTransform(T); % Then, apply transform and overwrite variable 
+                       % (large table; saves workspace memory)
 writetable(T,defaults.files('rate_csv'));
 
 %% Check on rate principal components

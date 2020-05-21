@@ -68,7 +68,7 @@ p.fname_ds_rate = '%s%s%s_%s_ds-%gx.mat';
 p.spike_rate_expr = '%s_SpikeRate%03gms_%s_%s.mat';
 p.binned_spike_expr = '%s_BinnedSpikes%03gms_%s_%s.mat';
 
-% From `group`
+% From @group
 p.session_export_spreadsheet = 'Stats-By-Session.xlsx';
 p.channel_export_spreadsheet = 'Stats-By-Channel.xlsx';
 p.rat_export_spreadsheet = 'Stats-By-Rat.xlsx';
@@ -76,7 +76,7 @@ p.trial_export_spreadsheet = 'Stats-By-Trial.xlsx';
 p.marg_fig_loc = 'marginal-rate-average-figs_ds-50x';
 p.marg_fig_name = '%s-%s_%s__X__%s%s';
 
-% For `nnmf` analyses
+% For +analyze/+nnm
 p.nnmf_dir = fullfile(pname,'2020_NNMF');
 p.nnmf_h0 = 'NNMF_h0.mat';
 p.nnmf_tableau = 'RC-NNMF.xlsx';
@@ -94,19 +94,23 @@ p.pca_view_figs = '%s -- Top %g PCs';
 p.pca_tableau = 'RC-Tableau_PCs.xlsx';
 p.pca_jmp = 'RC-JMP_PCs.xlsx';
 
-% From Fails analysis
+% From +analyze/+fails
 p.fails_dir = fullfile(pname,'2020_FAILS');
 p.fails_fig_dir = fullfile(pname,'scratchwork','FAILS');
 p.fails_view_figs = '%s -- Top %g Fails-PCs';
 p.fails_tableau = 'RC-Tableau_Fails-PCs.xlsx';
 p.fails_jmp = 'RC-JMP_Fails-PCs.xlsx';
 
-% From Successful analysis
-p.success_dir = fullfile(pname,'2020_COMPLETE');
-p.success_fig_dir = fullfile(pname,'scratchwork','COMPLETE');
-p.success_view_figs = '%s -- Top %g Complete-PCs';
-p.success_tableau = 'RC-Tableau_Complete-PCs.xlsx';
-p.success_jmp = 'RC-JMP_Complete-PCs.xlsx';
+% From +analyze/+complete
+p.complete_dir = fullfile(pname,'2020_COMPLETE');
+p.complete_fig_dir = fullfile(pname,'scratchwork','COMPLETE');
+p.complete_view_figs = '%s -- Top %g Complete-PCs';
+p.complete_tableau = 'RC-Tableau_Complete-PCs.xlsx';
+p.complete_jmp = 'RC-JMP_Complete-PCs.xlsx';
+
+% From +analyze/+rec
+p.rec_analyses_dir = fullfile(pname,'2020_BY-BLOCK');
+p.rec_analyses_fig_dir = fullfile(pname,'scratchwork','BY-BLOCK');
 
 % Parse output
 if nargin < 1

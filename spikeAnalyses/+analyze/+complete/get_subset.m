@@ -33,15 +33,16 @@ U.Properties.UserData.hasComplete = hasComplete;
 U.Properties.Description = 'Table for +analyze/+successful package';
 
 % % Remove unwanted columns % %
-U.Xc = [];
-U.Yc = [];
-U.PelletPresent = [];
-U.Reach = [];
-U.Grasp = [];
+U = utils.remove_cols(U,'Xc','Yc');
+% U.PelletPresent = [];
+% U.Reach = [];
+% U.Grasp = [];
 
 % % Rearrange a few of the columns % %
-U = movevars(U,'RowID','Before','Group');
-U = movevars(U,'Trial_ID','Before','Group');
-U = movevars(U,'Rat','After','AnimalID');
+U = movevars(U,'RowID','Before',1);
+U = movevars(U,'Trial_ID','Before',1);
+if ismember('Rat',U.Properties.VariableNames)
+   U = movevars(U,'Rat','After','AnimalID');
+end
 
 end

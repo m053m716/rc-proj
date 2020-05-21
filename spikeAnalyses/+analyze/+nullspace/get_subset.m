@@ -13,4 +13,5 @@ function X = get_subset(T)
 %  See also: analyze.complete.get_subset
 
 X = analyze.complete.get_subset(T);
+X.Properties.Description = 'Subset of rate table for `+analyze/+nullspace`';
 end

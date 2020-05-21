@@ -1,14 +1,17 @@
-function varargout = nullspace_analyses(varargin)
-%NULLSPACE_ANALYSES  Defaults for analyses using "premotor nullspace"
+function varargout = rec_analyses(varargin)
+%REC_ANALYSES  Defaults for single-recording analyses
 %
-%  p = defaults.nullspace_analyses();
-%  [v1,v2,...] = defaults.nullspace_analyses('v1Name','v2Name',...);
+%  p = defaults.rec_analyses();
+%  [v1,v2,...] = defaults.rec_analyses('v1Name','v2Name',...);
 
 p = struct;
-p.t_reduced = [-1290 750];
-p.t_premotor = [-1110 -750];
-p.t_event = [-210 150];
-p.t_on = [-30 30];
+p.rate_xtick = [-1000 -500 0 500];
+p.rate_ytick = [-2 0 2];
+p.rate_ylim = [-5 5];
+p.rate_colors = struct(...
+   'CFA',getColorMap(18,'blue'),...
+   'RFA',getColorMap(18,'red'));
+p.n_trial_max = 32;
 
 % Parse output
 if nargin < 1

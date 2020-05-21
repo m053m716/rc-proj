@@ -56,7 +56,7 @@ end
 suptitle(str);
 
 if nargout==0
-   [path,expr] = defaults.files('success_fig_dir','success_view_figs');
+   [path,expr] = defaults.files('complete_fig_dir','complete_view_figs');
    if exist(path,'dir')==0
       mkdir(path);
    end
