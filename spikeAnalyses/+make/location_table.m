@@ -45,19 +45,19 @@ if ischar(T)
    in = load(T,'RowMeta');
    T = in.RowMeta; clear in;
 end
-T.RowID = T.Properties.RowNames;
-keepVars = {'Group','AnimalID','BlockID','PostOpDay','Alignment','ICMS',...
-   'Area','Probe','Channel','RowID'};
-keepIdx = ismember(T.Properties.VariableNames,keepVars);
-T = T(:,keepIdx);
-[Locations,iSorted] = innerjoin(T,Original,'Keys',{'Series_ID'});
-[~,iRestore] = sort(iSorted,'ascend');
-Locations = Locations(iRestore,:);
+
+if ~ismember('RowID',T.Properties.VariableNames)
+   T.RowID = T.Properties.RowNames;
+end
 
 [AnimalID,Rat] = defaults.experiment('rat_cats','rat_id');
 ID = table(AnimalID,Rat);
-Locations = outerjoin(Locations,ID,'Keys',{'AnimalID'},'MergeKeys',true);
-Locations = Locations(:,[end,(1:(end-1))]);
+[Locations,iSorted] = outerjoin(T,ID,...
+   'Keys',{'AnimalID'},...
+   'Type','Left',...
+   'MergeKeys',true);
+[~,iRestore] = sort(iSorted,'ascend');
+Locations = Locations(iRestore,:);
 sounds__.play('pop',0.8,-25);
 
 % % Get other info related to electrode positions % %
@@ -94,6 +94,7 @@ sounds__.play('pop',1.0,-20);
 [Locations,iSorted] = outerjoin(Locations,Key,...
    'Keys',{'AnimalID','Area'},...
    'RightVariables',{'Xc','Yc'},...
+   'Type','Left',...
    'MergeKeys',true);
 [~,iRestore] = sort(iSorted,'ascend');
 Locations = Locations(iRestore,:);

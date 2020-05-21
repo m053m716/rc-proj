@@ -27,12 +27,15 @@ p.behavior_data_file = fullfile(pname,'behavior_data.xlsx');
 p.rate_table = fullfile(pname,'rate_data.mat');
 p.rate_csv = fullfile(pname,'rate_data.csv');
 
+% Rate table default:
+p.rate_table_default_matfile = fullfile(pname,'T_default.mat');
+
 % For "Tableau" visualization:
 p.rate_tableau_table = fullfile(ptableau,'All Rates.xlsx');
-p.rate_tableau_table_matfile = fullfile(ptableau,'T.mat');
-p.table_rows_file = fullfile(ptableau,'All Rates__RowNames.mat');
+p.rate_tableau_table_matfile = fullfile(pname,'T.mat');
+p.table_rows_file = fullfile(pname,'All Rates__RowNames.mat');
 p.default_rowtimes_file = fullfile(ptableau,'All Times.xlsx');
-p.default_rowmeta_matfile = fullfile(tank,'RowMetadata.mat');
+p.default_rowmeta_matfile = fullfile(pname,'RowMetadata.mat');
 p.tableau_spreadsheet_tag_struct = struct(...
    'Times','__Times',...
    'Locations','__Locations',...

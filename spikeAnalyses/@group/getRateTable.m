@@ -110,9 +110,11 @@ if numel(obj) > 1
          save(f_tab,'T','-v7.3');
          fprintf(1,'complete\n');
          
+         fprintf(1,'Auto-saving "RowMeta" table...');
          metaVars = defaults.experiment('meta_vars');
          RowMeta = T(:,metaVars);
          save(f_def,'RowMeta','-v7.3');
+		 fprintf(1,'complete\n');
       else
          fprintf(1,'\t->\tFound RowNames file: ');
          fprintf(1,'<strong>%s</strong>...loading...',f_rows);
@@ -132,10 +134,11 @@ if numel(obj) > 1
          fprintf(1,'<strong>%s</strong>...overwriting...',f_tab);
          save(f_tab,'T','-v7.3');
          fprintf(1,'complete\n');
-         
+         fprintf(1,'Auto-saving "RowMeta" table...');
          metaVars = defaults.experiment('meta_vars');
          RowMeta = T(:,metaVars);
          save(f_def,'RowMeta','-v7.3');
+		 fprintf(1,'complete\n');
       end
    end
    sounds__.play('bell',1.25);

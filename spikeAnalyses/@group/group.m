@@ -1699,6 +1699,53 @@ classdef group < matlab.mixin.Copyable
          sounds__.play('bell',1.5,-40); % Notify of load
       end
       
+      % Helper function to load rates table
+      function T = loadRateTable(type)
+         %LOADRATETABLE  Loads full table of rates
+         %
+         %  T = group.loadRateTable();
+         %  -> Loads 'rate_table_default_matfile' (defaults.files)
+         %
+         %  T = group.loadRateTable(type);
+         %  -> Loads "type":
+         %     * 'default'  -- Default
+         %     * {'full','tableau','all'}  --  Full "Tableau" file (larger)
+         %
+         %  T = group.loadRateTable(fname);
+         %  -> Can give the full filename to the table file directly also.
+         
+         if nargin < 1
+            type = 'default';
+         else
+            if exist(type,'file')~=0
+               fname = type;
+               type = 'direct';
+            end
+         end
+         
+         switch type
+            case {'full','tableau','all'}
+               fname = defaults.files('rate_tableau_table_matfile');
+            case 'default'
+               fname = defaults.files('rate_table_default_matfile');
+            case 'direct'
+               if exist('fname','var')==0
+                  error(['RC:' mfilename ':BadSyntax'],...
+                     'For `type==''direct''`, provide fname as input arg.');
+               end
+            otherwise
+               fname = defaults.files('rate_table_default_matfile');
+         end
+         if exist(fname,'file')==0
+            error(['RC:' mfilename ':MissingFile'],...
+               'Could not find file: <strong>%s</strong>',...
+               fname);
+         end
+         
+         in = load(fname,'T');
+         T = in.T;
+      end
+      
       % Helper function to parse labeling strings based on
       % parameterizations
       function str = parseParamString(param_lb,param_ub,param_name)
@@ -1747,7 +1794,7 @@ classdef group < matlab.mixin.Copyable
             f_rows = defaults.files('table_rows_file');
          end
          utils.addHelperRepos();
-         fprintf(1,'\t->\Writing RowNames file: ');
+         fprintf(1,'\t->\tWriting RowNames file: ');
          fprintf(1,'<strong>%s</strong>...saving...',f_rows);
          if istable(RowNames)
             RowNames = T.Properties.RowNames;

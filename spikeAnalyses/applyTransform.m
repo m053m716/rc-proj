@@ -14,7 +14,12 @@ end
 if T.Properties.UserData.IsTransformed
    return;
 end
-T.Rate = feval(T.Properties.UserData.Transform,T.Rate);
+transform = T.Properties.UserData.Transform;
+if iscell(T.Rate)
+   T.Rate = cellfun(@(C)feval(transform,C),T.Rate,'UniformOutput',false);
+else
+   T.Rate = feval(transform,T.Rate);
+end
 T.Properties.UserData.IsTransformed = true;
 T.Properties.Description = ...
    'Table of normalized and smoothed rate time-series for each trial';
