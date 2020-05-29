@@ -1,5 +1,5 @@
 function Y = make_table(X,event,outcome)
-%MAKE_TABLE  Create table where each row represents a trial.
+%MAKE_TABLE Create table where each row represents a trial
 %
 %  Y = analyze.trials.make_table(X,event,outcome);
 %

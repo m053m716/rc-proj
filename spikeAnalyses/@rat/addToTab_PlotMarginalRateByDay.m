@@ -1,9 +1,9 @@
 function p = addToTab_PlotMarginalRateByDay(obj,p,align,includeStructPlot,includeStructMarg)
-%ADDTOPANEL_PLOTMARGINALRATEBYDAY   Plot marginal (normalized) rate by day
+%ADDTOTAB_PLOTMARGINALRATEBYDAY Plot marginal (normalized) rate by day, on different tabs
 %
-%  p = ADDTOPANEL_PLOTMARGINALRATEBYDAY(obj,p,align);
-%  p = ADDTOPANEL_PLOTMARGINALRATEBYDAY(obj,___,includeStructPlot);
-%  p = ADDTOPANEL_PLOTMARGINALRATEBYDAY(obj,___,includeStructMarg);
+%  p = ADDTOTAB_PLOTMARGINALRATEBYDAY(obj,p,align);
+%  p = ADDTOTAB_PLOTMARGINALRATEBYDAY(obj,___,includeStructPlot);
+%  p = ADDTOTAB_PLOTMARGINALRATEBYDAY(obj,___,includeStructMarg);
 %
 %  --------
 %   INPUTS

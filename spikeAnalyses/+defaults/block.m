@@ -1,5 +1,5 @@
 function varargout = block(varargin)
-%DEFAULTS.BLOCK  Return default parameter for GROUP class object
+%BLOCK Return default parameter for GROUP class object
 %
 %  param = defaults.block(name);
 %

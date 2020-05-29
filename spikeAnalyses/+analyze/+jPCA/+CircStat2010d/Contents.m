@@ -1,5 +1,4 @@
-% CircStat Toolbox
-%   Toolbox for circular statistics with Matlab
+% CIRCSTAT2010D CircStat - Toolbox for circular statistics with Matlab
 %
 % Descriptive Statistics.
 %   circ_mean     - Mean direction of a sample of circular data

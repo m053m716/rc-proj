@@ -1,16 +1,3 @@
-
-
-
-
-
-
-% loading libraries
-addpath 'fromMarksLibraries' -END
-addpath 'CircStat2010d' -END
-
-% loading data
-load exampleData
-
 % Notes on format of data:
 % You must organize your data the way that the example structure 'Data' is organized
 % Data should be a structure that is at least one element long.  For the example, 'Data' is 27

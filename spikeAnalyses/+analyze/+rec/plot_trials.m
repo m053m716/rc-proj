@@ -1,17 +1,26 @@
-function fig = plot_trials(T,align,outcome,doSave)
+function [fig,Tsub] = plot_trials(T,align,outcome,doSave,iSubset)
 %PLOT_TRIALS  Plot rate profiles for all channels on individual subplots
 %
-%  fig = analyze.rec.plot_trials(T,align,outcome,doSave);
+%  fig = analyze.rec.plot_trials(T,align,outcome,doSave,iSubset);
+%  [fig,Tsub] = analyze.rec.plot_trials(T,align,outcome,doSave,iSubset);
 %
-%  -- Inputs --
-%  T : Any table that has .Rate variable and .t UserData property, as well
-%        as .Alignment, .BlockID, and .Outcome
-%  align : Char array of alignment to plot trial for
-%  outcome : Char array or cell array of outcome to include
-%  doSave : Default -- false; if true, saves and deletes fig handles
+% Inputs
+%  T        - Any table that has .Rate variable and .t UserData property, 
+%             as well as .Alignment, .BlockID, and .Outcome
+%  align    - Char array of alignment to plot trial for
+%  outcome  - Char array or cell array of outcome to include
+%  doSave   - Default -- false; if true, saves and deletes fig handles
+%  iSubset  - Default -- `inf`; if specified as non-inf **scalar** integer,
+%              then instead of iterating on all possible combinations it
+%              only does a random subset of `iSubset` iterations
 %
-%  -- Output --
-%  fig : Figure handle
+% Output
+%  fig      - Figure handle
+%  Tsub     - (Optional) Subset used if `iSubset` was used
+
+if nargin < 5
+   iSubset = inf;
+end
 
 if nargin < 4
    doSave = false;
@@ -25,15 +34,28 @@ if nargin < 2
    align = 'Reach';
 end
 
-if numel(unique(T.BlockID)) > 1
+uBlock = unique(T.BlockID);
+nBlock = numel(uBlock);
+if nBlock > 1
    fcn = @analyze.rec.plot_trials;
-   fig = analyze.rec.iterate(fcn,T,align,outcome,doSave);
+   if isinf(iSubset)
+      fig = analyze.rec.iterate(fcn,T,align,outcome,doSave,iSubset);
+      if nargout > 1
+         Tsub = T;
+      end
+   else
+      Tsub = T(ismember(T.BlockID,uBlock(randperm(nBlock,iSubset))),:);
+      fig = analyze.rec.iterate(fcn,Tsub,align,outcome,doSave,inf);
+   end
    if doSave
       if nargout < 1
          clear fig;
       end
    end
+
    return;
+else
+   Tsub = [];
 end
 
 poDay = T.PostOpDay(1);

@@ -23,11 +23,17 @@ function S = slice(T,varargin)
 
 if numel(varargin) < 2
    S = T;
+   S = utils.addProcessing(S,'Slicing');
    return;
 elseif numel(varargin) >= 2
    T = analyze.slice(T,varargin{1:(end-2)});
    if ismember(varargin{end-1},T.Properties.VariableNames)
-      S = T(ismember(T.(varargin{end-1}),varargin{end}),:);
+      T = utils.addSlicing(T,varargin{end-1},varargin{end});
+      if isnumeric(varargin{end})
+         S = T(ismember(double(T.(varargin{end-1})),varargin{end}),:);
+      else
+         S = T(ismember(T.(varargin{end-1}),varargin{end}),:);
+      end
    else
       warning(['RC:' mfilename ':BadFilter'],...
          ['\n\t->\t<strong>[RC:' mfilename ':BadFilter]</strong>\n' ...

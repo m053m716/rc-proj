@@ -1,4 +1,4 @@
-%DEV  Script for developmental analysis tracking
+%DEV  Script for miscellaneous developmental analysis tracking/testbench
 %
 % 2020-05-20 -- Current analysis package: +analyze/+nullspace
 
@@ -12,4 +12,4 @@ X = analyze.nullspace.get_subset(T);
 
 %% Make toy dataset
 x = X((X.AnimalID=='RC-05') & (X.PostOpDay==3),:);
-r = x(x.Alignment=='Reach',:);
+

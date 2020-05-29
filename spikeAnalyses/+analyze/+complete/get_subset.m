@@ -1,13 +1,13 @@
-function U = get_subset(T)
+function T = get_subset(T)
 %GET_SUBSET  Returns subset of full table for "Completed" trials analyses
 %
-%  U = analyze.complete.get_subset(T);
+%  T = analyze.complete.get_subset(T);
 %
 %  -- Inputs --
 %  T : Table from `T = getRateTable(gData);`
 %
 %  -- Output --
-%  U : Table in same format, but has subset meeting following criteria:
+%  T : Table in same format, but has subset meeting following criteria:
 %        -> Duration is >= 100ms and <= 750ms
 %        -> Reach, Grasp, Complete, and Pellet are all present.
 
@@ -23,26 +23,26 @@ hasGrasp = ~isnan(T.Grasp) & ~isinf(T.Grasp);
 hasComplete = ~isnan(T.Complete) & ~isinf(T.Complete);
 
 % % Do Row exclusion % %
-U = T(iDuration & iAlign & hasPellet & hasReach & hasGrasp & hasComplete,:);
-U.Properties.UserData.iDuration = iDuration;
-U.Properties.UserData.iAlign = iAlign;
-U.Properties.UserData.hasPellet = hasPellet;
-U.Properties.UserData.hasReach = hasReach;
-U.Properties.UserData.hasGrasp = hasGrasp;
-U.Properties.UserData.hasComplete = hasComplete;
-U.Properties.Description = 'Table for +analyze/+successful package';
+T = T(iDuration & iAlign & hasPellet & hasReach & hasGrasp & hasComplete,:);
+T.Properties.UserData.iDuration = iDuration;
+T.Properties.UserData.iAlign = iAlign;
+T.Properties.UserData.hasPellet = hasPellet;
+T.Properties.UserData.hasReach = hasReach;
+T.Properties.UserData.hasGrasp = hasGrasp;
+T.Properties.UserData.hasComplete = hasComplete;
+T.Properties.Description = 'Table for +analyze/+complete package';
 
 % % Remove unwanted columns % %
-U = utils.remove_cols(U,'Xc','Yc');
-% U.PelletPresent = [];
-% U.Reach = [];
-% U.Grasp = [];
+T = utils.remove_cols(T,'Xc','Yc');
+% T.PelletPresent = [];
+% T.Reach = [];
+% T.Grasp = [];
 
 % % Rearrange a few of the columns % %
-U = movevars(U,'RowID','Before',1);
-U = movevars(U,'Trial_ID','Before',1);
-if ismember('Rat',U.Properties.VariableNames)
-   U = movevars(U,'Rat','After','AnimalID');
+T = movevars(T,'RowID','Before',1);
+T = movevars(T,'Trial_ID','Before',1);
+if ismember('Rat',T.Properties.VariableNames)
+   T = movevars(T,'Rat','After','AnimalID');
 end
 
 end

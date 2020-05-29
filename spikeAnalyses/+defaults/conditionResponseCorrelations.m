@@ -1,5 +1,5 @@
 function varargout = conditionResponseCorrelations(varargin)
-%CONDITIONRESPONSECORRELATIONS   param = defaults.conditionResponseCorrelations('paramName');
+%CONDITIONRESPONSECORRELATIONS Return parameters for condition-response correlation analyses
 %
 %  p = defaults.conditionResponseCorrelations();
 %  [var1,var2,...] = defaults.conditionResponseCorrelations('var1Name','var2Name',...);

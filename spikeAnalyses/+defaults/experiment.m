@@ -1,5 +1,5 @@
 function varargout = experiment(varargin)
-%DEFAULTS.EXPERIMENT    Return default parameters associated with experiment
+%EXPERIMENT Return default parameters associated with experiment
 %
 %  param = defaults.experiment(name);
 %

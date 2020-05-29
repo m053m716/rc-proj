@@ -1,5 +1,5 @@
 function ax = addToAx_PlotScoreByDay(obj,ax,do_not_modify_properties,legOpts)
-%ADDTOAX_PLOTSCOREBYDAY    obj.ADDTOAX_PLOTSCOREBYDAY(axToAddPlotTo)
+%ADDTOAX_PLOTSCOREBYDAY Adds "score-by-day" plot to axes
 %
 %  ax = obj.ADDTOAX_PLOTSCOREBYDAY(ax);
 %  ax = obj.ADDTOAX_PLOTSCOREBYDAY(ax,do_not_modify_properties)

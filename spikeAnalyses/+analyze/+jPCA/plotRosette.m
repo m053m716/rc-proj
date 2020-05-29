@@ -1,25 +1,18 @@
-function fig = plotRosette(Proj, whichPair, vc, use_orth)
-%% PLOTROSETTE  Plot the rosette (lines with arrows) itself
+function fig = plotRosette(Proj,whichPair,vc)
+%PLOTROSETTE  Plot the rosette (lines with arrows) itself
 %
-%  PLOTROSETTED(Proj, whichPair, vc);
+%  fig = analyze.jPCA.plotRosette(Proj,whichPair,vc);
 %
-%  --------
-%   INPUTS
-%  --------
-%    Proj      :     Matrix where rows are time steps and columns are each
+% Inputs
+%  Proj        - Matrix where rows are time steps and columns are each
 %                       jPC or PC projection. 
 %
-%  whichPair   :     Specifies which plane to look at.
+%  whichPair   - Specifies which plane to look at.
 %
-%     vc       :     Percent (0 to 1) of variance captured by this plane.
+%  vc          - Percent (0 to 1) of variance captured by this plane.
 %
-%   use_orth   :     True if using Mskew_orth projections, false if using
-%                       the old Mskew.
-
-%%
-if nargin < 4
-   use_orth = false;
-end
+% Output
+%  fig         - Figure handle 
 
 if nargin < 3
    vc = 0;
@@ -44,11 +37,7 @@ fig = figure('Name',sprintf('Rosette: jPCA plane %d',whichPair),...
 % first deal with the ellipse for the plan variance (we want this under the rest of the data)
 planData = zeros(numConds,2);
 for c = 1:numConds
-   if use_orth
-      planData(c,:) = Proj(c).proj_orth(1,[d1,d2]);
-   else
-      planData(c,:) = Proj(c).proj(1,[d1,d2]);
-   end
+   planData(c,:) = Proj(c).proj(1,[d1,d2]);
 end
 mu = nanmean(planData,1);
 R = nancov(planData);
@@ -63,28 +52,20 @@ end
 analyze.jPCA.circle(rad,theta_rot,mu); hold on;
 %fprintf('ratio of plan variances = %1.3f (hor var / vert var)\n', planVars(1)/planVars(2));
 
-if use_orth
-   allD = vertcat(Proj(:).proj_orth);  % just for getting axes
-else
-   allD = vertcat(Proj(:).proj);  % just for getting axes
-end
+allD = vertcat(Proj(:).proj);  % just for getting axes
+
 
 allD = allD(:,d1:d2);
 mxVal = max(abs(allD(:)));
 axLim = mxVal*1.05*[-1 1 -1 1];
 arrowSize = 5;
 for c = 1:numConds
-   if use_orth
-      plot(Proj(c).proj_orth(:,d1), Proj(c).proj_orth(:,d2), 'k');
-      plot(Proj(c).proj_orth(1,d1), Proj(c).proj_orth(1,d2), 'ko', 'markerFaceColor', [0.7 0.9 0.9]);
-      penultimatePoint = [Proj(c).proj_orth(end-1,d1), Proj(c).proj_orth(end-1,d2)];
-      lastPoint = [Proj(c).proj_orth(end,d1), Proj(c).proj_orth(end,d2)];
-   else
-      plot(Proj(c).proj(:,d1), Proj(c).proj(:,d2), 'k');
-      plot(Proj(c).proj(1,d1), Proj(c).proj(1,d2), 'ko', 'markerFaceColor', [0.7 0.9 0.9]);
-      penultimatePoint = [Proj(c).proj(end-1,d1), Proj(c).proj(end-1,d2)];
-      lastPoint = [Proj(c).proj(end,d1), Proj(c).proj(end,d2)];
-   end
+
+   plot(Proj(c).proj(:,d1), Proj(c).proj(:,d2), 'k');
+   plot(Proj(c).proj(1,d1), Proj(c).proj(1,d2), 'ko', 'markerFaceColor', [0.7 0.9 0.9]);
+   penultimatePoint = [Proj(c).proj(end-1,d1), Proj(c).proj(end-1,d2)];
+   lastPoint = [Proj(c).proj(end,d1), Proj(c).proj(end,d2)];
+
    
    if isreal(penultimatePoint) && isreal(lastPoint)
       analyze.jPCA.arrowMMC(penultimatePoint, lastPoint, [], arrowSize, axLim);

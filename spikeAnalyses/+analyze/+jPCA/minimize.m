@@ -1,6 +1,5 @@
 function [X, fX, i] = minimize(X, f, len, varargin)
-
-% Minimize a differentiable multivariate function. 
+%MINIMIZE Minimize a differentiable multivariate function. 
 %
 % Usage: [X, fX, i] = minimize(X, f, length, P1, P2, P3, ... )
 %

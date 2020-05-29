@@ -1,5 +1,5 @@
 function [cm,nColorOpts] = load_cm(name)
-%DEFAULTS.LOAD_CM  Loads a colormap
+%LOAD_CM Loads default custom colormap (or specified)
 %
 %  cm = DEFAULTS.LOAD_CM; % Load 'hotcold' default colormap
 %  cm = DEFAULTS.LODA_CM('test'); % Load contents of 'testmap.mat' if it

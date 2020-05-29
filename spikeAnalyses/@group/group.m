@@ -1,5 +1,5 @@
 classdef group < matlab.mixin.Copyable
-   %GROUP organizes all data for an experimental group in RC project
+   %GROUP organizes all data from an experimental group in RC project
    
    % Public properties that are set in the class constructor upon object
    % creation

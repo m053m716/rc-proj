@@ -1,5 +1,5 @@
 function varargout = rat(varargin)
-%DEFAULTS.RAT    Return default parameter for GROUP class object
+%RAT Return default parameter for RAT class object
 %
 %  param = defaults.rat(name);
 %

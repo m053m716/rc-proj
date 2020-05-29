@@ -1,4 +1,19 @@
-%%%%%%%%%%%%%%%%%%%%%%
+function [f, df] = skewSymLSeval(m,dX,X)
+%SKEWSYMLSEVAL Evaluates distance & derivative, imposing skew symmetry on M
+%
+% [f,df] = skewSymLSeval(m,dX,X);
+%
+% Inputs
+%  m - Vector of unique values in the skew-symmetrix matrix M
+%  dX - The matrix of "targets" we seek to recover via transformation M
+%  X - The original data (generally, the spike rates during behavior
+%       trials)
+%
+% Output
+%  f - Distance metric, under constraint that transformation M is
+%        skew-symmetric (due to evaluation only using unique values `m`)
+%  df - Distance derivative, for internal use by optimizer function
+%
 % John P Cunningham
 % 2010
 %
@@ -26,9 +41,7 @@
 % for use in an iterative minimizer.
 %
 % See notes p80-82 for the derivation of the derivative.  
-%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [f, df] = skewSymLSeval(m , dX , X)
 
 % since this function is internal, we do very little error checking.  Also
 % the helper functions and internal functions should throw errors if any of
@@ -46,3 +59,5 @@ f = norm( dX - X*analyze.jPCA.reshapeSkew(m) , 'fro')^2;
 D = (dX - X*analyze.jPCA.reshapeSkew(m))'*X;
 
 df = 2*analyze.jPCA.reshapeSkew( D - D' );
+
+end

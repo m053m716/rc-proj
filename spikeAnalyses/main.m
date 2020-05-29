@@ -1,4 +1,5 @@
-%% MAIN     Main code for initializing and running analyses
+%% MAIN Analysis outline; use `help spikeAnalyses;` for details
+%
 %  Serves as an outline/notes for processing/analysis done in `rc-proj`
 %
 %  Note: if matfile containing `gData` variable (`group` class object)

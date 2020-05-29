@@ -1,7 +1,7 @@
 function param = ratskull_plot(name)
-%% DEFAULTS.RATSKULL_PLOT
+%RATSKULL_PLOT Return default parameters for "ratskull_plot" object (deprecated)
 
-%% DEFINE DEFAULTS
+% DEFINE DEFAULTS
 p = struct;
 % Image
 p.CData = utils.load_ratskull_plot_img('low');
@@ -39,7 +39,7 @@ p.Scatter.MarkerFaceAlpha = 0.6;
 p.Scatter.Parent = [];
 p.Scatter_GroupName = 'Electrodes';
 
-%% PARSE OUTPUT
+% PARSE OUTPUT
 if nargin == 1
    if ismember(name,fieldnames(p))
       param = p.(name);

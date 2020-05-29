@@ -48,7 +48,7 @@ else
 end
 
 % compute mean resultant vector length
-r = jPCA.CircStat2010d.circ_r(alpha,w,d,dim);
+r = analyze.jPCA.CircStat2010d.circ_r(alpha,w,d,dim);
 
 s = sqrt(2*(1-r));      % 26.20
 s0 = sqrt(-2*log(r));    % 26.21

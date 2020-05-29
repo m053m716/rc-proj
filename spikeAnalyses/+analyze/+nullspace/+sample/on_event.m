@@ -1,5 +1,5 @@
 function TID = on_event(X,event)
-%PREMOTOR  Sample at "zero" alignment for some event
+%ON_EVENT  Sample at "zero" alignment for some event
 %
 %  TID = analyze.nullspace.sample.on_event(X,event);
 %
@@ -17,7 +17,7 @@ t_orig = X.Properties.UserData.t;
 t_mask = t_orig >= t_on(1) & t_orig <= t_on(2);
 X = X(X.Alignment==event,:);
 [G,TID] = findgroups(X(:,{'Group','AnimalID','BlockID','Area','Channel'}));
-TID.State = splitapply(@(y)get_state(y,t_mask),X.Rate,G);
+TID.State = splitapply(@(y)get_s tate(y,t_mask),X.Rate,G);
 
    function state = get_state(y,t_mask)
       %GET_STATE  Get average event-aligned state

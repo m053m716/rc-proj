@@ -1,24 +1,17 @@
-function D = grasp(X,t_event,t_reduced)
+function D = grasp(X,t_reduced)
 %GRASP  Sample "grasp" alignment
 %
-%  D = analyze.nullspace.sample.grasp(X);
-%  [D,C] = analyze.nullspace.sample.grasp(X,t_premotor,t_reduced);
+%  D = analyze.nullspace.sample.grasp(X,t_reduced);
 %
 %  -- Inputs --
 %  X  :  Table generated using `X = analyze.nullspace.get_subset(T);`
-%  t_event : Times, relative to 'Grasp' alignment, to consider
-%                 "event" activity.
 %  t_reduced : Reduced sampling range for estimating PCs.
 %
 %  -- Output --
 %  D  : Table corresponding to rows of `rate` (channels)
 %           -> D.Properties.UserData.t corresponds to columns of `rate`
-if nargin < 3
-   t_reduced = defaults.nullspace_analyses('t_reduced');
-end
-
 if nargin < 2
-   t_event = defaults.nullspace_analyses('t_event');
+   t_reduced = defaults.nullspace_analyses('t_reduced');
 end
 
 X = X(X.Alignment=='Grasp',:);
@@ -36,16 +29,26 @@ if any(nTrial ~= nTrial(1))
 end
 D.nTrial = nTrial;
 t_rel = t_orig(t_mask);
+trial_index = ones(numel(t_rel),1) * (1:nTrial(1));
+D.Properties.UserData.t = t_rel;
 D.Properties.UserData.t_rate = repmat(t_rel,1,nTrial(1));
+D.Properties.UserData.TrialIndex = trial_index;
+D.Properties.UserData.NTrial = nTrial(1);
 D.Rate = cell2mat(rate);
 [coeff,score,~,~,explained,mu] = pca(D.Rate.');
 D.Score = score.';
 D.Mu = mu.';
 D.Coeff = coeff;
 D.Explained = explained;
-D.Properties.UserData.ReconFcn = @analyze.pc.reconstruct;
+D.Properties.Alignment = 'Grasp';
+D.Properties.UserData.ReconFcn = ...
+   @(n)analyze.pc.reconstruct(D.Score,D.Coeff,D.Mu,n);
+D.Properties.UserData.TrialRateFcn = ...
+   @(ch,idx)D.Rate(ch,D.Properties.UserData.TrialIndex==idx);
 D.Properties.UserData.ReconNote = ...
-   'Rate = feval(D.Properties.UserData.ReconFcn,D.Score,D.Coeff,D.Mu,nComponents);';
+   'Rate = D.Properties.UserData.ReconFcn(nComponents);';
+D.Properties.UserData.TrialNote = ...
+   'Rate = D.Properties.UserData.TrialRateFcn(iCh,iTrial);';
 
    function [Y,nTrial] = concat_trials_by_channel(y,t_mask)
       %CONCAT_TRIALS_BY_CHANNEL  Concatenate trials (rows) horizontally

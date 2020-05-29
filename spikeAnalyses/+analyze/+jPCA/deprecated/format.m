@@ -1,7 +1,8 @@
 function Data = format(X,times,b,a,jpca_decimation_factor,jpca_start_stop_times,do_pre_trial_norm)
-%% JPCA.FORMAT Convert data to jPCA format (and default parameters struct)
+%FORMAT Convert data to jPCA format (and default parameters struct)
 %
-%  Data = format(X,times,b,a,jpca_decimation_factor,jpca_start_stop_times)
+%  Data = analyze.jPCA.format(X,times,b,a,...
+%           jpca_decimation_factor,jpca_start_stop_times)
 %
 %  --------
 %   INPUTS
@@ -41,38 +42,29 @@ function Data = format(X,times,b,a,jpca_decimation_factor,jpca_start_stop_times,
 %                          which columns correspond to channels and rows
 %                          correspond to samples, and 't', which is a
 %                          vector corresponding to times for rows of 'A'
-%  
-% By: Max Murphy  v1.0  2019-06-13  Original version (R2017a)
 
-
-%% PARSE INPUT
+% % PARSE INPUT % %
 if nargin < 7
    do_pre_trial_norm = false;
 end
-
 if nargin < 6
    jpca_start_stop_times = nan;
 end
-
 if nargin < 5
    jpca_decimation_factor = nan;
 end
-
 if nargin < 4
    a = defaults.jPCA('a');
 end
-
 if nargin < 3
    b = defaults.jPCA('b');
 end
-
-%% OPTIONALLY APPLY FILTERING
+% % OPTIONALLY: APPLY FILTERING % %
 if do_pre_trial_norm
    pre_trial_norm = defaults.block('pre_trial_norm');
    X = sqrt(abs(X));
    X = (X - mean(X(:,pre_trial_norm,:),2))./(std(X(:,pre_trial_norm,:),[],2)+1);
 end
-
 if isnan(b(1)) || isnan(a(1)) % If filter coefficients not present, skip filter
    Y = X;
 else % Otherwise apply filter
@@ -104,11 +96,7 @@ else % Otherwise apply filter
       end
    end
 end
-
-
-
-
-%% CONVERT TO CELL ARRAY BY TRIAL
+% % CONVERT TO CELL ARRAY BY TRIAL % %
 A = cell(size(Y,1),1);
 for ii = 1:size(Y,1)
    A{ii} = nan(size(Y,2),size(Y,3));
@@ -116,9 +104,5 @@ for ii = 1:size(Y,1)
       A{ii}(:,iCh) = Y(ii,:,iCh);
    end
 end
-
 Data = struct('A',A,'times',times);
-
-
-
 end

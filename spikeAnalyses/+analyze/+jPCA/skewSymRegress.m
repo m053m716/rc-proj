@@ -1,4 +1,19 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%
+function M = skewSymRegress(dX,X)
+%SKEWSYMREGRESS Apply least-squares regression to recover skew-symmetric M
+%
+% M = analyze.jPCA.skewSymRegress(dX,X);
+% 
+% Inputs
+%  dX - "Target" matrix of differences, based on published paper this
+%        should be differences in the top rate principal components.
+%
+%  X -  "Data" matrix of observed rates (or principal components, in order
+%        to reduce the number of simultaneously-observed variables and
+%        prevent chances of ill-conditioned covariance matrix).
+%
+% Output 
+%  M - Skew-symmetric transformation matrix such that M = -M' and dX = XM
+%
 % John P Cunningham
 % 2010
 %
@@ -14,7 +29,9 @@
 % of skew-symmetric matrices.  
 %
 % This can be solved by treating M as a vector of the unique elements that
-% exist in a skew-symmetric matrix. A skew-symmetric matrix M of size n by n really only
+% exist in a skew-symmetric matrix. 
+%
+% A skew-symmetric matrix M of size n by n really only
 % has n*(n-1)/2 unique entries.  That is, the diagonal is 0, and the
 % upper/lower triangle is the negative transpose of the lower/upper.  So,
 % we can just think of such a matrix as a vector x of size n(n-1)/2.
@@ -26,11 +43,9 @@
 % This iterative procedure is numerically accurate, etc, etc.
 % So, this allows us to never make a big X skew matrix, and we just have to
 % reshape M between vector and skew-symmetric matrix form as appropriate.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function M = skewSymRegress(dX,X)
-    
-%     % check that dX and X are appropriately sized.
+
+%     % Removed error checks to minimally speed up evaluation -- MM
 %     if ~isequal(size(dX),size(X))
 %         fprintf('ERROR: dX and X are not matched in size... a skew symmetric matrix (which must be square) can not result.  Check the size of dX and X, correct, and rerun the code.  This is a fatal error.\n');
 %         keyboard

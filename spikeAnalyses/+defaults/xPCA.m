@@ -1,7 +1,7 @@
 function param = xPCA(name)
-%% XPCA   param = defaults.xPCA('paramName');
+%XPCA Return default parameters for cross-days ("x") PCA analyses (deprecated)
 
-%%
+% % Set Parameters % %
 p = struct;
 p.t_start = -1000; % ms
 % p.t_start = -600; % ms
@@ -20,7 +20,7 @@ p.n_remove = 4;
 p.n_reps = 100;
 p.min_n_to_run = 8;
 
-%%
+%
 if nargin < 1
    param = p;
    return;

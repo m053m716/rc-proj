@@ -1,4 +1,5 @@
-% For making publication quality rosette plots
+function [colorStruct, haxP, vaxP] = phaseSpace(Projection, Summary, params)
+%PHASESPACE  For making publication quality rosette plots
 % useage:
 %       phaseSpace(Projection, Summary)
 %       phaseSpace(Projection, Summary, params)
@@ -53,9 +54,6 @@
 %       .dataRanges       normally this is set automatically, but you can decide yourself what the
 %                         range should be.  You should supply one entry per plane to be plotted.  You can also supply
 %                         just the first, and then the defaults will be used after that.
-%
-function [colorStruct, haxP, vaxP] = phaseSpace(Projection, Summary, params)
-%% PHASESPACE
 
 if nargin < 3
    params = struct;
@@ -63,13 +61,13 @@ end
 
 TOL = 1e-4; % tolerance for matching time values
 
-%% some basic parameters
+% some basic parameters
 axLimScale = 1.05;
 axisSeparation = 0.20;  % separated by 20% of the maximum excursion (may need more if plotting future times, which aren't used to compute farthestLeft or farthestDown)
 
 numPlanes = length(Summary.varCaptEachPlane);  % total number of planes provided (may only plot a subset)
 
-%% set defaults and override if 'params' is included as an argument
+% set defaults and override if 'params' is included as an argument
 
 % allows for the use of times other than the original ones that correspond to 'scores' (those that
 % were used to create the projection and do the analysis)
@@ -274,7 +272,7 @@ for pindex = 1:length(planes2plot)
    farthestDown = mu(2)-ellipseRadii(2)*5;  % used figure out how far the axes need to be offset
    
    
-   %% deal with the color scheme
+   % deal with the color scheme
    
    % ** colors graded based on PLAN STATE
    % These do NOT depend on which times you choose to plot (only on which time is first in Projection.proj).
@@ -323,7 +321,7 @@ for pindex = 1:length(planes2plot)
    
    colorStruct(pindex).colors = lineColor;
    
-   %% Plot the rosette itself
+   % Plot the rosette itself
    if reusePlot == 0
       [~,axLim] = analyze.jPCA.blankFigure(axLim);
    else
@@ -412,7 +410,7 @@ for pindex = 1:length(planes2plot)
    plot(0,0,'b+', 'markerSi', 7.5);  % plot a central cross
    
    
-   %% if asked we will also plot the cross condition mean
+   % if asked we will also plot the cross condition mean
    if crossCondMean && length(Summary.crossCondMean) > 1
       meanColor = [1 1 1];
       
@@ -447,7 +445,7 @@ for pindex = 1:length(planes2plot)
       
    end
    
-   %% make axes
+   % make axes
    if useAxes
       clear axisParams;
       

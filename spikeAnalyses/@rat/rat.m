@@ -1,5 +1,20 @@
 classdef rat < handle
-   %RAT  Object to organize data for an individual rat from RC project
+   %RAT  organizes all data from an individual rat in RC project
+   %
+   %  obj = rat(path); Create rat object for some folder `path`
+   %
+   % Properties
+   %  Name - Name of this rat (char array)
+   %  Parent - Parent `group` object for this rat
+   %  ChannelInfo - Struct array with metadata for each channel of chronic electrode array implant
+   %  ChannelMask - Mask vector for channels used or excluded due to noise
+   %  Children - Array of child `block` objects
+   %  Data - Struct that holds "rat"-level data
+   %  XCMean - Cross-condition mean struct
+   %  xPC - "Cross-day" PCA object (deprecated)
+   %  Electrode - Table of electrode site stereotaxic coordinates
+   %  dominant - struct 1 x nChannel "dominant" frequencies (deprecated)
+   %  coh - struct of nPoDay x nFreq x nChannel(masked) coherence data (deprecated)
    
    properties (GetAccess = public, SetAccess = private)
       Name           % Name of this rat
@@ -39,6 +54,20 @@ classdef rat < handle
    methods (Access = public)
       % Rat class constructor
       function obj = rat(path,extractSpikeRate)
+         %RAT Class constructor
+         %  
+         % obj = rat(path,extractSpikeRate);
+         %  
+         % Inputs
+         %  path - Char array (folder of rat)
+         %  extractSpikeRate - (Logical) set false to skip spike rate
+         %                       extraction; otherwise, uses value of
+         %                     `defaults.rat('do_spike_rate_extraction');`
+         %
+         % Output
+         %  obj - `rat` class object containing all recordings (children:
+         %              `block` objects) for a given experimental animal.
+         
          if nargin < 1
             path = obj.uiPathDialog;
          elseif isempty(path)

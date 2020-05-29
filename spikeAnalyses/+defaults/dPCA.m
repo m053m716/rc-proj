@@ -1,15 +1,12 @@
 function param = dPCA(name)
-%% DEFAULTS.DPCA    Return default parameters associated with dPCA export
+%DPCA    Return default parameters associated with dPCA export
 %
 %  param = DEFAULTS.DPCA(name);
 %
 %           -> 't_start' (start alignment time, ms)
 %
 %           -> 't_stop' (stop alignment time, ms)
-%
-% By: Max Murphy  v1.0  2019-10-14  Original version (R2017a)
 
-%%
 p = struct;
 p.local_repo_loc = 'C:\MyRepos\_import\dPCA\matlab';
 p.path = 'P:\Rat\BilateralReach\RC\dPCA\data';

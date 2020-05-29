@@ -1,5 +1,8 @@
 function rotate2jPCA(Projection, Summary, times, totalSteps, step, reusePlot)
-%% ROTATE2JPCA
+% ROTATE2JPCA Rotate a trajectory to the corresponding jPCA projection
+%
+%  analyze.jPCA.rotate2jPCA(Projection,Summary,times,totalSteps);
+%  analyze.jPCA.rotate2jPCA(__,step,reusePlot);
 
 if nargin < 5
    analyze.jPCA.rotate2jPCA(Projection,Summary,times,totalSteps,1,false);
