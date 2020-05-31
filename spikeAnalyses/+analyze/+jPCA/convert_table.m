@@ -21,16 +21,21 @@ function [Data,T,TID] = convert_table(T,t_lims,varargin)
 %                 table -- potentially useful for labeling things.
 
 if nargin < 2
-   t_lims = [-1000 750];
+   t_lims = defaults.jPCA('t_lims');
 elseif isempty(t_lims)
-   t_lims = [-1000 750];
+   t_lims = defaults.jPCA('t_lims');
 elseif ischar(t_lims)
    varargin = [t_lims, varargin];
-   t_lims = [-1000 750];
+   t_lims = defaults.jPCA('t_lims');
 end
 
-t = T.Properties.UserData.t((T.Properties.UserData.t >= t_lims(1)) & ...
-                            (T.Properties.UserData.t <= t_lims(2))).';
+times_mask = (T.Properties.UserData.t >= t_lims(1)) & ...
+             (T.Properties.UserData.t <= t_lims(2));
+t = T.Properties.UserData.t(times_mask).';
+                         
+dt = defaults.jPCA('dt');
+tq = (t(1):dt:t(end)).'; % "Query" times
+
 T = analyze.slice(T,varargin{:});
 uTrial = unique(T.Trial_ID);
 
@@ -43,9 +48,35 @@ T(ismember(G_pre,iRemove),:) = [];
 
 [G,TID] = findgroups(T(:,union({'Trial_ID','Alignment'},varargin(1:2:end))));
 TID = movevars(TID,{'Trial_ID','Alignment'},'Before',1);
+fcn = @(rate)interp1(t,sgolayfilt(rate,3,9,hamming(9),1),tq,'spline');
+T.Properties.UserData.jPCA = struct;
+T.Properties.UserData.jPCA.InterpFcn = fcn;
+T.Properties.UserData.jPCA.mask = times_mask;
+T.Properties.UserData.jPCA.t = tq;
+T.Properties.UserData.jPCA.key = {'Unsuccessful';'Successful'};
+
+[~,iLeft,iRight] = outerjoin(T,TID);
+[~,uIdx] = unique(iRight);
+iTrial = iLeft(uIdx);
+Outcome = T.Outcome(iTrial);
+Outcome = num2cell((Outcome=='Successful')+1);
+Alignment = cellstr(char(T.Alignment(iTrial)));
+Duration = num2cell(T.Duration(iTrial)*1e3);
+tPlan = num2cell((T.Reach(iTrial)-T.Grasp(iTrial))*1e3);
+tFinal = num2cell((T.Complete(iTrial)-T.Grasp(iTrial))*1e3);
+
 % Rate times are currently columns, but need to be rows (so transpose);
 % groupings will grab Channels (which become columns) as appropriate
-A = splitapply(@(rate){rate.'},T.Rate,G);
-Data = struct('A',A,'times',[]);
-[Data.times] = deal(t);
+Rate = splitapply(@(rate){rate(:,times_mask).'},T.Rate,G);
+A = cellfun(@(C)fcn(C),Rate,'UniformOutput',false);
+
+Data = struct('Trial_ID',TID.Trial_ID,...
+   'A',A,'times',[],...
+   'Alignment',Alignment,...
+   'Outcome',Outcome,...
+   'Duration',Duration,...
+   'tPlan',tPlan,...
+   'tFinal',tFinal);
+
+[Data.times] = deal(tq);
 end

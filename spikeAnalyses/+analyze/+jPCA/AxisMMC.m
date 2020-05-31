@@ -1,10 +1,12 @@
-
-% plots an axis / calibration
+function p = AxisMMC(start, fin, axParams)
+%AXISMMC Plots an axis / calibration (modified to remove extra code)
 %
-% usage: outParams = AxisMMC(start, fin, params)
-% 
-% 'start' and 'fin' are the starting and ending values of the axis
-% 'params' is an optional structure with one or more of the following fields
+% p = analyze.jPCA.AxisMMC(start, fin, axParams)
+%
+% Inputs
+%  start    - Starting value of the axis
+%  fin      - Ending value of the axis
+%  axParams - Optional structure with one or more of the following fields
 %         tickLocations    default =  [start fin]
 %            tickLabels    default = {'start',  'fin'}
 %    tickLabelLocations    default is the numerical values of the labels themselves
@@ -13,258 +15,420 @@
 %             axisLabel    default = '' (no label)
 %            axisOffset    default = 0
 %       axisOrientation    default = 'h' ('h' = horizontal, 'v' = vertical)
-%                invert    default = 0
+%                invert    default = 0 (not inverted)
 %            tickLength    default is 1/100 of total figure span
+%              -> tickLengthFactor = 1/100
 %       tickLabelOffset    default based on tickLength
 %       axisLabelOffset    default based on tickLength
-%         lineThickness    default = 1
+%         lineThickness    default = 1.25
+%             lineStyle    default = '-'
+%          borderMarker    default = 'none'
+%   borderMarkerIndices    default = [1,2,3,4]
 %                 color    default = 'k'
-%              fontSize    default = 8
-% 
-% Note that you can specify all, some, or none of these, in any order
+%              fontSize    default = 11
+%               curAxes    default = []  (default is current axes handle)
+%             curBorder    default = []  (handle to hggroup for "border")
+%              curTicks    default = []  (handle to hggroup for tickmarks)
+%         curTickLabels    default = []  (handle to hggroup for ticklabs)
+%             curLabels    default = []  (handle to hggroup for ax labels)
 %
-% 'outParams' returns the parameters used (usually some mix of supplied and default)
-% This is convenient if you don't like what you see and wish to know what a good
-% rough starting value is for a given field.
+% Output
+%  p        - Struct of parameters to use (mix of supplied & default)
+%
+%  Note: you can specify all, some, or none of the, struct parameter
+%        fields, in any order
 
-function outParams = AxisMMC(start, fin, varargin)
-
-% ********* PARSE INPUTS *******************
-Pfields = {}; ipf = 1; %these will collect the fieldnames
-% Locations of tick marks
-Pfields{ipf} = 'tickLocations'; ipf=ipf+1;
-if ~isempty(varargin) && isfield(varargin{1}, 'tickLocations')
-    tickLocations = varargin{1}.tickLocations;
+% ********* PARSE INPUTS  *******************
+axParams_def = defaults.jPCA('axes_params');
+if nargin < 3
+   axParams = axParams_def;
 else
-    tickLocations = [start, fin];
+   % No error parsing for incorrect input fieldnames 
+   %  (just uses default if fields not supplied correctly)
+   fn = fieldnames(axParams);
+   for iField = 1:numel(fn)
+      axParams_def.(fn{iField}) = axParams.(fn{iField});
+   end
+   axParams = axParams_def;
 end
-
-% Numerical labels for the ticks
-Pfields{ipf} = 'tickLabels'; ipf=ipf+1;
-if ~isempty(varargin) && isfield(varargin{1}, 'tickLabels')
-    tickLabels = varargin{1}.tickLabels;
-else
-    for i = 1:length(tickLocations)
-        tickLabels{i} = sprintf('%g', tickLocations(i)); % defaults to values based on the tick locations
-    end
+clear axParams_def
+if nargin < 2
+   fin = axParams.fin;
 end
-
-% Locations of the numerical labels
-Pfields{ipf} = 'tickLabelLocations'; ipf=ipf+1;
-if ~isempty(varargin) && isfield(varargin{1}, 'tickLabelLocations')
-    tickLabelLocations = varargin{1}.tickLabelLocations;
-else
-    for i = 1:length(tickLabels)
-        tickLabelLocations(i) = eval(tickLabels{i}); %defaults to the values specified by the labels themselves
-    end
+if nargin < 1
+   start = axParams.start;
 end
-if length(tickLabelLocations) ~= length(tickLabels)
-    disp('ERROR, tickLabelLocations not the same length as tickLabels');
-    disp('USER overridden, defaults used');
-    clear tickLabelLocations;
-    for i = 1:length(tickLabels)
-        tickLabelLocations(i) = eval(tickLabels{i}); %defaults to the values specified by the labels themselves
-    end
-end
-
-% Any long ticks
-Pfields{ipf} = 'longTicks'; ipf=ipf+1;
-if ~isempty(varargin) && isfield(varargin{1}, 'longTicks')
-    longTicks = varargin{1}.longTicks;  % these are the locations (must be a subset of the above)
-    if (min(ismember(longTicks,tickLocations))==0), disp('One or more long ticks doesnt exist'); end 
-else
-    longTicks = tickLabelLocations;  % default is labels get long ticks
-end
-
-% Length of the long ticks
-Pfields{ipf} = 'extraLength'; ipf=ipf+1;
-if ~isempty(varargin) && isfield(varargin{1}, 'extraLength')
-    extraLength = varargin{1}.extraLength;  % long ticks are 'extraLength' times as long as standard ticks
-else
-    extraLength = 0.55;
-end
-
-% axis label (e.g. 'spikes/s')
-Pfields{ipf} = 'axisLabel'; ipf=ipf+1;
-if ~isempty(varargin) && isfield(varargin{1}, 'axisLabel')
-    axisLabel = varargin{1}.axisLabel;
-else
-    axisLabel = '';
-end
-
-% Axis offset (vertical for a horizontal axis, and vice versa)
-Pfields{ipf} = 'axisOffset'; ipf=ipf+1;
-if ~isempty(varargin) && isfield(varargin{1}, 'axisOffset')
-    axisOffset = varargin{1}.axisOffset;
-else
-    axisOffset = 0;
-end
-
-% choose horizontal or vertical axis
-Pfields{ipf} = 'axisOrientation'; ipf=ipf+1;
-if ~isempty(varargin) && isfield(varargin{1}, 'axisOrientation')
-    axisOrientation = varargin{1}.axisOrientation(1); % just keep the first letter ('h' for horizontal, 'v' for vertical)
-else
-    axisOrientation = 'h';  % horizontal is default
-end
-if axisOrientation == 'H', axisOrientation = 'h'; end  % accept upper or lowercase
-if axisOrientation ~= 'h', axisOrientation = 'v'; end
-
-
-% normal or inverted axis (inverted = top for horizontal, rhs for vertical)
-Pfields{ipf} = 'invert'; ipf=ipf+1;
-if ~isempty(varargin) && isfield(varargin{1}, 'invert')
-    invert = varargin{1}.invert; % just keep the first letter ('h' for horizontal, 'v' for vertical)
-else
-    invert = 0; % default is normal axis
-end
-
-% length of ticks
-Pfields{ipf} = 'tickLength'; ipf=ipf+1;
-if ~isempty(varargin) && isfield(varargin{1}, 'tickLength')
-    tickLength = varargin{1}.tickLength;
-else
-    axLim = axis;  % default values based on 'actual' axis size of figure
-    if axisOrientation == 'h'
-        tickLength = abs(axLim(4)-axLim(3))/100;
-    else
-        tickLength = abs(axLim(2)-axLim(1))/100;
-    end
-end
-if invert == 1, tickLength = -tickLength; end  % make negative if axis is inverted
-
-% offset of numerical tick labels from the ticks (vertical offset if using a horizontal axis)
-Pfields{ipf} = 'tickLabelOffset'; ipf=ipf+1;
-if ~isempty(varargin) && isfield(varargin{1}, 'tickLabelOffset')
-    tickLabelOffset = varargin{1}.tickLabelOffset;
-else
-    tickLabelOffset = tickLength/2;
-end
-
-% offset of axis label
-Pfields{ipf} = 'axisLabelOffset'; ipf=ipf+1;
-if ~isempty(varargin) && isfield(varargin{1}, 'axisLabelOffset')
-    axisLabelOffset = varargin{1}.axisLabelOffset;
-else
-    
-    if axisOrientation == 'h', axisLabelOffset = tickLength*4;
-    else axisLabelOffset = tickLength*4.5; end
-end
-
-% line thickness
-Pfields{ipf} = 'lineThickness'; ipf=ipf+1;
-if ~isempty(varargin) && isfield(varargin{1}, 'lineThickness')
-    lineThickness = varargin{1}.lineThickness;
-else
-    lineThickness = 1; % default thickness is 1
-end
-
-% color
-Pfields{ipf} = 'color'; ipf=ipf+1;
-if ~isempty(varargin) && isfield(varargin{1}, 'color')
-    color = varargin{1}.color;
-else
-    color = 'k'; % default color is black
-end
-
-% font size
-Pfields{ipf} = 'fontSize'; ipf=ipf+1;
-if ~isempty(varargin) && isfield(varargin{1}, 'fontSize')
-    fontSize = varargin{1}.fontSize;
-else
-    fontSize = 8; % default fontsize is 8 points (numerical labels are 1 pt smaller)
-end
-
-% warn if there is an unrecognized field in the input parameter structure
-if ~isempty(varargin)  
-    fnames = fieldnames(varargin{1});
-    for i = 1:length(fnames)
-        recognized = max(strcmp(fnames{i},Pfields));
-        if recognized == 0, fprintf('fieldname %s not recognized\n',fnames{i}); end
-    end
-end
+p = parse_axes_parameters(axParams);
 % ********** DONE PARSING INPUTS ***************
 
-
 % DETERMINE APPOPRIATE ALIGNMENT FOR TEXT (based on axis orientation)
-if axisOrientation == 'h';  % for horizontal axis
-    LalignH = 'center';  % axis label alignment
-    NalignH = 'center';  % numerical labels alignment
-    if invert==0        
-        LalignV = 'top';        
-        NalignV = 'top';
-    else
-        LalignV = 'bottom';
-        NalignV = 'bottom';
-    end
-else                        % for vertical axis
-    LalignH = 'center';  % axis label alignment   
-    NalignV = 'middle';  % numerical labels alignment
-    if invert==0 
-        LalignV = 'bottom';  % axis label alignment
-        NalignH = 'right';
-    else
-        LalignV = 'top';
-        NalignH = 'left';
-    end    
+p.axesLabelHorizontalAlignment = 'center';  % axis label alignment
+if strcmp(p.axisOrientation,'h')  % for horizontal axis
+   p.tickLabelHorizontalAlignment = 'center';          % numerical labels alignment
+   if p.invert==0                 % For inverted case
+      p.axesLabelVerticalAlignment = 'top';
+      p.tickLabelVerticalAlignment = 'top';
+   else
+      p.axesLabelVerticalAlignment = 'bottom';
+      p.tickLabelVerticalAlignment = 'bottom';
+   end
+else                         % for vertical axis
+   p.tickLabelVerticalAlignment = 'middle';     % numerical labels alignment
+   if p.invert==0
+      p.axesLabelVerticalAlignment   = 'bottom';  % axis label alignment
+      p.tickLabelHorizontalAlignment = 'right';
+   else
+      p.axesLabelVerticalAlignment   = 'top';
+      p.tickLabelHorizontalAlignment = 'left';
+   end
 end
-
 
 % PLOT AXIS LINE
 % plot main line with any ending ticks as part of the same line
 % (looks better in illustrator that way)
-axisX = [start, fin];
-axisY = axisOffset * [1, 1];
-if ismember(start, tickLocations)
-    tempLen = tickLength + tickLength*extraLength*ismember(start, longTicks);
-    axisX = [start, axisX]; 
-    axisY = [axisY(1)-tempLen,axisY]; 
+p.axisX = [start, fin];
+p.axisY = p.axisOffset * [1, 1];
+p = fix_label_tick_offsets(p,start,fin);
+
+if isempty(p.curBorder)
+   p.curBorder = hggroup(p.curAxes,...
+      'Tag','Axis',...
+      'PickableParts','none',...
+      'HitTest','off');
 end
-if ismember(fin, tickLocations)
-    tempLen = tickLength + tickLength*extraLength*ismember(fin, longTicks);
-    axisX = [axisX, fin];
-    axisY = [axisY, axisY(end)-tempLen];
-end 
-if axisOrientation == 'h'
-   h = plot(axisX, axisY); 
+
+if p.axisOrientation == 'h'
+   h = line(p.curBorder,p.axisX, p.axisY,...
+      'Tag','X-Axis',...
+      'Color', p.color, ...
+      'LineWidth', p.lineThickness,...
+      'Marker',p.borderMarker,...
+      'LineStyle',p.lineStyle...
+      );
 else
-   h = plot(axisY, axisX);
+   h = line(p.curBorder,p.axisY, p.axisX,...
+      'Tag','Y-Axis',...
+      'Color', p.color, ...
+      'LineWidth', p.lineThickness,...
+      'Marker',p.borderMarker,...
+      'LineStyle',p.lineStyle...
+      );
 end
-set(h,'color', color, 'lineWidth', lineThickness);
+% Do not want "border" box to show up in Legend (if present)
+h.Annotation.LegendInformation.IconDisplayStyle = 'off'; 
+p.curBorder.Annotation.LegendInformation.IconDisplayStyle = 'off';
 
 % PLOT TICKS
-for i = 1:length(tickLocations)
-    if ~ismember(tickLocations(i),[start, fin]) % these have already been plotted
-        tempLen = tickLength + tickLength*extraLength*ismember(tickLocations(i), longTicks);
-        tickX =  tickLocations(i)*[1 1]; 
-        tickY = axisOffset + [0 -tempLen];
-        if axisOrientation == 'h', h = plot(tickX, tickY); else h = plot(tickY, tickX); end
-        set(h,'color', color, 'lineWidth', lineThickness);
-    end
+if isempty(p.curTicks)
+   p.curTicks = hggroup(p.curAxes,...
+      'Tag','Ticks',...
+      'PickableParts','none',...
+      'HitTest','off');
 end
 
-% PLOT NUMERICAL LABELS (presumably on the ticks)
-tickLim = tickLength + tickLength*extraLength*~isempty(longTicks); % longest tick length
-for i = 1:length(tickLabelLocations)
-    x = tickLabelLocations(i);
-    y = axisOffset - tickLim - tickLabelOffset;
-    if axisOrientation == 'h', h = text(x, y, tickLabels{i}); else h = text(y, x, tickLabels{i}); end
-    set(h,'HorizontalA', NalignH, 'VerticalA', NalignV, 'fontsize', fontSize-1, 'color', color);
+% Get all X- and Y- pairings, with Nan inserts to delimit tick marks
+% Note: [start, fin] markers already plotted
+smallTickLocs = setdiff(p.tickLocations,[start,fin]);
+nSmall = numel(smallTickLocs);
+smallTickLocs = reshape(smallTickLocs,1,nSmall);
+p.tickX = [smallTickLocs; smallTickLocs; nan(1,nSmall)];
+isShortTick = ismember(p.tickLocations,p.longTicks);
+len = p.tickLength + isShortTick .* (p.tickLength * p.extraLength);
+p.tickY = [zeros(1,nSmall); ones(1,nSmall) .* -len; nan(1,nSmall)];
+p = fix_tick_marker_indices(p,nSmall);
+if strcmp(p.axisOrientation,'h')
+   h = line(p.curTicks,p.tickX(:),p.tickY(:),...
+      'Color',p.color,...
+      'LineWidth',p.lineThickness,...
+      'Marker',p.tickMarker,...
+      'MarkerIndices',p.tickMarkerIndices(:)); 
+else
+   h = line(p.curTicks,p.tickY(:),p.tickX(:),...
+      'Color',p.color,...
+      'LineWidth',p.lineThickness,...
+      'Marker',p.tickMarker,...
+      'MarkerIndices',p.tickMarkerIndices(:)); 
 end
+h.Annotation.LegendInformation.IconDisplayStyle = 'off';
+p.curTicks.Annotation.LegendInformation.IconDisplayStyle = 'off';
+
+% ADD TICK LABELS (presumably on the ticks)
+if isempty(p.curTickLabels)
+   p.curTickLabels = hggroup(p.curAxes,...
+      'Tag','TickLabels',...
+      'PickableParts','none',...
+      'HitTest','off');
+end
+
+p.longTickLen = (~isempty(p.longTicks)) * (p.tickLength * p.extraLength);
+p.tickLim = p.tickLength + p.longTickLen; % longest tick length
+hg = hggroup(p.curTickLabels,'Tag',sprintf('%sTickLabels',p.axisOrientation));
+if strcmp(p.axisOrientation,'h')
+   X = p.tickLabelLocations;
+   Y = ones(1,numel(X)) .* (p.axisOffset - p.tickLim - p.tickLabelOffset);
+else
+   Y = p.tickLabelLocations;
+   X = ones(1,numel(Y)) .* (p.axisOffset - p.tickLim - p.tickLabelOffset);
+end
+
+for i = 1:length(p.tickLabelLocations)
+   text(p.curTickLabels,X(i),Y(i), p.tickLabels{i}, ...
+         'HorizontalAlignment', p.tickLabelHorizontalAlignment, ...
+         'VerticalAlignment', p.tickLabelVerticalAlignment, ...
+         'FontSize', p.fontSize-1, ...
+         'Color', p.color);
+end
+hg.Annotation.LegendInformation.IconDisplayStyle = 'off';
+p.curTickLabels.Annotation.LegendInformation.IconDisplayStyle = 'off';
 
 % PLOT AXIS LABEL
+if isempty(p.curLabels)
+   p.curLabels = hggroup(p.curAxes,...
+      'Tag','Labels',...
+      'PickableParts','none',...
+      'HitTest','off');
+end
+
 x = (start+fin)/2;
-y = axisOffset - tickLim - axisLabelOffset;
-if axisOrientation == 'h', h = text(x, y, axisLabel); else h = text(y, x, axisLabel); end
-set(h,'HorizontalA', LalignH, 'VerticalA', LalignV, 'fontsize', fontSize, 'color', color);
-if axisOrientation == 'v', set(h,'rotation',90); end
-% DONE PLOTTING
+y = p.axisOffset - p.tickLim - p.axisLabelOffset;
+if strcmp(p.axisOrientation,'h')
+   text(p.curLabels,x, y, p.axisLabel,...
+      'HorizontalAlignment', p.axesLabelHorizontalAlignment, ...
+      'VerticalAlignment', p.axesLabelVerticalAlignment,...
+      'FontSize', p.fontSize, ...
+      'Color', p.color ...
+      ); 
+else
+   text(p.curLabels,y, x, p.axisLabel,...
+      'HorizontalAlignment', p.axesLabelHorizontalAlignment, ...
+      'VerticalAlignment', p.axesLabelVerticalAlignment,...
+      'FontSize', p.fontSize, ...
+      'Color', p.color,...
+      'Rotation',90 ...
+   );
+end
+p.curLabels.Annotation.LegendInformation.IconDisplayStyle = 'off';
+% % % % End function (helper functions below) % % % %
 
+   % Parse default parameters
+   function p = parse_axes_parameters(start,fin,axParams)
+      %PARSE_AXES_PARAMETERS Parse input `axParams` struct based on scale
+      %
+      %  p = parse_axes_parameters(start,fin,axParams);
+      %
+      %  Inputs
+      %   start    - Start of axis
+      %   fin      - End of axis
+      %   axParams - Struct based on combination of inputs and defaults
+      %
+      %  Output
+      %   p        - Parsed output parameter struct
+      
+      % Set tickLocations from "start" and "fin" args
+      p.tickLocations = [start, fin];
+      
+      % Numerical labels for the ticks
+      if isfield(axParams, 'tickLabels')
+         p.tickLabels = axParams.tickLabels;
+      else
+         p.tickLabels = cell(size(p.tickLocations));
+         for iTick = 1:length(tickLocations)
+            % defaults to values based on the tick locations
+            p.tickLabels{iTick} = sprintf('%g', p.tickLocations(iTick));
+         end
+      end
+      
+      % Get current axes, if not passed as input field
+      if isempty(axParams.curAxes)
+         axParams.curAxes = gca;
+      end
+      p.curAxes = axParams.curAxes;
+      p.curAxes.NextPlot = 'add';
+      
+      % Assign "curBorder" (hggroup of lines for axes lines)
+      if isempty(axParams.curBorder)
+         p.curBorder = findobj(p.curAxes,'Tag','Axis');
+      else
+         p.curBorder = axParams.curBorder;
+      end
+      
+      % Assign "curTicks" (hggroup of tick markers)
+      if isempty(axParams.curTicks)
+         p.curTicks = findobj(p.curAxes,'Tag','Ticks');
+      else
+         p.curTicks = axParams.curTicks;
+      end
+      
+      % Assign "curTickLabels" (hggroup of tick label texts)
+      if isempty(axParams.curTickLabels)
+         p.curTickLabels = findobj(p.curAxes,'Tag','TickLabels');
+      else
+         p.curTickLabels = axParams.curTickLabels;
+      end
+      
+      % Assign "curLabels" (hggroup of axes label texts)
+      if isempty(axParams.curLabels)
+         p.curLabels = findobj(p.curAxes,'Tag','Labels');
+      else
+         p.curLabels = axParams.curLabels;
+      end
+      
+      % Locations of the numerical labels
+      if isfield(axParams, 'tickLabelLocations')
+         p.tickLabelLocations = axParams.tickLabelLocations;
+      else
+         p.tickLabelLocations = nan(size(p.tickLabels));
+         for iTick = 1:length(p.tickLabels)
+            % defaults to the values specified by the labels themselves
+            p.tickLabelLocations(iTick) = p.tickLocations(iTick);
+         end
+      end
+      
+      % Any long ticks
+      if isfield(axParams, 'longTicks')
+         p.longTicks = axParams.longTicks;  % these are the locations (must be a subset of the above)
+         if any(~ismember(p.longTicks,p.tickLocations))
+            warning(['JPCA:' mfilename ':InvalidParameter'],...
+               ['\n\t->\t<strong>[JPCA AXES DEFAULTS]:</strong> ' ...
+               'One or more elements of axParams.<strong>longTicks</strong> '...
+               'does not exist. This probably does not matter.\n']);
+         end
+      else
+         % default is labels get long ticks
+         p.longTicks = p.tickLabelLocations;
+      end
+      
+      % Length of the long ticks
+      p.extraLength = axParams.extraLength;
+      
+      % axis label (e.g. 'spikes/s')
+      p.axisLabel = axParams.axisLabel;
+      
+      % Axis offset (vertical for a horizontal axis, and vice versa)
+      p.axisOffset = axParams.axisOffset;
+      
+      % choose horizontal or vertical axis
+      if isempty(axParams.axisOrientation)
+         p.axisOrientation = 'v';
+      else
+         p.axisOrientation = lower(axParams.axisOrientation(1));
+         if p.axisOrientation ~= 'h'
+            p.axisOrientation = 'v';
+         end
+      end
+      
+      % normal or inverted axis (inverted = top for horizontal, rhs for vertical)
+      p.invert = axParams.invert;
+      
+      % length of ticks
+      if isfield(axParams, 'tickLength')
+         p.tickLength = axParams.tickLength;
+      else
+         % default values based on 'actual' axis size of figure
+         axLim = axis(axParams.curAxes);
+         if axisOrientation == 'h'
+            % Horizontal axes: scale tick length by "height" (y-limits)
+            p.tickLength = abs(axLim(4)-axLim(3)) * axParams.tickLengthFactor;
+         else
+            % Vertical axes: scale tick length by "width" (x-limits)
+            p.tickLength = abs(axLim(2)-axLim(1)) * axParams.tickLengthFactor;
+         end
+      end
+      
+      % make negative if axis is inverted
+      if p.invert == 1
+         p.tickLength = -tickLength;
+      end
+      
+      % offset of numerical tick labels from the ticks
+      % (vertical offset if using a horizontal axis)
+      if isfield(axParams, 'tickLabelOffset')
+         p.tickLabelOffset = axParams.tickLabelOffset;
+      else
+         p.tickLabelOffset = p.tickLength/2;
+      end
+      
+      % offset of axis label
+      if isfield(axParams, 'axisLabelOffset')
+         p.axisLabelOffset = axParams.axisLabelOffset;
+      else
+         if strcmp(p.axisOrientation,'h')
+            p.axisLabelOffset = p.tickLength * axParams.hAxisLabelOffsetFactor;
+         else
+            p.axisLabelOffset = p.tickLength * axParams.vAxisLabelOffsetFactor;
+         end
+      end
+      
+      % line thickness (default: 1.25)
+      p.lineThickness = axParams.lineThickness;
+      
+      % line style (default: '-')
+      p.lineStyle = axParams.lineStyle;
+      
+      % "border marker" (default: 'none')
+      p.borderMarker = axParams.borderMarker;
+      
+      % "border marker" indices (default: [1,2,3,4])
+      p.borderMarkerIndices = axParams.borderMarkerIndices;
+      
+      % color (default: black)
+      p.color = axParams.color;
+      
+      % font size (11-pt; numerical labels are 1-pt smaller)
+      p.fontSize = axParams.fontSize;
+   end
 
-% make outParams structure (tells user what default choices were made)
-for i = 1:length(Pfields)
-    outParams.(Pfields{i}) = eval(Pfields{i});
-end;
+   % Fix label tick size offsets
+   function p = fix_label_tick_offsets(p,varargin)
+      %FIX_LABEL_TICK_OFFSETS Fix axis limits based on tick mark lengths
+      %
+      %  p = fix_label_tick_OFFSETS(p,arg1,arg2,...);
+      %  
+      %  Inputs
+      %     p        -  Parameters struct for axes parameters (`outParams`)
+      %     varargin -  e.g. `start` and `fin` or other labels
+      %
+      %  Output
+      %     p        -  Same as input, but with updated fields:
+      %                 * `p.axisX`
+      %                 * `p.axisY`
+      %  They are fixed so that the limits don't "collide" and data doesn't
+      %  overlap with tick marks
+      
+      for iV = 1:numel(varargin)
+         thisLab = varargin{iV};
+         if ismember(thisLab, p.tickLocations)
+            longTickPresent = ismember(thisLab, p.longTicks);
+            extra = p.tickLength * p.extraLength * longTickPresent;
+            l = p.tickLength + extra;
+            p.axisX = [thisLab, p.axisX];
+            if iV == 1
+               p.axisY = [p.axisY(1)-l,p.axisY];
+            else
+               p.axisY = [p.axisY,p.axisY(end)-l];
+            end
+         end
+      end
+   end
 
+   % Fix tick marker locations
+   function p = fix_tick_marker_indices(p,nSmall)
+      %FIX_TICK_MARKER_INDICES Fixes tick marker indexing parameter
+      %
+      %  p = fix_tick_marker_indices(p,nSmall);
+      %
+      %  Inputs
+      %     p - Parameters struct
+      %     nSmall - Number of small tick marks
+      %
+      %  Output
+      %     p - Parameters struct with correct Marker Indices
+      
+      p.tickMarkerIndices = ...
+         reshape(p.tickMarkerIndices,numel(p.tickMarkerIndices),1);
+      p.tickMarkerIndices = (p.tickMarkerIndices) + (0:3:(3*(nSmall-1)))';
+      p.tickMarkerIndices = p.tickMarkerIndices(:);
+   end
 
+end
 

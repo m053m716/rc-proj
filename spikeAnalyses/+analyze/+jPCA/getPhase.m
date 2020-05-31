@@ -1,15 +1,18 @@
 function phaseData = getPhase(Proj, whichPair, label)
-%% GETPHASE    Get the phase for a given plane over its timecourse
+%GETPHASE    Get the phase for a given plane over its timecourse
 %
-%  --------
-%   INPUTS
-%  --------
-%    Proj      :     Matrix where rows are time steps and columns are each
-%                       jPC or PC projection. 
+% phaseData = getPhase(Proj,whichPair,label);
 %
-%  whichPair   :     Specifies which plane to look at. (default: primary)
+% Inputs
+%  Proj       - Matrix where rows are time steps and columns are each jPC 
+%                 or PC projection. 
+%  whichPair  - Specifies which plane to look at. (default: primary)
+%  label      - Numeric label to associate with this element
+%
+% Output
+%  phaseData  - Struct array that has info about the phase data.
 
-%%
+
 numConds = numel(Proj);
 
 if nargin < 3
@@ -25,11 +28,6 @@ d1 = 1 + 2*(whichPair-1);
 d2 = d1+1;
 
 for c=1:numConds
-%    if use_orth
-%       data = Proj(c).proj_orth(:,[d1,d2]);
-%    else
-%       data = Proj(c).proj(:,[d1,d2]);
-%    end
    data = Proj(c).proj(:,[d1,d2]);
    
    phase = atan2(data(:,2), data(:,1));  % Y comes first for atan2
@@ -49,7 +47,6 @@ for c=1:numConds
    % angle between state vector and Dstate vector
    % between -pi and pi
    phaseData(c).phaseDiff = analyze.jPCA.minusPi2Pi(phaseData(c).phaseOfDelta - phaseData(c).phase);
-%    phaseData(c).wAvgDPWithPiOver2 = analyze.jPCA.averageDotProduct(phaseData(c).phaseDiff,pi/2,phaseData(c).radius);
    phaseData(c).wAvgDPWithPiOver2 = analyze.jPCA.averageDotProduct(phaseData(c).phaseDiff,pi/2);
    phaseData(c).label = label(c);
 end

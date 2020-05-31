@@ -1,42 +1,63 @@
-function [out,zMu] = zeroCenterPoints(in,zero_index,varargin)
-%% ZEROCENTERPOINTS  Ensures that element "zero_index" starts at 0
+function [proj,zMu] = zeroCenterPoints(proj,izero,fApply,fGet)
+%ZEROCENTERPOINTS  Ensures that element "zero_index" starts at 0
+%
+% [proj,zMu] = analyze.jPCA.zeroCenterPoints(proj,izero);
+% [proj,zMu] = analyze.jPCA.zeroCenterPoints(proj,izero,fApply,fGet);
+%
+% Inputs
+%  proj   - Array element from `Projection` struct array
+%  izero  - Index corresponding to t==0
+%  fApply - Cell array of fields to apply the normalization to. Must have
+%              equal number of elements as `fGet`, the fields from which
+%              the normalization values will be estimated.
+%              -> Default (if unspecified):
+%                      {'proj';
+%                       'projAllTimes';
+%                       'tradPCAproj';
+%                       'tradPCAprojAllTimes'};
+%  fGet   - Cell array of fields to use to get norm. Must have a matching
+%              element for each element in `fApply`, the cell array specifying 
+%              the fields to apply the norm to.
+%              -> Default (if unspecified): 
+%                       {'projAllTimes';
+%                        'projAllTimes';
+%                        'tradPCAprojAllTimes',
+%                        'tradPCAprojAllTimes'};
 
-for iV = 1:2:numel(varargin)
-   eval([upper(varargin{iV}) '=varargin{iV+1};']);
-end
-
-if isstruct(in)
-   FIELDS_TO_GET_NORM = {...
-      'projAllTimes';
-      'projAllTimes';
-      'tradPCAprojAllTimes';
-      'tradPCAprojAllTimes'};
-   FIELDS_TO_DO_NORM = {...
-      'proj';
-      'projAllTimes';
-      'tradPCAproj';
-      'tradPCAprojAllTimes'};
-   
-   if numel(FIELDS_TO_GET_NORM) ~= numel(FIELDS_TO_DO_NORM)
-      error('FIELDS_TO_GET_NORM (%d) must have same number of elements as FIELDS_TO_DO_NORM (%d).',...
-         numel(FIELDS_TO_GET_NORM),numel(FIELDS_TO_DO_NORM));
+if isstruct(proj)
+   if nargin < 3
+      fApply = {...
+         'proj';
+         'projAllTimes';
+         'tradPCAproj';
+         'tradPCAprojAllTimes'};
+   end
+   if nargin < 4
+      fGet = {...
+         'projAllTimes';
+         'projAllTimes';
+         'tradPCAprojAllTimes';
+         'tradPCAprojAllTimes'};
    end
    
-   zMu = cell(numel(FIELDS_TO_DO_NORM),1);
-   for iF = 1:numel(FIELDS_TO_DO_NORM)
-      if isfield(in,FIELDS_TO_DO_NORM{iF})
-         [in,zMu{iF}] = doNorm(in,...
-            FIELDS_TO_DO_NORM{iF},...
-            FIELDS_TO_GET_NORM{iF},...
-            zero_index);
+   if numel(fGet) ~= numel(fApply)
+      error(['JPCA:' mfilename ':BadSyntax'],...
+         ['\n\t->\t<strong>[ZEROCENTERPOINTS]:</strong> ' ...
+          '`fGet` (%d) must have same number of elements ' ...
+          ' as `fApply` (%d)\n'],numel(fGet),numel(fApply));
+   end
+   
+   zMu = cell(numel(fApply),1);
+   for iF = 1:numel(fApply)
+      if isfield(proj,fApply{iF})
+         [proj,zMu{iF}] = doNorm(proj,fApply{iF},fGet{iF},izero);
       else
-         fprintf(1,'Missing field to norm: %s\n',FIELDS_TO_DO_NORM{iF});
+         fprintf(1,'Missing field to norm: <strong>%s</strong>\n',fApply{iF});
       end
    end
-   out = in;
 else
-   zMu = in(zero_indx,:);
-   out = in - repmat(zMu,size(in,1),1);
+   zMu = proj(zero_indx,:);
+   proj = proj - repmat(zMu,size(proj,1),1);
 end
 
    function [s,mu] = doNorm(s,field2norm,field4norm,zi)

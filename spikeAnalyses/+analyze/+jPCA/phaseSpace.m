@@ -124,11 +124,6 @@ if isfield(params,'arrowAlpha')
    arrowAlpha = params.arrowAlpha;
 end
 
-htmp = [];
-if isfield(params,'htmp')
-   htmp = params.htmp;
-end
-
 tailAlpha = 0.35;
 if isfield(params,'tailAlpha')
    tailAlpha = params.tailAlpha;
@@ -169,16 +164,9 @@ if isfield(params,'trials2plot')
    end
 end
 
-% if asked, plot the cross-condition mean on the same plot.
-crossCondMean = false;
-if isfield(params,'crossCondMean')
-   crossCondMean = params.crossCondMean;
-end
-
-conditionLabels = nan;
-if isfield(params,'conditionLabels') && isfield(params,'useConditionLabels')
-   if params.useConditionLabels
-      conditionLabels = params.conditionLabels;
+if params.useConditionLabels
+   if isfield(Projections,'conditionLabels')
+      params.conditionLabels = vertcat(Projections.conditionLabels);
    end
 end
 
@@ -250,8 +238,6 @@ for pindex = 1:length(planes2plot)
    
    % set the limits of the figure
    axLim = axLimScale * dataRanges(plane) * [-1 1 -1 1];
-   axisLength = 0.5;
-   
    planData = nan(numTrials,2);
    idx = 0;
    for c = trials2plot
@@ -277,7 +263,7 @@ for pindex = 1:length(planes2plot)
    % ** colors graded based on PLAN STATE
    % These do NOT depend on which times you choose to plot (only on which time is first in Projection.proj).
    
-   if isnan(conditionLabels)
+   if isnan(params.conditionLabels(1))
       htmp = redbluecmap(numTrials, 'interpolation', 'linear');
       [~,newColorIndices] = sort(planData(:,1));
       
@@ -289,21 +275,17 @@ for pindex = 1:length(planes2plot)
          planMarkerColor{c} = htmp(c,:);
       end
    else
-      if numel(unique(conditionLabels)) > 2
-         [u,~,iC] = unique(conditionLabels);
+      if numel(unique(params.conditionLabels)) > 2
+         [u,~,iC] = unique(params.conditionLabels);
          htmp = redbluecmap(numel(u), 'interpolation', 'sigmoid');
          htmpIdx = fliplr(round(linspace(1,size(htmp,1),numel(u))));
          htmp = htmp(htmpIdx,:);
       else
-         iC = conditionLabels;
+         iC = params.conditionLabels;
          htmp = [0.6 0.6 0.6;
-                 0.4 0.4 1.0];
-           
+            0.4 0.4 1.0];
+         
       end
-%       if isempty(htmp)
-%          ts = ((tansig(linspace(-2,2,numel(unique(conditionLabels))))+1)/2).';
-%          htmp = [ts, flipud(ts), ones(numel(unique(conditionLabels)))];
-%       end
       
       for c = 1:numTrials  % cycle through conditions, and assign that condition's color
          lineColor{c} = htmp(iC(c),:);
@@ -358,9 +340,8 @@ for pindex = 1:length(planes2plot)
       end
       
       if ismember(c,trials2plot)
-         %          plot(P1, P2, 'color', lineColor{c}, 'lineWidth', lineWidth);
          if isnan(tailAlpha)
-            tailAlphaThis = max(min((-tansig(sum(conditionLabels==conditionLabels(c))/numel(conditionLabels))+1)/2,0.8),0.2);
+            tailAlphaThis = compute_tail_alpha(params,c);
          else
             tailAlphaThis = tailAlpha;
          end
@@ -384,11 +365,13 @@ for pindex = 1:length(planes2plot)
          if isempty(arrowMinVel) || vel > arrowMinVel
             aSize = arrowSize + arrowGain * vel;  % if asked (e.g. for movies) arrow size may grow with vel
             if isnan(arrowAlpha)
-               arrowAlphaThis = max(min((-tansig(sum(conditionLabels==conditionLabels(c))/numel(conditionLabels))+1)/2,0.8),0.2);
+               arrowAlphaThis = compute_tail_alpha(params,c);
             else
                arrowAlphaThis = arrowAlpha;
             end
-            analyze.jPCA.arrowMMC(penultimatePoint, lastPoint, [], aSize, axLim, arrowFaceColor{c}, arrowEdgeColor, arrowAlphaThis);
+            analyze.jPCA.arrowMMC(penultimatePoint, lastPoint, [], ...
+               aSize, axLim, ...
+               arrowFaceColor{c}, arrowEdgeColor, arrowAlphaThis);
          else
             plot(lastPoint(1), lastPoint(2), 'ko', 'markerSize',...
                arrowSize, 'markerFaceColor', arrowFaceColor{c},...
@@ -411,7 +394,7 @@ for pindex = 1:length(planes2plot)
    
    
    % if asked we will also plot the cross condition mean
-   if crossCondMean && length(Summary.crossCondMean) > 1
+   if params.crossCondMean && length(Summary.crossCondMean) > 1
       meanColor = [1 1 1];
       
       if isempty(overrideTimes)  % if we are going with the original times (those that were used to create the projection and do the analysis)
@@ -446,9 +429,7 @@ for pindex = 1:length(planes2plot)
    end
    
    % make axes
-   if useAxes
-      clear axisParams;
-      
+   if isempty(params.phaseSpaceAx)
       extraSeparation = axisSeparation*(min(farthestDown,farthestLeft));
       
       % general axis parameters
@@ -461,7 +442,6 @@ for pindex = 1:length(planes2plot)
       axisParams.axisOffset = farthestDown + extraSeparation;
       axisParams.axisLabel = 'projection onto jPC_1 (a.u.)';
       axisParams.axisOrientation = 'h';
-      %       haxP = analyze.jPCA.AxisMMC(-axisLength, axisLength, axisParams);
       haxP = analyze.jPCA.AxisMMC(axLim(1),axLim(2),axisParams);
       
       % vertical axis
@@ -469,35 +449,31 @@ for pindex = 1:length(planes2plot)
       axisParams.axisLabel = 'projection onto jPC_2 (a.u.)';
       axisParams.axisOrientation = 'v';
       axisParams.axisLabelOffset = 1.9*haxP.axisLabelOffset;
-      %       vaxP = analyze.jPCA.AxisMMC(-axisLength, axisLength, axisParams);
-      vaxP = analyze.jPCA.AxisMMC(axLim(3),axLim(4),axisParams);
+      vaxP = analyze.jPCA.AxisMMC(axLim(3),axLim(4),...
+         axisParams);
    end
-   
-   
-   % plot a label at the top
-   if substRawPCs == 0
-      planeType = 'jPCA';
+
+   if substRawPCs == 1
+      titleText = sprintf('raw PCA plane %d', plane);
+   elseif strcmp(rankType, 'varCapt')
+      letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      titleText = sprintf('jPCA plane %s (var capt ranked)', letters(planes2plot_Orig(pindex)));
    else
-      planeType = 'PCA';
+      titleText = sprintf('jPCA plane %d (eigval ranked)', plane);
    end
-   
-   if useLabel
-      if substRawPCs == 1
-         titleText = sprintf('raw PCA plane %d', plane);
-      elseif strcmp(rankType, 'varCapt')
-         letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-         titleText = sprintf('jPCA plane %s (var capt ranked)', letters(planes2plot_Orig(pindex)));
-      else
-         titleText = sprintf('jPCA plane %d (eigval ranked)', plane);
-      end
-      titleText2 = sprintf('%d%% of var captured', round(100*Summary.varCaptEachPlane(plane)));
-      text(0,0.99*axLim(4),titleText, 'horizo', 'center');
-      text(0,0.88*axLim(4),titleText2, 'horizo', 'center', 'fontSize', 8.5);
-   end
-   
-   
-   
+   titleText2 = sprintf('%d%% of var captured', round(100*Summary.varCaptEachPlane(plane)));
+   text(0,0.99*axLim(4),titleText, 'horizo', 'center');
+   text(0,0.88*axLim(4),titleText2, 'horizo', 'center', 'fontSize', 8.5);
+
 end  % done looping through planes
+
+   function alpha = compute_tail_alpha(params,c)
+      %COMPUTE_TAIL_ALPHA Return tail-alpha based on condition/index
+      %
+      %  alpha = compute_tail_alpha(params,c);
+      
+      alpha = max(min((-tansig(sum(params.conditionLabels==params.conditionLabels(c))/numel(params.conditionLabels))+1)/2,0.8),0.2);
+   end
 
 end  % end of the main function
 
