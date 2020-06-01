@@ -1,4 +1,4 @@
-function h = arrowMMC(prevPoint, point, nextPoint, sizeArrow, axisRange, faceColor, edgeColor, faceAlpha)
+function h = arrowMMC(prevPoint, point, nextPoint, p)
 %ARROWMMC  Returns nice "arrow" for animated vectors, etc.
 %
 %   h = analyze.jPCA.arrowMMC(prevPoint, point, nextPoint);
@@ -29,43 +29,42 @@ function h = arrowMMC(prevPoint, point, nextPoint, sizeArrow, axisRange, faceCol
 
 % setting this empirically so that 'sizeArrow' 
 % works roughly like 'markerSize'
-roughScale = 0.004;  
-xVals = [0 -1.5 4.5 -1.5 0];
-yVals = [0 2 0 -2 0];
+
 
 % % do some parsing of the inputs, and use defaults if not provided % %
-if isempty(nextPoint)
-    nextPoint = point + point-prevPoint;
+if nargin < 4
+   p = defaults.jPCA('rosette_params');
 end
 
-if nargin<4
-   sizeArrow = 6; 
+if (nargin < 3) || isempty(nextPoint)
+   nextPoint = point + point-prevPoint;
+elseif isstruct(nextPoint)
+   p = nextPoint;
+   nextPoint = point + point-prevPoint;
 end
 
-if nargin<5
-    xRange = range(get(gca,'XLim'));
-    yRange = range(get(gca,'YLim'));
-else
-    xRange = range(axisRange(1:2));
-    yRange = range(axisRange(3:4));
+if isfield(p,'Arrow')
+   if isempty(p.Arrow.Axes)
+      p.Arrow.Axes = p.Axes;
+   end
+   p = p.Arrow;
 end
 
-if nargin<6
-   faceColor = [0 0 0]; 
+if isempty(p.Axes)
+   p.Axes = gca;
 end
 
-if nargin<7
-   edgeColor = 'none'; 
-end
-
-if nargin<8
-   faceAlpha = 0.275;
-end
+% % Convert to old variable names % %
+xRange = range(p.XLim);
+yRange = range(p.YLim);
+roughScale = p.RoughScale;  
+xVals = p.XVals;
+yVals = p.YVals;
 
 % % do a bit of scaling % % 
 mxX = max(xVals);
-xVals = roughScale*sizeArrow * xVals/mxX * xRange;
-yVals = roughScale*sizeArrow * yVals/mxX * yRange;
+xVals = roughScale*p.Size * xVals/mxX * xRange;
+yVals = roughScale*p.Size * yVals/mxX * yRange;
 
 % % now do the rotation % %
 
@@ -80,7 +79,9 @@ yVals = newVals(2,:);
 % % now plot % %
 xVals = xVals + point(1);
 yVals = yVals + point(2);
-h = fill(xVals, yVals, faceColor,'FaceAlpha',faceAlpha,'EdgeColor',edgeColor);
-% set(h, 'edgeColor', edgeColor');
+h = fill(p.Axes,...
+   xVals, yVals, p.FaceColor,...
+   'FaceAlpha',p.FaceAlpha,...
+   'EdgeColor',p.EdgeColor);
 
 end

@@ -25,13 +25,21 @@ function [M,mu,MID] = subtract_rat_means(M,grouping)
 %     has been done to the data.
 
 if nargin < 2
-   grouping = {'AnimalID','Area','Channel','Alignment','Outcome'};
+   grouping = {'AnimalID','BlockID','Area','Channel','Alignment'};
 end
 
 [G,MID] = findgroups(M(:,grouping));
 mu = cell2mat(splitapply(@(rate){mean(rate,1)},M.Rate,G));
 [~,iM,iMean] = outerjoin(M,MID);
 M.Rate(iM,:) = M.Rate(iM,:) - mu(iMean,:);
+% uG = unique(G);
+% for iG = 1:numel(uG)
+%    gThis = uG(iG);
+%    M.Rate(G==gThis,:) = M.Rate(G==gThis,:) - mu(gThis,:);
+% end
+
+M.Offset = mean(M.Rate,2);
+M.Rate = M.Rate - M.Offset;
 
 if ~isstruct(M.Properties.UserData)
    M.Properties.UserData = struct;

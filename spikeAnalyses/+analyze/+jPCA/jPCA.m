@@ -304,7 +304,7 @@ for c = 1:numTrials
    Projection(c).projAllTimes = projAllTimes(index2:index2b,:);
    Projection(c).tradPCAprojAllTimes = tradPCA_AllTimes(index2:index2b,:);
    Projection(c).allTimes = Data(1).times;
-   
+   Projection(c).Condition = Data(c).Outcome;
    index1 = index1+nSamples;
    index2 = index2+numTimes;
 end
@@ -348,8 +348,12 @@ elseif numel(params.tFinal)~=numel(Projection)
    params.tFinal = ones(size(Projection)).*params.tFinal;
 end
 
-planState = cell2mat(arrayfun(@(s,tKeep)keepFcn(s,tKeep),Projection,params.tPlan).');
-finalState = cell2mat(arrayfun(@(s,tKeep)keepFcn(s,tKeep),Projection,params.tFinal).');
+[planState,planIndex] = arrayfun(@(s,tKeep)keepFcn(s,tKeep),Projection,params.tPlan);
+planState = cell2mat(planState.');
+[finalState,finalIndex] = arrayfun(@(s,tKeep)keepFcn(s,tKeep),Projection,params.tFinal);
+finalState = cell2mat(finalState.');
+[Projection.planStateIndex] = deal(planIndex{:});
+[Projection.finalStateIndex] = deal(finalIndex{:});
 
 % % % SUMMARY STATS % % %
 % % Compute R^2 for the fit provided by M and Mskew % %
@@ -409,14 +413,18 @@ if ~isfield(params,'suppressBWrosettes')
    for jPCplane = params.plane2plot
       iSort = sortIndices(jPCplane);
       if ~isnan(varCaptEachPlane(iSort)) && (vc(iSort) > 1e-9)
-         analyze.jPCA.plotRosette(Projection,jPCplane,vc(iSort));
+         p = analyze.jPCA.setRosetteParams(...
+            'WhichPair',jPCplane,'VarCapt',vc(iSort));
+         analyze.jPCA.plotRosette(Projection,p);
       end
    end
 elseif ~params.suppressBWrosettes
    for jPCplane = params.plane2plot
       iSort = sortIndices(jPCplane);
       if ~isnan(varCaptEachPlane(iSort)) && (vc(iSort) > 1e-9)
-         analyze.jPCA.plotRosette(Projection,jPCplane,vc(iSort));
+         p = analyze.jPCA.setRosetteParams(...
+            'WhichPair',jPCplane,'VarCapt',vc(iSort));
+         analyze.jPCA.plotRosette(Projection,p);
       end
    end
 end
@@ -459,7 +467,7 @@ Summary.preprocessing.meanFReachNeuron = meanFReachNeuron; % You should first no
 % to undo the normalization.
 Summary.params = params;
 
-   function c = recover_state_index(projArray,keepTime,t)
+   function [c,keepIndex] = recover_state_index(projArray,keepTime,t)
       %RECOVER_STATE_INDEX  Recovers "state" index of certain time 
       %
       %  c = recover_state_index(projArray,keepTime,t);
@@ -472,9 +480,12 @@ Summary.params = params;
       %  Output
       %     c         - Cell array that is the "State" at that trial
       %                    instant corresponding to `keepTime`
+      %
+      %     keepIndex - Index corresponding to timepoint of `c`
       
       [~,keepIndex] = min(abs(t-keepTime)); 
       c = {projArray.proj(keepIndex,:)};
+      keepIndex = {keepIndex};
    end
 
 end

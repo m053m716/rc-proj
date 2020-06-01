@@ -79,4 +79,8 @@ Data = struct('Trial_ID',TID.Trial_ID,...
    'tFinal',tFinal);
 
 [Data.times] = deal(tq);
+utils.addHelperRepos();
+fprintf(1,...
+   '\n\t->\tTable conversion for <strong>jPCA</strong> complete.\n');
+sounds__.play('pop',1.5,-15);
 end

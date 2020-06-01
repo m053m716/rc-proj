@@ -87,7 +87,7 @@ for iCh = 1:16
    ax.YColor = 'k';
    ax.LineWidth = 1.5;
    plot(ax,t,x.Rate,'Color',col(iCh+1,:),'LineWidth',1);
-   title(char(x.ICMS(1)));
+   title(ax,char(x.ICMS(1)));
    xlim(ax,[t(1) t(end)]);
    ylim(ax,y_lim);
    ax.XTick = xtick;
@@ -107,7 +107,7 @@ for iCh = 1:16
    ax.YColor = 'k';
    ax.LineWidth = 1.5;
    plot(ax,t,x.Rate,'Color',col(iCh+1,:),'LineWidth',1);
-   title(char(x.ICMS(1)));
+   title(ax,char(x.ICMS(1)));
    xlim(ax,[t(1) t(end)]);
    ylim(ax,y_lim);
    ax.XTick = xtick;

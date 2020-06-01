@@ -49,7 +49,7 @@ jpca_params.suppressBWrosettes = false;
 jpca_params.suppressHistograms = false;
 jpca_params.suppressText = false;
 jpca_params.plotPlanEllipse = true;
-jpca_params.zeroCenters = false;
+jpca_params.zeroCenters = true;
 jpca_params.zeroTime = nan;
 jpca_params.crossCondMean = true;
 jpca_params.analyzeTimes = [];
@@ -121,11 +121,41 @@ p.axes_params = axes_params;
 p.preview_folder = 'jpca-previews-new';
 p.video_export_base = 'jpca-vids-new';
 p.jpca_align = 'Grasp';                % 'Grasp' or 'Reach'
-p.rosette_xlim = [-40 40];
-p.rosette_ylim = [-40 40];
-p.rosette_fontname = 'Arial';
-p.rosette_fontsize = 16;
-p.rosette_fontweight = 'bold';
+
+% Parameters for `rosette` plots
+rosette_params = struct;
+rosette_params.XLim = [-3 3];
+rosette_params.XColor = 'k';
+rosette_params.YLim = [-3 3];
+rosette_params.YColor = 'k';
+rosette_params.FontName = 'Arial';
+rosette_params.FontSize = 16;
+rosette_params.FontWeight = 'bold';
+rosette_params.AxesLineWidth = 1.5;
+rosette_params.LineWidth = 1.25;
+rosette_params.WhichPair = 1;
+rosette_params.VarCapt = 0;
+rosette_params.Figure = [];
+rosette_params.FigureColor = 'w';
+rosette_params.PlanStateColor = [0.7 0.9 0.9];
+rosette_params.FigureNameExpr = 'Rosette: jPCA plane %d';
+rosette_params.AxesTitleExpr = 'jPCA plane %d';
+rosette_params.FigurePosition =[0.15+0.015*randn,0.25+0.075*randn,0.2,0.3];
+rosette_params.FigureUnits = 'Normalized';
+rosette_params.Axes = [];
+
+rosette_params.Arrow.Size = 5;
+rosette_params.Arrow.FaceColor = [0 0 0];
+rosette_params.Arrow.EdgeColor = 'none';
+rosette_params.Arrow.FaceAlpha = 0.275;
+rosette_params.Arrow.Axes = [];
+rosette_params.Arrow.XLim = rosette_params.XLim;
+rosette_params.Arrow.YLim = rosette_params.YLim;
+rosette_params.Arrow.RoughScale = 0.004; % Empirically determined
+rosette_params.Arrow.XVals = [0 -1.5 4.5 -1.5 0];
+rosette_params.Arrow.YVals = [0 2 0 -2 0];
+
+p.rosette_params = rosette_params;
 
 % PARSE OUTPUT
 if nargin > 0

@@ -18,13 +18,12 @@ if nargin < 3
 end
 
 % Get Trial "Key"
-uTrial = unique(J.Trial_ID);
-thisTrial = uTrial{iTrial};
+thisTrial = Data(iTrial).Trial_ID;
 
 % Get times and rates from Original data for this trial
-t = J.Properties.UserData.t;
+t = J.Properties.UserData.t.';
 r = J.Rate(ismember(J.Trial_ID,thisTrial) & ...
-           J.Alignment==Data(iTrial).Alignment,:);
+           J.Alignment==Data(iTrial).Alignment,:).';
         
 % Get times and rates from exported data struct
 tq = Data(iTrial).times;
@@ -41,8 +40,8 @@ fig = figure(...
    ); 
 ax_top = subplot(2,2,1);
 ax_top = fix_ax_props(ax_top);
-for iCh = 1:size(r,1)
-   line(ax_top,t,r(iCh,:),...
+for iCh = 1:size(r,2)
+   line(ax_top,t,r(:,iCh),...
       'Color',cm(iCh,:),'LineWidth',1.25,...
       'Tag',sprintf('Channel-%02g',iCh)); 
 end
@@ -67,15 +66,16 @@ ylim(ax_bot,[-5 5]);
 
 ax_err = subplot(2,2,[2,4]);
 ax_err = fix_ax_props(ax_err);
-iSample = nan(size(t));
-for iT = 1:numel(iSample)
-   [~,iSample(iT)] = min(abs(tq-t(iT)));
+err = nan(size(r));
+nSample = size(rq,1);
+for iT = 1:size(r,1)
+   [~,iSample] = min(abs(tq-t(iT)));
+   vec = max(iSample-3,1):min(iSample+3,nSample);
+   err(iT,:) = min(sqrt((rq(vec,:) - r(iT,:)).^2),[],1);
 end
-rmatch = rq(iSample,:).';
-err = r - rmatch;
 histogram(ax_err,err(:),...
    'EdgeColor','none','FaceColor',[0.5 0.5 0.5]);
-title(ax_err,'Resample Error','FontName','Arial','Color','k'); 
+title(ax_err,'Resample SE','FontName','Arial','Color','k'); 
 
 suptitle(['Trial: ' strrep(thisTrial,'_','\_')]);
 
