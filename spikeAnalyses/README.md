@@ -30,8 +30,8 @@ There are pretty much just two steps to follow:
        - `pars.LocalMatlabUtilitiesRepo` : Name of your cloned folder of `Matlab_Utilities`
        - `pars.LocalMatlabReposFolder` : Location containing the cloned `Matlab_Utilities` 
      - While here, if you have access to the data servers (or local copies of the data) you should check that the following data path variables match your local mappings:
-       - `pars.CommunalDataTank`
-       - `pars.LocalDataTank`
+       - `pars.CommunalDataTank` -- This pretty much just should point to your mapping of the KUMC Isilon `P:\Processed_Data` drive holding the original data.
+       - `pars.LocalDataTank` -- This is where any "locally downloaded" data files should go, such as large tables used as loose databases for some of the processed data.
 
    - To check that all dependencies are installed successfully, from the `spikeAnalyses` folder you can run the following line in the **Command Window:**
 
@@ -46,3 +46,6 @@ There are pretty much just two steps to follow:
 2. You can see an overview of pre-processing and curation steps as well as aggregate Table generation in `main.m`, however this is probably uninteresting and can take a while depending on what stage you have saved versions of the data for. Most likely, skip this step.
 
 3. To look at the main analyses of interest that were applied to these data, click through `marg.mlx` in a Matlab release that supports the Matlab `Live Editor` (likely, `Matlab R2016a` and beyond).
+
+   * *Note:* prior to running `marg.mlx`, make sure that you have a local version of the data table `*.mat` file. This should be saved somewhere locally as the file `T_default.mat`. 
+   * If you did not save `T_default.mat` to the folder specified by `pars.LocalDataTank` in `+local\defaults.m`, then either change the name to match the actual location in `pars.LocalDataTank` or move the variable to the specified location on your machine.

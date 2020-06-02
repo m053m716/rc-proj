@@ -263,3 +263,17 @@ This is the functional *result* of the trial, in terms of whether the pellet was
 ## Spike Analyses ##
 
 ---
+
+1. Navigate to your local `rc-proj` repository location in the Matlab editor.
+
+2. Open the `spikeAnalyses` subfolder.
+
+3. The analyses contain a Matlab `help` file, `Contents.m` that has more information about specific functions. To open it, enter the following to the **Command Window**
+
+   ```(matlab)
+   help spikeAnalyses
+   ```
+
+4. There is a little bit more information on the sub-folder page in the **[remote repository](https://github.com/m053m716/rc-proj/tree/master/spikeAnalyses)**
+
+   
