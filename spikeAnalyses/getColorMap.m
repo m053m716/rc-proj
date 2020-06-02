@@ -11,6 +11,7 @@ function cm = getColorMap(nRows,style)
 %     * 'blue'
 %     * 'pastel'
 %     * 'vibrant'
+%     * 'events'
 
 % % Hard-coded params % %
 N = 512;
@@ -29,17 +30,20 @@ end
 utils.addHelperRepos();
 switch lower(style)
    case 'green'
-      cm = gfx__.cubehelix(N,[0.05 -1 0.9 0.8],[0.2 0.9],[0.1 0.5]);
+      cm = gfx__.cubehelix(N,[0.05 -1.00 0.90 0.96],[0.40 0.60],[0.10 0.53]);
    case 'pastel'
-      cm = gfx__.cubehelix(N,[0.5625 -1.1827 1.2327 0.66635],[0.5 0.8],[0.3 0.7]);
+      cm = gfx__.cubehelix(N,[0.56 -1.36 1.23 0.95],[0.50 0.55],[0.30 0.70]);
    case 'red'
-      cm = gfx__.cubehelix(N,[0.28096 0.40385 1.6894 0.5834],[0.2 0.7],[0.3 0.6]);
+      cm = gfx__.cubehelix(N,[0.28 0.40 1.69 0.58],[0.40 0.60],[0.30 0.60]);
    case 'blue'
-      cm = gfx__.cubehelix(N,[0.22596 -0.016152 0.75769 0.6024],[0.2 0.7],[0.3 0.6]);
+      cm = gfx__.cubehelix(N,[0.23 -0.02 0.76 0.81],[0.30 0.60],[0.30 0.60]);
    case 'vibrant'
-      cm = gfx__.cubehelix(N,[0.37981 1.8173 1.4337 0.73942],[0.2 0.8],[0.3 0.7]);
+      cm = gfx__.cubehelix(N,[0.38 1.82 1.43 0.74],[0.20 0.80],[0.30 0.70]);
+   case {'event','events','align','alignment','behavior'}
+      N = 4;
+      cm = gfx__.cubehelix(N,[0.74 -1.50 1.00 1.00],[0.00 0.75],[0.00 1.00]);
    otherwise
-      cm = gfx__.cubehelix(N,[0.05 -1 0.9 0.8],[0.2 0.9],[0.1 0.5]);
+      cm = gfx__.cubehelix(N,[0.38 1.82 1.43 0.74],[0.20 0.80],[0.30 0.70]);
 end
       
 cm = cm(round(linspace(1,N,nRows)),:);

@@ -1,26 +1,26 @@
-function circStatsSummary = plotPhaseDiff(phaseData, jPCplane,params)
+function [circStatsSummary,fig] = plotPhaseDiff(phaseData,jPCplane,params)
 %PLOTPHASEDIFF  Plots histogram of angle between dx(t)/dt and x(t) 
 %
+% Use
 %  circStatsSummary = analyze.jPCA.plotPhaseDiff(phaseData,jPCplane,params)
+%  [circStatsSummary,fig] = ...
 %
-%  --------
-%   INPUTS
-%  --------
-%  phaseData      :     Data struct output from JPCA.GETPHASE.
+% Inputs
+%  phaseData - Data struct output from JPCA.GETPHASE.
+%  jPCplane  - Index of jPCplane to plot. Default is 1.
+%  params    - (Optional) Struct with field `suppressHistograms`. 
+%                 Default is true for this field if not provided.
+%                 If false, will plot the histograms. If no
+%                 output argument is supplied, default is false 
+%                 (otherwise why run this function)
 %
-%  jPCplane       :     Index of jPCplane to plot. Default is 1.
-%
-%  params       :     (Optional) Struct with field `suppressHistograms`. 
-%                       Default is true for this field if not provided.
-%                       If false, will plot the histograms. If no
-%                       output argument is supplied, default is false 
-%                       (otherwise why run this function)
+% Output
+%  circStatsSummary - Information struct or cell array of structs
+%                       containing summary circle-statistics for the data
+%                       presented in output bar graphs.
+%  fig              - Figure handle to figure containing the bar graph
 
 % PARSE INPUT
-if nargin < 2
-   jPCplane = 1; % If not specified, assume it is the main plane
-end
-
 if nargin < 3 % If parameters struct not specified, suppress histograms
    params = defaults.jPCA('jpca_params');
    if nargout < 1
@@ -30,24 +30,65 @@ if nargin < 3 % If parameters struct not specified, suppress histograms
    end
 end
 
-% compute the circular mean of the data, weighted by the r's
-circMn = analyze.jPCA.CircStat2010d.circ_mean([phaseData.phaseDiff]', [phaseData.radius]');
-resultantVect = analyze.jPCA.CircStat2010d.circ_r([phaseData.phaseDiff]', [phaseData.radius]');
-stats = analyze.jPCA.CircStat2010d.circ_stats([phaseData.phaseDiff]',[phaseData.radius]');
+if nargin < 2
+   if iscell(phaseData)
+      circStatSummary = cell(1,numel(phaseData));
+      for jPCplane = numel(phaseData):-1:1
+         circStatSummary{jPCplane} = analyze.jPCA.plotPhaseDiff(...
+            phaseData{jPCplane},jPCplane,params);
+      end
+      return;
+   else
+      jPCplane = 1; % If not specified, assume it is the main plane
+   end
+elseif iscell(phaseData)
+   if numel(jPCplane) > 1
+      circStatSummary = cell(1,max(jPCplane));
+      for iPlane = 1:numel(jPCplane)
+         circStatSummary{1,jPCplane} = analyze.jPCA.plotPhaseDiff(...
+            phaseData{jPCplane(iPlane)},jPCplane(iPlane),params);
+      end
+      return;
+   else
+      phaseData = phaseData{jPCplane};
+   end
+end
 
-cnts = histcounts([phaseData.phaseDiff], params.histBins);  % not for plotting, but for passing back out
+% compute the circular mean of the data, weighted by the r's
+pdMain = [phaseData.phaseDiff];
+pdAll = [pdMain.All];
+circMn = analyze.jPCA.CircStat2010d.circ_mean([pdAll.delta]', [phaseData.radius]');
+resultantVect = analyze.jPCA.CircStat2010d.circ_r([pdAll.delta]', [phaseData.radius]');
+stats = analyze.jPCA.CircStat2010d.circ_stats([pdAll.delta]',[phaseData.radius]');
+
+
+cnts = histcounts([pdAll.delta], params.histBins);  % not for plotting, but for passing back out
 nBin = numel(params.histBins)-1;
+
+S = setdiff(fieldnames(pdMain),{'All'});
+Y = nan(numel(S),nBin);
+nMax = 0;
+for iS = 1:numel(S)
+   pdThis = [pdMain.(S{iS})];
+   Y(iS,:) = histcounts([pdThis.delta],params.histBins);
+   nMax = nMax + numel([pdThis.delta]); 
+end
+CData = [params.ReachStateColor; ...
+         params.GraspStateColor; ...
+         params.SupportStateColor; ...
+         params.CompleteStateColor];
+
 % If data is perfectly uniform, then yMax will be total number of sample
 % points divided by total number of bins. It will probably not be totally
 % uniform. Also, we don't really want the data to go all the way up to the
 % top of the y-axis, so that's where the factor of 5 comes in (still not
 % perfect).
-yMax = round(numel([phaseData.phaseDiff])/(nBin/5)); 
+yMax = round(nMax/(nBin/5)); 
 yMax = ceil(yMax/100) * 100;
 binCenters = (params.histBins(1:end-1) + params.histBins(2:end))/2;
 
 xTick = [-pi -pi/2 0 pi/2 pi];
-iMatch = ismembertol(xTick,circMn,0.05); % Don't want labels too close
+iMatch = ismembertol(xTick,circMn,params.min_phase_axes_tick_spacing); % Don't want labels too close
 
 [xTick,xIdx] = sort([xTick(~iMatch) circMn],'ascend');
 xTickLabel = {'-\pi','\color{blue} -\pi/2','0','\color{blue} \pi/2','\pi'};
@@ -60,9 +101,7 @@ if ~params.suppressHistograms
    fig = figure(...
       'Name',sprintf('dPhase Distribution: jPCA plane %d',jPCplane),...
       'Units','Normalized',...
-      'Position',[0.15 + 0.15*(jPCplane-1),...
-      0.55 + 0.025*randn,...
-      0.2, 0.3],...
+      'Position',params.FigurePosition,...
       'Color','w');
    ax = axes(fig,...
       'XLim',[-pi pi],...
@@ -77,12 +116,12 @@ if ~params.suppressHistograms
       'XTickLabel',xTickLabel,...
       'YAxisLocation','origin',...
       'YColor','k',...
+      'ColorOrder',CData,...
       'TickDir','both');
-      
-   bar(ax,binCenters,cnts,1,...
+   h = bar(ax,binCenters,Y,1,...
+      'stacked',...
       'EdgeColor','none',...
-      'FaceColor','k',...
-      'DisplayName','Distribution of Phases'); 
+      'FaceColor','flat'); 
    line(ax,[-pi/2 -pi/2 nan pi/2 pi/2], [0 yMax nan 0 yMax], ...
       'LineStyle','--',...
       'LineWidth',2,...
@@ -98,20 +137,20 @@ if ~params.suppressHistograms
       'MarkerFaceColor', 'r', ...
       'MarkerSize', 8,...
       'DisplayName','Average Phase');
+   legend(h,S,'Location','northwest',...
+      'FontName','Arial','TextColor','black');
    title(ax,sprintf('Counts: Phase Angle (Plane-%d)', jPCplane),...
       'FontName','Arial',...
       'Color','k','FontWeight','bold');
    xlabel(ax,'Rotation Phase','FontName','Arial','Color','k');
+else
+   fig = []; % Otherwise return as empty
 end
-
-%fprintf('(pi/2 is %1.2f) The circular mean (weighted) is %1.2f\n', pi/2, circMn);
-
-% compute the average dot product of each datum (the angle difference for one time and condition)
-% with pi/2.  Will be one for perfect rotations, and zero for random data or expansions /
-% contractions.
-avgDP = analyze.jPCA.averageDotProduct([phaseData.phaseDiff]', pi/2);
-%fprintf('the average dot product with pi/2 is %1.4f  <<---------------\n', avgDP);
-
+% Compute the average dot product of each datum (the angle difference for 
+% one time and condition) with pi/2.  
+% --> This quantity will be one for perfect rotations, and zero for random 
+%     data or expansions / contractions.
+avgDP = analyze.jPCA.averageDotProduct([pdAll.delta]', pi/2);
 circStatsSummary.stats = stats;
 circStatsSummary.circMn = circMn;
 circStatsSummary.resultantVect = resultantVect;

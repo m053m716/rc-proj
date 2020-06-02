@@ -1,4 +1,4 @@
-function fig = plotRosette(Proj,p)
+function [fig,Proj] = plotRosette(Proj,p)
 %PLOTROSETTE  Plot the rosette (lines with arrows) itself
 %
 %  fig = analyze.jPCA.plotRosette(Proj,p);
@@ -21,6 +21,8 @@ function fig = plotRosette(Proj,p)
 %
 % Output
 %  fig         - Figure handle 
+%  Proj        - Input data array with additional zero offset (traj_offset)
+%                 field if that was done for visualization
 
 if nargin < 2
    p = defaults.jPCA('rosette_params');
@@ -34,6 +36,33 @@ d1 = 1 + 2*(whichPair-1);
 d2 = d1+1;
 
 numConds = length(Proj);
+
+
+% % If zero-centering about some index, do that now % % 
+if p.zeroCenters
+   % Check if there is a zeroTime
+   if ischar(p.zeroTime)
+      tField = [lower(p.zeroTime) 'Index'];
+      zIndx = max([Proj.(tField)] - p.zeroTimeOffset,1);
+   elseif ~isnan(p.zeroTime)
+      [~,zIndx] = min(abs(Data(1).times-p.zeroTime));
+      zIndx = zIndx(1); % If multiple closest, use first
+   else
+      zIndx = 1; % Otherwise it's just the first sample index
+   end
+   
+   % Iterate, applying this to all trials.
+%    f = {'proj'};
+   if numel(zIndx) > 1
+%       fcn = @(pro,iZero)analyze.jPCA.zeroCenterPoints(pro,iZero,f,f);
+      fcn = @(pro,iZero)analyze.jPCA.zeroCenterPoints(pro,iZero);
+      Proj= arrayfun(fcn,Proj,zIndx);
+   else
+%       fcn = @(pro)analyze.jPCA.zeroCenterPoints(pro,zIndx,f,f);
+      fcn = @(pro)analyze.jPCA.zeroCenterPoints(pro,zIndx);
+      Proj = arrayfun(fcn,Proj);
+   end
+end
 
 if isempty(p.Figure)
    fig = figure(...
@@ -50,20 +79,24 @@ if isempty(p.Axes)
    p.Axes = axes(fig,...
       'XColor',p.XColor,...
       'YColor',p.YColor,...
+      'XLimMode','manual',...
       'XLim',p.XLim,...
+      'YLimMode','manual',...
       'YLim',p.YLim,...
-      'LineWidth',p.AxesLineWidth...
+      'LineWidth',p.AxesLineWidth,...
+      'NextPlot','add'...
       );
 end
 p.Arrow.Axes = p.Axes;
 
-% first deal with the ellipse for the plan variance (we want this under the rest of the data)
-planData = zeros(numConds,2);
+% Add the ellipse that indicates variance at time of Reach onset
+%  (We want this to be layered "under" the rest of the data)
+reachData = zeros(numConds,2);
 for c = 1:numConds
-   planData(c,:) = Proj(c).proj(Proj(c).planStateIndex,[d1,d2]);
+   reachData(c,:) = Proj(c).proj(Proj(c).reachIndex,[d1,d2]);
 end
-mu = nanmean(planData,1);
-R = nancov(planData);
+mu = nanmean(reachData,1);
+R = nancov(reachData);
 rad = sqrt([R(1,1), R(2,2)]);
 yr = sqrt(sum(R(:,2).^2));
 xr = sqrt(sum(R(:,1).^2));
@@ -72,14 +105,10 @@ if ~isreal(yr) || ~isreal(xr)
 else
    theta_rot = atan2(yr,xr);
 end
-analyze.jPCA.circle(rad,theta_rot,mu); hold on;
-%fprintf('ratio of plan variances = %1.3f (hor var / vert var)\n', planVars(1)/planVars(2));
+circParams = getCircleParams(p,rad,theta_rot,mu);
+analyze.jPCA.circle(circParams);
 
-% allD = vertcat(Proj(:).proj);  % just for getting axes
-% allD = allD(:,d1:d2);
-% mxVal = max(abs(allD(:)));
-% axLim = mxVal*1.05*[-1 1 -1 1];
-
+% Create color map scheme
 cm = struct;
 iSuccess = [Proj.Condition]==2;
 if any(iSuccess)
@@ -88,27 +117,58 @@ if any(iSuccess)
 end
 iSuccess = [Proj.Condition]==1;
 if any(iSuccess)
-   cm.Fail.map = getColorMap(sum(iSuccess),'blue');
+   cm.Fail.map = getColorMap(sum(iSuccess),'red');
    cm.Fail.cur = 1;
 end
 key = {'Fail','Success'};
 
 for c = 1:numConds
+   % Get information for this trial (convenience)
    thisOutcome = key{Proj(c).Condition};
-   line(p.Axes,Proj(c).proj(:,d1), Proj(c).proj(:,d2), ...
-      'Color',cm.(thisOutcome).map(cm.(thisOutcome).cur,:),...
-      'LineWidth',p.LineWidth,...
-      'MarkerIndices',Proj(c).planStateIndex,....
-      'Marker','o',...
-      'MarkerFaceColor',p.PlanStateColor);
-   penultimatePoint = [Proj(c).proj(end-1,d1), Proj(c).proj(end-1,d2)];
-   lastPoint = [Proj(c).proj(end,d1), Proj(c).proj(end,d2)];
-
-   cm.(thisOutcome).cur = cm.(thisOutcome).cur + 1;
-   if isreal(penultimatePoint) && isreal(lastPoint)
-      analyze.jPCA.arrowMMC(penultimatePoint, lastPoint, p);
-   end
+   data = Proj(c).proj(:,[d1,d2]);
+   nPt = size(data,1);
    
+   gi = Proj(c).graspIndex;
+   ci = Proj(c).completeIndex;
+   ri = Proj(c).reachIndex;
+   si = Proj(c).supportIndex;
+   thisCol = cm.(thisOutcome).map(cm.(thisOutcome).cur,:);
+   
+   % Create group for graphics objects indicating different "states"
+   hg = hggroup(p.Axes,'DisplayName',Proj(c).Trial_ID);
+   p.Arrow.Group = hg;
+   % Use line primitive objects since they are small:
+   h = line(hg,data(1:ri,1),data(1:ri,2),...
+      'Color',thisCol,...
+      'LineStyle','--',...
+      'LineWidth',0.5,...
+      'Tag','Lead-Up');
+   h.Annotation.LegendInformation.IconDisplayStyle = 'off';
+   h = line(hg,data(ri:ci,1),data(ri:ci,2), ...
+      'Color',thisCol,...
+      'LineStyle','-',...
+      'LineWidth',p.LineWidth,...
+      'Tag','Reach');
+   h.Annotation.LegendInformation.IconDisplayStyle = 'off';
+   addArrow(data,ri,p.Arrow,p.ReachStateColor);
+   addArrow(data,gi,p.Arrow,p.GraspStateColor);
+   h = line(hg,data(ci:nPt,1),data(ci:nPt,2),...
+      'Color',thisCol,...
+      'LineWidth',0.75,...
+      'LineStyle',':',...
+      'Tag','Excess');
+   h.Annotation.LegendInformation.IconDisplayStyle = 'off';
+   addArrow(data,ci,p.Arrow,p.CompleteStateColor);
+   if ~isnan(si)
+      addArrow(data,si,p.Arrow,p.SupportStateColor);
+   end
+   % Add "final" data arrow
+   addArrow(data,nPt,p.Arrow);
+
+   hg.Annotation.LegendInformation.IconDisplayStyle = 'on';
+   
+   % Update colormap indexing
+   cm.(thisOutcome).cur = cm.(thisOutcome).cur + 1;
 end
 
 line(p.Axes,0,0,...
@@ -130,4 +190,53 @@ text(p.Axes,xVPos,yVPos, tx_v,...
    'FontWeight',p.FontWeight,...
    'Color',fontColor);
 title(p.Axes,sprintf(p.AxesTitleExpr, whichPair));
+
+   function h = addArrow(data,iArrow,arrowParams,col)
+      %ADDARROW Add arrow based on data to axes in `arrowParams`
+      %
+      %  h = addArrow(data,iArrow,arrowParams);
+      %  h = addArrow(data,iArrow,arrowParams,col);
+      %
+      %  Inputs
+      %     data - Data matrix for a single trial
+      %     iArrow - Index (time-sample) to add the arrow to
+      %     arrowParams - Parameters struct (main parameters `.Arrow`
+      %                    field)
+      %     col - (Optional) face color for arrow
+      %
+      %  Output
+      %   h - Fill object that is the arrow
+      
+      if nargin < 4
+         col = [0.85 0.85 0.85];
+      end
+      arrowParams.FaceColor = col;
+      
+      iPre = max(iArrow-1,1);
+      penultimatePoint = [data(iPre,1), data(iPre,2)];
+      lastPoint = [data(iArrow,1), data(iArrow,2)];
+      d = sqrt(sum((lastPoint - penultimatePoint).^2)); % L2 distance
+      arrowParams.Size = arrowParams.BaseSize + abs(10 * tansig(10*d)); 
+      h = analyze.jPCA.arrowMMC(penultimatePoint, lastPoint,arrowParams);
+   end
+
+   function circParams = getCircleParams(p,rad,theta_rot,mu)
+      %GETCIRCLEPARAMS Helper function to return circle parameters struct
+      %
+      % circParams = getCircleParams(p,rad,theta_rot,mu);
+      %
+      % Inputs
+      %  p - Struct from `defaults.jPCA('rosette_params');`
+      %  rad - Radius of circle (or radii if elipse)
+      %  theta_rot - Rotation of ellipse
+      %  mu - Center of circle or ellipse
+      % Output
+      %  circParams - Params struct for `analyze.jPCA.circle(circParams)`
+      
+      circParams = p.Circle;
+      circParams.Axes = p.Axes;
+      circParams.Radius = rad;
+      circParams.Theta = theta_rot;
+      circParams.Center = mu;
+   end
 end

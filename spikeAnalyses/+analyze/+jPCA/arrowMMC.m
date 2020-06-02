@@ -54,6 +54,10 @@ if isempty(p.Axes)
    p.Axes = gca;
 end
 
+if isempty(p.Group)
+   p.Group = hggroup(p.Axes,'DisplayName','Trajectories');
+end
+
 % % Convert to old variable names % %
 xRange = range(p.XLim);
 yRange = range(p.YLim);
@@ -79,9 +83,11 @@ yVals = newVals(2,:);
 % % now plot % %
 xVals = xVals + point(1);
 yVals = yVals + point(2);
-h = fill(p.Axes,...
+h = fill(p.Group,...
    xVals, yVals, p.FaceColor,...
    'FaceAlpha',p.FaceAlpha,...
-   'EdgeColor',p.EdgeColor);
+   'EdgeColor',p.EdgeColor,...
+   'Tag','Marker');
+h.Annotation.LegendInformation.IconDisplayStyle = 'off'; 
 
 end

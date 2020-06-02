@@ -3,9 +3,8 @@ function repos = Repos()
 
 repos = struct;
 
-f = local.defaults('LocalMatlabReposFolder');
-repos.CBREWER_PATH = fullfile(f,'_import\cbrewer_tDCS');
-repos.RAINCLOUDPLOTS_PATH = fullfile(f,'_import\RainCloudPlots_tDCS\tutorial_matlab');
-repos.UTILITIES_PATH = fullfile(f,'Utilities');
+[f,u] = local.defaults(...
+   'LocalMatlabReposFolder','LocalMatlabUtilitiesRepo');
+repos.MATLAB_UTILITIES = fullfile(f,u);
 
 end

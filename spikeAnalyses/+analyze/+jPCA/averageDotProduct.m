@@ -1,18 +1,17 @@
 function avgDP = averageDotProduct(angles, compAngle, w)
-%% AVERAGEDOTPRODUCT  Get the average dot product with a comparison angle
+%AVERAGEDOTPRODUCT Returns average dot product with a comparison angle
 %
-%  avgDP = AVERAGEDOTPRODUCT(angles,compAngle,w)
+% avgDP = analyze.jPCA.averageDotProduct(angles,compAngle,w)
 %
-%  --------
-%   INPUTS
-%  --------
-%   angles     :     Input angles to compare
+% Inputs
+%  angles     - Input angles to compare
+%  compAngle  - Angle for comparison
+%  w          - (Optional) Angle weightings (default: ones size of angles)
 %
-%  compAngle   :     Angle for comparison
-%
-%     w        :     Angle weightings
+% Output
+%  avgDP      - Weighted average dot-product with comparison angle.
 
-%% PARSE INPUT
+% PARSE INPUT
 if nargin < 3
    w = ones(size(angles));
 end

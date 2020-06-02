@@ -1,4 +1,4 @@
-function [Data,T,TID] = convert_table(T,t_lims,varargin)
+function [Data,T,TID] = convert_table(T,align,varargin)
 %CONVERT_TABLE Converts from table format to jPCA struct array format
 %
 % Data = analyze.jPCA.convert_table(T);
@@ -20,15 +20,38 @@ function [Data,T,TID] = convert_table(T,t_lims,varargin)
 %  TID      - (Optional output); groupings metadata for each row of the
 %                 table -- potentially useful for labeling things.
 
-if nargin < 2
-   t_lims = defaults.jPCA('t_lims');
-elseif isempty(t_lims)
-   t_lims = defaults.jPCA('t_lims');
-elseif ischar(t_lims)
-   varargin = [t_lims, varargin];
-   t_lims = defaults.jPCA('t_lims');
+if isempty(T)
+   Data = struct('Trial_ID',{},...
+      'A',{},'times',{},...
+      'Alignment',{},...
+      'Outcome',{},...
+      'Duration',{},...
+      'tReach',{},...
+      'tGrasp',{},...
+      'tSupport',{},...
+      'tComplete',{});
+   warning('off','MATLAB:table:PreallocateCharWarning');
+   TID = table('Size',[0,3],...
+      'VariableType',{'char','categorical','categorical'},...
+      'VariableNames',{'Trial_ID','Alignment','Outcome'});
+   warning('on','MATLAB:table:PreallocateCharWarning');
+   fprintf(1,...
+      ['\n\t\t->\tTried to convert from <strong>empty</strong> table.\n' ...
+       '\t\t\t\t(Returned empty arrays)\n']);
+   return;
 end
 
+if nargin < 2
+   align = 'Grasp';
+elseif isempty(align)
+   align = 'Grasp';
+elseif ischar(align)
+   if ~ismember(lower(align),{'reach','grasp'})
+      varargin = [align, varargin];
+      align = 'Grasp';
+   end   
+end
+t_lims = defaults.jPCA('t_lims');
 times_mask = (T.Properties.UserData.t >= t_lims(1)) & ...
              (T.Properties.UserData.t <= t_lims(2));
 t = T.Properties.UserData.t(times_mask).';
@@ -36,7 +59,7 @@ t = T.Properties.UserData.t(times_mask).';
 dt = defaults.jPCA('dt');
 tq = (t(1):dt:t(end)).'; % "Query" times
 
-T = analyze.slice(T,varargin{:});
+T = analyze.slice(T,'Alignment',align,varargin{:});
 uTrial = unique(T.Trial_ID);
 
 % Want to make sure we have channels with equal # of trials (meaning that
@@ -62,8 +85,11 @@ Outcome = T.Outcome(iTrial);
 Outcome = num2cell((Outcome=='Successful')+1);
 Alignment = cellstr(char(T.Alignment(iTrial)));
 Duration = num2cell(T.Duration(iTrial)*1e3);
-tPlan = num2cell((T.Reach(iTrial)-T.Grasp(iTrial))*1e3);
-tFinal = num2cell((T.Complete(iTrial)-T.Grasp(iTrial))*1e3);
+tReach = num2cell((T.Reach(iTrial)-T.(align)(iTrial))*1e3);
+tGrasp  = num2cell((T.Grasp(iTrial)-T.(align)(iTrial))*1e3);
+tSupport = num2cell((T.Support(iTrial)-T.(align)(iTrial))*1e3);
+tComplete = num2cell((T.Complete(iTrial)-T.(align)(iTrial))*1e3);
+
 
 % Rate times are currently columns, but need to be rows (so transpose);
 % groupings will grab Channels (which become columns) as appropriate
@@ -75,8 +101,10 @@ Data = struct('Trial_ID',TID.Trial_ID,...
    'Alignment',Alignment,...
    'Outcome',Outcome,...
    'Duration',Duration,...
-   'tPlan',tPlan,...
-   'tFinal',tFinal);
+   'tReach',tReach,...
+   'tGrasp',tGrasp,...
+   'tSupport',tSupport,...
+   'tComplete',tComplete);
 
 [Data.times] = deal(tq);
 utils.addHelperRepos();

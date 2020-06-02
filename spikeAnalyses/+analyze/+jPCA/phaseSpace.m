@@ -223,18 +223,13 @@ if isfield(params,'arrowEdgeColor')
    arrowEdgeColor = params.arrowEdgeColor;
 end
 
-
-
 for pindex = 1:length(planes2plot)
-   
-   
-   
    % get some useful indices
    plane = planes2plot(pindex);  % which plane to plot
    d2 = 2*plane;  % indices into the dimensions
    d1 = d2-1;
    
-   phaseData = analyze.jPCA.getPhase(Projection,plane,Summary.outcomes);
+   phaseData = analyze.jPCA.getPhase(Projection,plane);
    
    % set the limits of the figure
    axLim = axLimScale * dataRanges(plane) * [-1 1 -1 1];

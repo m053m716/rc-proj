@@ -296,64 +296,75 @@ index1 = 1;
 index2 = 1;
 for c = 1:numTrials
    index1b = index1 + nSamples -1;  % we will go from index1 to this point
-   index2b = index2 + numTimes -1;  % we will go from index2 to this point
+%    index2b = index2 + numTimes -1;  % we will go from index2 to this point
    
    Projection(c).proj = proj(index1:index1b,:); %#ok<*AGROW>
    Projection(c).tradPCAproj = Ared(index1:index1b,:);
    Projection(c).times = Data(1).times(analyzeIndices);
-   Projection(c).projAllTimes = projAllTimes(index2:index2b,:);
-   Projection(c).tradPCAprojAllTimes = tradPCA_AllTimes(index2:index2b,:);
-   Projection(c).allTimes = Data(1).times;
+%    Projection(c).projAllTimes = projAllTimes(index2:index2b,:);
+%    Projection(c).tradPCAprojAllTimes = tradPCA_AllTimes(index2:index2b,:);
+%    Projection(c).allTimes = Data(1).times;
    Projection(c).Condition = Data(c).Outcome;
    index1 = index1+nSamples;
    index2 = index2+numTimes;
 end
+[Projection.Trial_ID] = deal(Data.Trial_ID);
 
-% % If zero-centering about some index, do that now % % 
-if params.zeroCenters
-   % Check if there is a zeroTime
-   if ~isnan(params.zeroTime)
-      [~,zIndx] = min(abs(Data(1).times-params.zeroTime));
-      zIndx = zIndx(1); % If multiple closest, use first
-   else
-      zIndx = 1; % Otherwise it's just the first sample index
-   end
-   
-   % Iterate, applying this to all trials.
-   f = {'proj'};
-   fcn = @(pro)analyze.jPCA.zeroCenterPoints(pro,zIndx,f,f);
-   Projection = arrayfun(fcn,Projection);
-end
-
-% % Add "planState" and "finalState" fields for bookkeeping - MM
+% % Add "State" index fields for bookkeeping & plotting - MM
 keepFcn = @(structArray,keepTime)recover_state_index(structArray,keepTime,t);
 
-if isnan(params.tPlan(1))
-   if isfield(Data,'tPlan')
-      params.tPlan = [Data.tPlan];
+if isnan(params.tReach(1))
+   if isfield(Data,'tReach')
+      params.tReach = [Data.tReach];
    else
-      params.tPlan = ones(size(Projection)).*t(1);
+      params.tReach = ones(size(Projection)).*t(1);
    end
-elseif numel(params.tFinal)~=numel(Projection)
-   params.tFinal = ones(size(Projection)).*params.tFinal;
+elseif numel(params.tComplete)~=numel(Projection)
+   params.tComplete = ones(size(Projection)).*params.tComplete;
 end
 
-if isnan(params.tFinal(1))
-   if isfield(Data,'tFinal')
-      params.tFinal = [Data.tFinal];
+if isnan(params.tGrasp(1))
+   if isfield(Data,'tGrasp')
+      params.tGrasp = [Data.tGrasp];
    else
-      params.tFinal = ones(size(Projection)).*t(end);
+      params.tGrasp = ones(size(Projection)).*t(1);
    end
-elseif numel(params.tFinal)~=numel(Projection)
-   params.tFinal = ones(size(Projection)).*params.tFinal;
+elseif numel(params.tComplete)~=numel(Projection)
+   params.tComplete = ones(size(Projection)).*params.tComplete;
 end
 
-[planState,planIndex] = arrayfun(@(s,tKeep)keepFcn(s,tKeep),Projection,params.tPlan);
-planState = cell2mat(planState.');
-[finalState,finalIndex] = arrayfun(@(s,tKeep)keepFcn(s,tKeep),Projection,params.tFinal);
-finalState = cell2mat(finalState.');
-[Projection.planStateIndex] = deal(planIndex{:});
-[Projection.finalStateIndex] = deal(finalIndex{:});
+if isnan(params.tSupport(1))
+   if isfield(Data,'tSupport')
+      params.tSupport = [Data.tSupport];
+   else
+      params.tSupport = ones(size(Projection)).*t(1);
+   end
+elseif numel(params.tComplete)~=numel(Projection)
+   params.tComplete = ones(size(Projection)).*params.tComplete;
+end
+
+if isnan(params.tComplete(1))
+   if isfield(Data,'tComplete')
+      params.tComplete = [Data.tComplete];
+   else
+      params.tComplete = ones(size(Projection)).*t(end);
+   end
+elseif numel(params.tComplete)~=numel(Projection)
+   params.tComplete = ones(size(Projection)).*params.tComplete;
+end
+
+[reachState,reachIndex] = arrayfun(@(s,tKeep)keepFcn(s,tKeep),Projection,params.tReach);
+reachState = cell2mat(reachState.');
+[graspState,graspIndex] = arrayfun(@(s,tKeep)keepFcn(s,tKeep),Projection,params.tGrasp);
+graspState = cell2mat(graspState.');
+[completeState,completeIndex] = arrayfun(@(s,tKeep)keepFcn(s,tKeep),Projection,params.tComplete);
+completeState = cell2mat(completeState.');
+[supportState,supportIndex] = arrayfun(@(s,tKeep)keepFcn(s,tKeep),Projection,params.tSupport);
+supportState = cell2mat(supportState.');
+[Projection.reachIndex] = deal(reachIndex{:});
+[Projection.graspIndex] = deal(graspIndex{:});
+[Projection.completeIndex] = deal(completeIndex{:});
+[Projection.supportIndex] = deal(supportIndex{:});
 
 % % % SUMMARY STATS % % %
 % % Compute R^2 for the fit provided by M and Mskew % %
@@ -431,15 +442,16 @@ end
 
 % % Analysis of whether things really look like rotations (makes plots) % %
 circStats = cell(size(params.plane2plot));
+phaseData = cell(1,max(params.plane2plot));
 for jPCplane = params.plane2plot
-   phaseData = analyze.jPCA.getPhase(Projection, jPCplane);  % does the key analysis
+   phaseData{jPCplane} = analyze.jPCA.getPhase(Projection,jPCplane,params.wlen,params.S);  % does the key analysis
    % plots the histogram.  'params' is just what the user passed, so plots can be suppressed
-   circStats{jPCplane} = analyze.jPCA.plotPhaseDiff(phaseData,jPCplane,params);
+   circStats{jPCplane} = analyze.jPCA.plotPhaseDiff(phaseData{jPCplane},jPCplane,params);
 end
 
 Summary.numTrials = numTrials;
 Summary.times = Projection(1).times;
-Summary.allTimes = Projection(1).allTimes;
+% Summary.allTimes = Projection(1).allTimes;
 Summary.jPCs = jPCs;
 Summary.PCs = PCvectors;
 Summary.jPCs_highD = PCvectors * jPCs;
@@ -447,8 +459,10 @@ Summary.varCaptEachJPC = varCaptEachJPC;
 Summary.varCaptEachPC = varCaptEachPC;
 Summary.varCaptEachPlane = varCaptEachPlane;
 Summary.sortIndices = sortIndices;
-Summary.planState = planState;
-Summary.finalState = finalState;
+Summary.reachState = reachState;
+Summary.graspState = graspState;
+Summary.completeState = completeState;
+Summary.supportState = supportState;
 Summary.outcomes = params.conditionLabels; % CPL -- Use "Success" or "Failure" among condition labels
 Summary.Mbest = M;
 Summary.Mskew = Mskew;
@@ -458,6 +472,7 @@ Summary.R2_Mskew_2D = R2_Mskew_2D;
 Summary.R2_Mbest_2D = R2_Mbest_2D;
 Summary.R2_Mskew_kD = R2_Mskew_kD;
 Summary.R2_Mbest_kD = R2_Mbest_kD;
+Summary.phaseData = phaseData;
 Summary.circStats = circStats;
 Summary.crossCondMean = crossCondMeanAllTimes(analyzeIndices,:);
 Summary.crossCondMeanAllTimes = crossCondMeanAllTimes;
@@ -466,6 +481,10 @@ Summary.preprocessing.meanFReachNeuron = meanFReachNeuron; % You should first no
 % conversely, to come back out, you must add the mean back on and then MULTIPLY by the normFactors
 % to undo the normalization.
 Summary.params = params;
+
+utils.addHelperRepos();
+sounds__.play('pop',1.2,-10);
+fprintf(1,'\n\t->\t<strong>jPCA</strong> projections recovered\n');
 
    function [c,keepIndex] = recover_state_index(projArray,keepTime,t)
       %RECOVER_STATE_INDEX  Recovers "state" index of certain time 
@@ -483,8 +502,13 @@ Summary.params = params;
       %
       %     keepIndex - Index corresponding to timepoint of `c`
       
-      [~,keepIndex] = min(abs(t-keepTime)); 
-      c = {projArray.proj(keepIndex,:)};
+      if isnan(keepTime) || isinf(keepTime)
+         keepIndex = nan;
+         c = {nan(1,size(projArray.proj,2))};
+      else
+         [~,keepIndex] = min(abs(t-keepTime)); 
+         c = {projArray.proj(keepIndex,:)};
+      end
       keepIndex = {keepIndex};
    end
 
