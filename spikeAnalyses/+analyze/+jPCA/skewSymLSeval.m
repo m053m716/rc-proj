@@ -41,7 +41,9 @@ function [f, df] = skewSymLSeval(m,dX,X)
 % for use in an iterative minimizer.
 %
 % See notes p80-82 for the derivation of the derivative.  
-
+%
+% See Also: analyze.jPCA.jPCA, analyze.jPCA.skewSymRegress,
+%           analyze.jPCA.reshapeSkew
 
 % since this function is internal, we do very little error checking.  Also
 % the helper functions and internal functions should throw errors if any of

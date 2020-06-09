@@ -1,4 +1,4 @@
-function h = arrowMMC(prevPoint, point, nextPoint, p)
+function h = arrowMMC(prevPoint,point,nextPoint,varargin)
 %ARROWMMC  Returns nice "arrow" for animated vectors, etc.
 %
 %   h = analyze.jPCA.arrowMMC(prevPoint, point, nextPoint);
@@ -31,29 +31,24 @@ function h = arrowMMC(prevPoint, point, nextPoint, p)
 % works roughly like 'markerSize'
 
 
-% % do some parsing of the inputs, and use defaults if not provided % %
-if nargin < 4
-   p = defaults.jPCA('rosette_params');
-end
-
+% % Parse inputs, using defaults if not provided % %
+p = defaults.jPCA('rosette_params');
+p = analyze.jPCA.setRosetteParams(p.Arrow,varargin{:});
 if (nargin < 3) || isempty(nextPoint)
    nextPoint = point + point-prevPoint;
 elseif isstruct(nextPoint)
    p = nextPoint;
    nextPoint = point + point-prevPoint;
 end
-
 if isfield(p,'Arrow')
    if isempty(p.Arrow.Axes)
       p.Arrow.Axes = p.Axes;
    end
    p = p.Arrow;
 end
-
 if isempty(p.Axes)
    p.Axes = gca;
 end
-
 if isempty(p.Group)
    p.Group = hggroup(p.Axes,'DisplayName','Trajectories');
 end
@@ -65,24 +60,24 @@ roughScale = p.RoughScale;
 xVals = p.XVals;
 yVals = p.YVals;
 
-% % do a bit of scaling % % 
+% % Scale the coordinates forming the arrow shape % % 
 mxX = max(xVals);
 xVals = roughScale*p.Size * xVals/mxX * xRange;
 yVals = roughScale*p.Size * yVals/mxX * yRange;
 
-% % now do the rotation % %
-
+% % Rotate the arrow coordinates to point in direction of trajectory % %
 vector = nextPoint - prevPoint;
 theta = atan2(vector(2),vector(1));
-rotM = [cos(theta) -sin(theta); sin(theta), cos(theta)];
-    
+% Standard rotation matrix, based on estimated theta %
+rotM = [cos(theta) -sin(theta); sin(theta), cos(theta)];    
 newVals = rotM*[xVals; yVals];
 xVals = newVals(1,:);
 yVals = newVals(2,:);
-
-% % now plot % %
+% Add position to rotated coordinates (last step) %
 xVals = xVals + point(1);
 yVals = yVals + point(2);
+
+% % Create graphics object % %
 h = fill(p.Group,...
    xVals, yVals, p.FaceColor,...
    'FaceAlpha',p.FaceAlpha,...

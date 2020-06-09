@@ -23,7 +23,7 @@ elseif ~iscell(outcome)
 end
 
 if nargin < 2
-   N = 10;
+   N = defaults.jPCA('min_n_trials_def');
 end
 
 if nargin > 3

@@ -63,6 +63,8 @@ for c=1:numConds
    phaseData(c).phase = phase'; 
    phaseData(c).phaseOfDelta = phaseOfDelta'; 
    phaseData(c).radius = radius';
+   phaseData(c).outcome = Proj(c).Outcome;
+   phaseData(c).duration = Proj(c).Duration;
    
    % angle between state vector and Dstate vector
    % between -pi and pi

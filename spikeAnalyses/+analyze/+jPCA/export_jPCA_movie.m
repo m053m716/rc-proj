@@ -1,96 +1,85 @@
-function export_jPCA_movie(MV,moviename,varargin)
-%% EXPORT_JPCA_MOVIE    Export movie created by PHASEMOVIE
+function export_jPCA_movie(MV,movieName,varargin)
+%EXPORT_JPCA_MOVIE  Save movie created by analyze.jPCA.phaseMovie to disk
 %
-%  EXPORT_JPCA_MOVIE(MV)
+%  (deprecated) -- functionality offloaded to `analyze.jPCA.phaseMovie`
 %
-%  --------
-%   INPUTS
-%  --------
-%     MV    :     4d uint8 created by JPCA.PHASEMOVIE
+% analyze.jPCA.export_jPCA_movie(MV);
+% analyze.jPCA.export_jPCA_movie(MV,movieName);
+% analyze.jPCA.export_jPCA_movie(MV,movieName,);
 %
-%  moviename :    (String) name of movie file.
-%
-%  varargin  :    (Optional) 'NAME', value input argument pairs.
-%
-%  --------
-%   OUTPUT
-%  --------
-%  Creates a movie file, whose name is specified by moviename.
-%  Otherwise, it defaults to 'jPCA_movie.avi'.
-%
-% By: Max Murphy  v1.0  03/03/2018
+% Inputs
+%  MV        -     4d uint8 created by analyze.jPCA.phaseMovie
+%  movieName -    (String) name of movie file
+%                    -> If not supplied (or given as empty vector), default
+%                       is `jPCA_movie.avi`
+%  varargin  -    (Optional) <'paramName',value> input argument pairs
+%                    -> First `varargin` can also be struct of movieParams
+%                       as returned by `defaults.jPCA('movie_params');`
+% Output
+%  Creates a movie file, whose name is specified by `moviename` input arg
+%  Otherwise, it defaults to 'jPCA_movie.avi'
 
-%% DEFAULTS
-MOVIENAME = 'jPCA_movie.avi';
-FS = 30;
-
-%% PARSE INPUT
-for iV = 1:2:numel(varargin)
-   eval([upper(varargin{iV}) '=varargin{iV+1};']);
-end
-jpca_start_stop_times = defaults.jPCA('jpca_start_stop_times');
-lpf_fc = defaults.block('lpf_fc');
-fc = defaults.jPCA('fc');
-if iscell(MV)
-   if numel(MV)~=numel(moviename)
-      if iscell(moviename)
-         disp('Mismatch dim between MV and moviename. Basing name from first element of moviename cell array.');
-         moviename = moviename{1};
+% Check input arguments
+if nargin < 3
+   if nargin == 2
+      if isstruct(movieName)
+         movieParams = movieName;
+         movieName = movieParams.defaultName;
+      else
+         movieParams = defaults.jPCA('movie_params');
       end
-      [pname,fname,ext] = fileparts(moviename);
+   else
+      movieParams = defaults.jPCA('movie_params');
+   end
+end
+
+if nargin < 2
+   movieName = movieParams.defaultName;
+end
+
+% Parse 'Name',value pairs
+fn = fieldnames(movieParams);
+for iV = 1:2:numel(varargin)
+   iField = ismember(lower(fn),lower(varargin{iV}));
+   if sum(iField)==1
+      movieParams.(fn{iField}) = varargin{iV+1};
+   end
+end
+
+% DEFAULTS
+if iscell(MV)
+   if numel(MV)~=numel(movieName)
+      [pname,fname,ext] = fileparts(movieName);
       if isempty(ext)
          ext = '.MP4';
       end
       for ii = 1:numel(MV)
-         moviename = fullfile(pname,sprintf('%s_jPCA-Plane-%g_%gms_to_%gms_%gHzFcRate_%gHzjPCA%s',...
-            fname,ii,jpca_start_stop_times(1),jpca_start_stop_times(2),lpf_fc,fc,ext));
-         analyze.jPCA.export_jPCA_movie(MV{ii},moviename,'FS',FS);
+         movieName = fullfile(pname,...
+            sprintf('%s_jPCA-Plane-%02d%s',fname,ii,ext));
+         analyze.jPCA.export_jPCA_movie(MV{ii},movieName,'FS',FS);
       end
    else
       for ii = 1:numel(MV)
-         [pname,fname,ext]= fileparts(moviename{ii});
+         [pname,fname,ext]= fileparts(movieName{ii});
          analyze.jPCA.export_jPCA_movie(MV{ii},...
-            fullfile(pname,sprintf('%s_jPCA-Plane-%g_%gms_to_%gms_%gHzFcRate_%gHzjPCA%s',...
-            fname,ii,jpca_start_stop_times(1),...
-            jpca_start_stop_times(2),lpf_fc,fc,ext)),'FS',FS);
+            fullfile(pname,sprintf('%s_jPCA-Plane-%02d%s',fname,ii,ext)));
       end
    end
-   
    return;
 end
 
-if exist('moviename','var')==0
-   moviename = MOVIENAME;
-else
-   if isempty(moviename)
-      moviename = MOVIENAME;
-   else
-      [pname,fname,ext] = fileparts(moviename);
-      
-      if ~contains(fname,'_jPCA-Plane-')
-         fname = sprintf('%s_jPCA-Plane-1_%gms_to_%gms_%gHzFcRate_%gHzjPCA',...
-            fname,jpca_start_stop_times(1),jpca_start_stop_times(2),lpf_fc,fc);
-      end
-      if isempty(ext)
-         moviename = fullfile(pname,[fname '.MP4']);
-      else
-         moviename = fullfile(pname,[fname ext]);
-      end
-      if exist(pname,'dir')==0
-         mkdir(pname);
-      end
-   end
-end
-
-%% MAKE VIDEOWRITER AND EXPORT VIDEO
-v = VideoWriter(moviename);
+% % Do actual video export % %
+v = VideoWriter(movieName);
 v.FrameRate = FS;
 open(v); % Open movie file for writing
 for ii = 1:size(MV,4)
-%    writeVideo(v,MV(ii).cdata);
    writeVideo(v,MV(:,:,:,ii));
 end
-fprintf(1,'Finished writing movie: %s.\n',moviename);
 close(v); % Be sure to close it
+
+% Notify user that video is finished with Command Window message & sound
+fprintf(1,'Finished writing movie: %s.\n',movieName);
+utils.addHelperRepos();
+sounds__.play('bell',1.25,-15);
 
 end

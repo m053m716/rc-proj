@@ -44,6 +44,14 @@ p.tableau_spreadsheet_tag_struct = struct(...
    'Rates','__Data'...
    );
 
+% For jPCA stuff:
+p.jpca_fig_folder = fullfile(pname,'2020_JPCA');
+p.jpca_movies_folder = 'Exported Movies';
+p.jpca_rosettes_folder = 'Rosettes';
+p.jpca_rosettes_fname_expr = '%s_%s_Day-%02d_Plane-%02d_Rosette';
+p.jpca_phase_folder = 'Phase';
+p.jpca_phase_fname_expr = '%s_%s_Day-%02d_Plane-%02d_Phase';
+
 % From analyses
 p.spike_folder_tag = '_wav-sneo_CAR_Spikes';
 p.condition_response_corr_loc = 'cross-day-correlations';

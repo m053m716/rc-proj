@@ -42,19 +42,17 @@ phaseSpace(Projection, Summary);  % makes the plot
 
 
 %% EX4: THREE PLANES
-
 times = -50:10:300;  % first we will just run the analysis as we did above
 jPCA_params.numPCs = 12;
-[Projection, Summary] = jPCA(Data, times, jPCA_params);
+[Projection, Summary] = jPCA(Data,times,jPCA_params);
  
 % now we will plot all three planes
-plotParams.planes2plot = [1 2 3];
-phaseSpace(Projection, Summary, plotParams);  % makes all three plots
+plotParams.plane2plot = [1 2 3];
+phaseSpace(Projection,Summary,plotParams);  % makes all three plots
 
 
 
 %% EX5: SIMPLE MOVIE FOR VIEWING
-
 times = -50:10:300;  % This is just what we did for examples 3 & 4 above
 jPCA_params.numPCs = 12;
 [Projection, Summary] = jPCA(Data, times, jPCA_params);

@@ -32,14 +32,17 @@
 %   getRealVs                       - Get the real analogue of the eigenvectors
 %   minimize                        - Minimize a differentiable multivariate function. 
 %   minusPi2Pi                      - Return value in range [-pi,pi]
+%   multi_jPCA                      - Apply jPCA to short segments of `Data` focused on tagged events
 %   reshapeSkew                     - Reindexes a vector to a matrix or vice versa
 %   skewSymLSeval                   - Evaluates distance & derivative, imposing skew symmetry on M
 %   skewSymRegress                  - Apply least-squares regression to recover skew-symmetric M
+%   updateState                     - Update `state_rot` field of Projection data struct array
 %   zeroCenterPoints                - Ensures that element "zero_index" starts at 0
 %
 % Deprecated or Unused Functions: Residual from halted modifications
 %   format                          - Convert data to format used by <a href="matlab:help analyze.jPCA.jPCA">jPCA</a> (specific to Cortical Plasticity Lab; moved to `deprecated` but still works for some formats)
 %   formatWarped                    - Convert "warped" rate data <strong>deprecated</strong>
+%   export_jPCA_movie               - Export movie created by <a href="matlab:help analyze.jPCA.phaseMovie">phaseMovie</a> <strong>deprecated</strong>
 %   reshapeSkew_orth                - Reshape matrix for minimization with increased constraints <strong>deprecated</strong>
 %   skewSymLSeval_orth              - Evaluate LS function with increased constraint from SKEWSYMLSEVAL <strong>deprecated</strong>
 %   skewSymRegress_orth             - Find sets of orthogonal subspaces with rotatory structure <strong>deprecated</strong>
@@ -49,20 +52,25 @@
 %   AxisMMC                         - plots an axis / calibration
 %   blankFigure                     - produces a blank figure with everything turned off
 %   circle                          - Return a circle or ellipse object
-%   plotPhaseDiff                   - Plots histogram of angle between dx(t)/dt and x(t) 
-%   plotRosette                     - Plot the rosette (lines with arrows) itself
+%   plotMultiRosette                - Plot multiple rosettes
 %   printFigs                       - Export vectorized figures for insertion to other documents etc
+%   RC_cmap                         - Returns specific color map for RC project success vs fail trials
 %   rotate2jPCA                     - Rotate a trajectory to the corresponding jPCA projection
 %   rotationMovie                   - This is a hastily written and not well commented function.
+%   stemPCvariance                  - Stem plot of variance explained per Principal Component
+%
+% Export Functions
+%   export_table                    - Create table that can be exported for JMP statistics
 %
 % <strong>Main Functions</strong>
 %   convert_table                   - Converts from table format to jPCA struct array format
 %   jPCA                            - Recover rotatory projections from spiking rate time-series
 %
 % <strong>Main Visualization Tools</strong>
-%   export_jPCA_movie               - Export movie created by <a href="matlab:help analyze.jPCA.phaseMovie">phaseMovie</a>
 %   phaseMovie                      - For making rosette movies for the paper
 %   phaseSpace                      - For making publication quality rosette plots
+%   plotPhaseDiff                   - Plots histogram of angle between dx(t)/dt and x(t) 
+%   plotRosette                     - Plot the rosette (lines with arrows) itself
 %
 % Scripts
 %   example                         - Get `example.mat` dataset from the <a href="https://www.dropbox.com/sh/2q3m5fqfscwf95j/AAC3WV90hHdBgz0Np4RAKJpYa?dl=0">source website</a>

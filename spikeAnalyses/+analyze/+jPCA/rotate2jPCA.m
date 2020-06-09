@@ -1,34 +1,22 @@
-function rotate2jPCA(Projection, Summary, times, totalSteps, step, reusePlot)
+function rotate2jPCA(Projection,Summary,step)
 % ROTATE2JPCA Rotate a trajectory to the corresponding jPCA projection
 %
-%  analyze.jPCA.rotate2jPCA(Projection,Summary,times,totalSteps);
-%  analyze.jPCA.rotate2jPCA(__,step,reusePlot);
+%  analyze.jPCA.rotate2jPCA(Projection,Summary,step);
 
-if nargin < 5
-   analyze.jPCA.rotate2jPCA(Projection,Summary,times,totalSteps,1,false);
+if nargin < 3
+   analyze.jPCA.rotate2jPCA(Projection,Summary,times,totalSteps,1);
    drawnow;
    for ii = 2:totalSteps
-      analyze.jPCA.rotate2jPCA(Projection,Summary,times,totalSteps,ii,true);
+      analyze.jPCA.rotate2jPCA(Projection,Summary,times,totalSteps,ii);
       drawnow;
    end
    return;
 end
 
-numConds = length(Projection);
-
-for c = 1:numConds
-    data = Projection(c).tradPCAprojAllTimes;
-    
-    dataRot = data * (Summary.jPCs)^(step/totalSteps);
-    
-    Projection(c).projAllTimes = real(dataRot);  % hijack this field so that we can easily plot it
+for c = 1:numel(Projection)
+   data = Projection(c).state;
+   dataRot = data * (Summary.jPCs)^(step/totalSteps);
+   Projection(c).rotated_state = real(dataRot); 
 end
-
-
-params.reusePlot = reusePlot;
-params.times = times;
-params.plotPlanEllipse = false;
-params.useLabel = false;
-params.useAxes = false;
-params.planMarkerSize = 7.5;
-analyze.jPCA.phaseSpace(Projection, Summary, params);
+analyze.jPCA.phaseSpace(Projection,Summary,params);
+end

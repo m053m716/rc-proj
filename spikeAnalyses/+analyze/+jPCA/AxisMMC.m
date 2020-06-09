@@ -1,4 +1,4 @@
-function p = AxisMMC(start, fin, axParams)
+function p = AxisMMC(start, fin, varargin)
 %AXISMMC Plots an axis / calibration (modified to remove extra code)
 %
 % p = analyze.jPCA.AxisMMC(start, fin, axParams)
@@ -43,22 +43,35 @@ axParams_def = defaults.jPCA('axes_params');
 if nargin < 3
    axParams = axParams_def;
 else
+   if isstruct(varargin{1})
+      axParams = varargin{1};
+      varargin(1) = [];
+   else
+      axParams = defaults.jPCA('axes_params');
+   end
+   
+   fn = fieldnames(axParams);
+   for iArg = 1:2:numel(varargin)
+      iField = ismember(lower(fn),lower(varargin{iArg}));
+      if sum(iField)==1
+         axParams.(fn{iField}) = varargin{iArg+1};
+      end
+   end
+   
    % No error parsing for incorrect input fieldnames 
    %  (just uses default if fields not supplied correctly)
-   fn = fieldnames(axParams);
    for iField = 1:numel(fn)
       axParams_def.(fn{iField}) = axParams.(fn{iField});
    end
    axParams = axParams_def;
 end
-clear axParams_def
-if nargin < 2
+if (nargin < 2) || isempty(fin)
    fin = axParams.fin;
 end
-if nargin < 1
+if (nargin < 1) || isempty(start)
    start = axParams.start;
 end
-p = parse_axes_parameters(axParams);
+p = parse_axes_parameters(start,fin,axParams);
 % ********** DONE PARSING INPUTS ***************
 
 % DETERMINE APPOPRIATE ALIGNMENT FOR TEXT (based on axis orientation)
@@ -100,7 +113,7 @@ end
 if p.axisOrientation == 'h'
    h = line(p.curBorder,p.axisX, p.axisY,...
       'Tag','X-Axis',...
-      'Color', p.color, ...
+      'Color', p.borderColor, ...
       'LineWidth', p.lineThickness,...
       'Marker',p.borderMarker,...
       'LineStyle',p.lineStyle...
@@ -108,7 +121,7 @@ if p.axisOrientation == 'h'
 else
    h = line(p.curBorder,p.axisY, p.axisX,...
       'Tag','Y-Axis',...
-      'Color', p.color, ...
+      'Color', p.borderColor, ...
       'LineWidth', p.lineThickness,...
       'Marker',p.borderMarker,...
       'LineStyle',p.lineStyle...
@@ -132,9 +145,8 @@ smallTickLocs = setdiff(p.tickLocations,[start,fin]);
 nSmall = numel(smallTickLocs);
 smallTickLocs = reshape(smallTickLocs,1,nSmall);
 p.tickX = [smallTickLocs; smallTickLocs; nan(1,nSmall)];
-isShortTick = ismember(p.tickLocations,p.longTicks);
-len = p.tickLength + isShortTick .* (p.tickLength * p.extraLength);
-p.tickY = [zeros(1,nSmall); ones(1,nSmall) .* -len; nan(1,nSmall)];
+len = p.tickLength + ones(1,nSmall) .* (p.tickLength * p.extraLength);
+p.tickY = [zeros(1,nSmall); -len; nan(1,nSmall)];
 p = fix_tick_marker_indices(p,nSmall);
 if strcmp(p.axisOrientation,'h')
    h = line(p.curTicks,p.tickX(:),p.tickY(:),...
@@ -149,7 +161,9 @@ else
       'Marker',p.tickMarker,...
       'MarkerIndices',p.tickMarkerIndices(:)); 
 end
-h.Annotation.LegendInformation.IconDisplayStyle = 'off';
+if ~isempty(h)
+   h.Annotation.LegendInformation.IconDisplayStyle = 'off';
+end
 p.curTicks.Annotation.LegendInformation.IconDisplayStyle = 'off';
 
 % ADD TICK LABELS (presumably on the ticks)
@@ -223,6 +237,8 @@ p.curLabels.Annotation.LegendInformation.IconDisplayStyle = 'off';
       %
       %  Output
       %   p        - Parsed output parameter struct
+      
+      p = axParams;
       
       % Set tickLocations from "start" and "fin" args
       p.tickLocations = [start, fin];
@@ -326,7 +342,7 @@ p.curLabels.Annotation.LegendInformation.IconDisplayStyle = 'off';
       else
          % default values based on 'actual' axis size of figure
          axLim = axis(axParams.curAxes);
-         if axisOrientation == 'h'
+         if p.axisOrientation == 'h'
             % Horizontal axes: scale tick length by "height" (y-limits)
             p.tickLength = abs(axLim(4)-axLim(3)) * axParams.tickLengthFactor;
          else
@@ -412,21 +428,25 @@ p.curLabels.Annotation.LegendInformation.IconDisplayStyle = 'off';
    end
 
    % Fix tick marker locations
-   function p = fix_tick_marker_indices(p,nSmall)
+   function p = fix_tick_marker_indices(axP,nSmall)
       %FIX_TICK_MARKER_INDICES Fixes tick marker indexing parameter
       %
-      %  p = fix_tick_marker_indices(p,nSmall);
+      %  p = fix_tick_marker_indices(axP,nSmall);
       %
       %  Inputs
-      %     p - Parameters struct
+      %     axP    - Original parameters struct
       %     nSmall - Number of small tick marks
       %
       %  Output
-      %     p - Parameters struct with correct Marker Indices
+      %     p      - Updated parameters struct with correct Marker Indices
       
+      p = axP;
       p.tickMarkerIndices = ...
-         reshape(p.tickMarkerIndices,numel(p.tickMarkerIndices),1);
-      p.tickMarkerIndices = (p.tickMarkerIndices) + (0:3:(3*(nSmall-1)))';
+         reshape(axP.tickMarkerIndices,numel(axP.tickMarkerIndices),1);
+      offset = (0:3:(3*(nSmall-1)))';
+      if size(offset,1)==size(p.tickMarkerIndices,1)
+         p.tickMarkerIndices = p.tickMarkerIndices + offset;
+      end
       p.tickMarkerIndices = p.tickMarkerIndices(:);
    end
 

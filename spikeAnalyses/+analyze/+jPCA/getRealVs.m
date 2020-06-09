@@ -1,20 +1,23 @@
 function Vr = getRealVs(V,lambda,Ared,nSamples)
-%% GETREALVS  Get the real analogue of the eigenvectors
+%GETREALVS  Get the real analogue of the eigenvectors
 %
 %  Vr = GETREALVS(V,lambda,Ared)
 %
-%  --------
-%   INPUTS
-%  --------
-%     V     :     Conjugate pair of eigenvectors
+% Inputs
+%  V        - Conjugate pair of eigenvectors
+%  lambda   - Eigenvalues corresponding to the eigenvectors
+%  Ared     - Reduced matrix of data projected on the top PCs 
+%                    (number dims is specified in DEFAULTS.JPCA)
+%  nSamples - Number of analyzed samples (time bins) per trial
 %
-%   lambda  :     Eigenvalues corresponding to the eigenvectors
-%
-%     Ared  :     Reduced matrix of data projected on the top PCs (number
-%                    of which is specified in DEFAULTS.JPCA)
-%
-%  nSamples :     Number of analyzed samples (time bins) per trial
+% Output
+%  Vr       - Real analogue of estimated eigenvectors
 
+if isscalar(nSamples)
+   planSamples = 1:nSamples:size(Ared,1);
+else
+   planSamples = nSamples;
+end
 
 % by paying attention to this order, things will always rotate CCW
 if abs(lambda(1))>0  % if the eigenvalue with negative imaginary component comes first
@@ -25,7 +28,7 @@ end
 Vr = Vr / sqrt(2);
 
 % now get axes aligned so that plan is spread mostly along the horizontal axis
-testProj = (Vr'*Ared(1:nSamples:end,:)')'; % just picks out the plan times
+testProj = (Vr'*Ared(planSamples,:)')'; % just picks out the plan times
 rotV = pca(testProj);
 crossProd = cross([rotV(:,1);0], [rotV(:,2);0]);
 if crossProd(3) < 0 

@@ -1,25 +1,24 @@
-function printFigs(figNums,folderName,format,fileTitle)
+function printFigs(figNums,folderName,fileTitle,format)
 %PRINTFIGS Export vectorized figures for insertion to other documents etc
 %
 % printFigs(figNums);
 % printFigs(figNums,folderName);
-% printFigs(figNums,folderName,format);
-% printFigs(figNums,folderName,format,fileTitle);
+% printFigs(figNums,folderName,fileTitle);
+% printFigs(figNums,folderName,fileTitle,format);
 %
 % Inputs
 %  figNums - Scalar integer or vector of figure numbers (e.g., 1:10)
 %  folderName - (Optional) Char array of output file folder location
 %     -> If it does not exist, the folder is created.
+%  fileTitle - (Optional) Char array of file to output
+%     -> If not specified, default is 'Figure' (if multiple `figNums` then
+%        the number is appended to each)
 %  format - (Optional) Char array of output format. Default is '-dpdf'
 %               You can also use any of the following options:
 %                 * '-depsc2' (postscript lv 2)
 %                 * '-djpeg'
 %                 * '-dill' (ai)
 %                 * '-dtiff'
-%  fileTitle - (Optional) Char array of file to output
-%     -> If not specified, default is 'Figure' (if multiple `figNums` then
-%        the number is appended to each)
-%
 % Examples:
 %   printFigs(1:16, '')
 %     * prints 16 pdf files into the current directory
@@ -33,26 +32,22 @@ function printFigs(figNums,folderName,format,fileTitle)
 %       'printedFigures2'.
 
 % Parse input
-if nargin < 2
-   folderName = pwd;
+if nargin < 4
+   % default file format is encapsulated postscript level 2
+   format = '-dpdf';
 end
 
 if nargin < 3
-   format = '-dpdf';
-end
-
-if nargin < 4
    fileTitle = 'Figure';
 end
 
-% default file format is encapsulated postscript level 2
-if ~exist('format', 'var')
-   format = '-dpdf';
+if nargin < 2
+   folderName = defaults.files();
 end
 
 if ~isempty(folderName)
    if ~isfolder(folderName)
-      fprintf('making folder %s\n', folderName);
+      fprintf(1,'Created folder: <strong>%s</strong>\n', folderName);
       mkdir(folderName);
    end
 end
@@ -79,13 +74,15 @@ for f = 1:length(figNums)
    filename = fullfile(folderName,fname);
    fprintf(1,...
       ['\t->\tPrinting ' ...
-      '<a href="matlab:winopen(''%s'');"><strong>%s</strong></a>'...
-      'as %s...'],folderName,fname,format(3:end));
+      '<a href="matlab:winopen(''%s'');">%s</a>'...
+      ' as %s...'],folderName,fname,format(3:end));
    
-   figure(figNums(f));  % make current
-   print(format, '-r300', [filename '.pdf']);
-   saveas(figure(figNums(f)),[filename '.png']);
-   delete(figure(figNums(f))); % close the figure
+   if ~isa(thisFig,'matlab.ui.Figure')
+      thisFig = figure(thisFig);  % make current
+   end
+   print(thisFig,format,'-r300',[filename '.pdf']);
+   saveas(thisFig,[filename '.png']);
+   delete(thisFig); % close the figure
    fprintf(1,'complete\n');
 end
 

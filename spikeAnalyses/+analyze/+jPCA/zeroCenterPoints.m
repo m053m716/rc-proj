@@ -1,87 +1,46 @@
-% function [proj,zMu] = zeroCenterPoints(proj,izero,fApply,fGet)
-function [proj,traj_offset] = zeroCenterPoints(proj,izero)
+function [Proj,offset] = zeroCenterPoints(Proj,iZero)
 %ZEROCENTERPOINTS  Ensures that element "zero_index" starts at 0
 %
-% [proj,traj_offset] = analyze.jPCA.zeroCenterPoints(proj,izero);
-% [proj,traj_offset] = analyze.jPCA.zeroCenterPoints(proj,izero,fApply,fGet);
+% [Proj,offset] = analyze.jPCA.zeroCenterPoints(Proj,izero);
 %
 % Inputs
-%  proj   - Array element from `Projection` struct array
-%  izero  - Index corresponding to t==0
-%  fApply - Cell array of fields to apply the normalization to. Must have
-%              equal number of elements as `fGet`, the fields from which
-%              the normalization values will be estimated.
-%              -> Default (if unspecified):
-%                      {'proj';
-%                       'projAllTimes';
-%                       'tradPCAproj';
-%                       'tradPCAprojAllTimes'};
-%  fGet   - Cell array of fields to use to get norm. Must have a matching
-%              element for each element in `fApply`, the cell array specifying 
-%              the fields to apply the norm to.
-%              -> Default (if unspecified): 
-%                       {'projAllTimes';
-%                        'projAllTimes';
-%                        'tradPCAprojAllTimes',
-%                        'tradPCAprojAllTimes'};
+%  Proj   - Array element from `Projection` struct array, or a data matrix
+%              where times are rows and columns are channels (or variables)
+%  iZero  - Index corresponding to time to use as "zero center" for rest of
+%              array.
+%
+% Output
+%  Proj        - Matrix or struct with `'proj'` field, which has been
+%                 offset to be centered about some "state" which is one of
+%                 the time-sample values for each channel (column)
+%  offset      - Amount that `proj` was offset by
 
-if isnan(izero)
-   traj_offset = [];
-   return;
-end
-
-if isstruct(proj)
-   proj.traj_offset = proj.proj(izero,:);
-   proj.proj = proj.proj - repmat(proj.traj_offset,size(proj.proj,1),1);
+if isstruct(Proj)
+   if ~isscalar(Proj)
+      if isscalar(iZero)
+         iZero = repelem(iZero,numel(Proj));
+      end
+      offset = nan(numel(Proj),size(Proj(1).proj,2));
+      for iProj = 1:numel(Proj)
+         [Proj(iProj),offset(iProj,:)] = analyze.jPCA.zeroCenterPoints(...
+            Proj(iProj),iZero(iProj));
+      end
+      return;
+   end
+   if isnan(iZero)
+      offset = ones(1,size(Proj.proj,2));
+      return;
+   end
+   Proj.traj_offset = Proj.proj(iZero,:);
+   Proj.proj = Proj.proj - repmat(Proj.traj_offset,size(Proj.proj,1),1);
    
-%    if nargin < 3
-%       fApply = {...
-%          'proj';
-%          'projAllTimes';
-%          'tradPCAproj';
-%          'tradPCAprojAllTimes'};
-%    end
-%    if nargin < 4
-%       fGet = {...
-%          'projAllTimes';
-%          'projAllTimes';
-%          'tradPCAprojAllTimes';
-%          'tradPCAprojAllTimes'};
-%    end
-%    
-%    if numel(fGet) ~= numel(fApply)
-%       error(['JPCA:' mfilename ':BadSyntax'],...
-%          ['\n\t->\t<strong>[ZEROCENTERPOINTS]:</strong> ' ...
-%           '`fGet` (%d) must have same number of elements ' ...
-%           ' as `fApply` (%d)\n'],numel(fGet),numel(fApply));
-%    end
-%    
-%    zMu = cell(numel(fApply),1);
-%    for iF = 1:numel(fApply)
-%       if isfield(proj,fApply{iF})
-%          [proj,zMu{iF}] = doNorm(proj,fApply{iF},fGet{iF},izero);
-%       else
-%          fprintf(1,'Missing field to norm: <strong>%s</strong>\n',fApply{iF});
-%       end
-%    end
 else
-   traj_offset = proj(izero,:);
-   proj = proj - repmat(traj_offset,size(proj,1),1);
+   if isnan(iZero)
+      offset = ones(1,size(Proj,2));
+      return;
+   end
+   offset = Proj(iZero,:);
+   Proj = Proj - repmat(offset,size(Proj,1),1);
 end
-
-%    function [s,mu] = doNorm(s,field2norm,field4norm,zi)
-%       if isfield(s,field4norm)
-%          x = cat(3,s.(field2norm));
-%          y = cat(3,s.(field4norm));
-%          mu = mean(y,3);
-%          mu = mu(zi,:);
-%          x = x - repmat(mu,1,1,size(x,3));
-%          for iX = 1:size(x,3)
-%             s(iX).(field2norm) = x(:,:,iX);
-%          end
-%       else
-%          fprintf(1,'Missing field to get norm: %s\n',field4norm);
-%       end
-%    end
 
 end
