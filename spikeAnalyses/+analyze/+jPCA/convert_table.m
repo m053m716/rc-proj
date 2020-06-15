@@ -1,13 +1,15 @@
-function [Data,T,TID] = convert_table(T,align,varargin)
+function [Data,T,TID] = convert_table(T,align,area,varargin)
 %CONVERT_TABLE Converts from table format to jPCA struct array format
 %
 % Data = analyze.jPCA.convert_table(T);
-% Data = analyze.jPCA.convert_table(T,align);
-% [Data,T,TID] = analyze.jPCA.convert_table(T,'slice_var1',slice_val1,...);
+% Data = analyze.jPCA.convert_table(T,align,area);
+% [Data,T,TID] = analyze.jPCA.convert_table(T,align,area,...
+%                 'slice_var1',slice_val1,...);
 %
 % Inputs
 %  T        - Data table, such as returned by `T = getRateTable(gData);`
-%  align    - (Optional) Alignment event
+%  align    - (Optional) Alignment event (default: "Grasp")
+%  area     - (Optional) Area (default: "All")
 %  varargin - (Optional) <'Name',value> pairs: `analyze.slice(T,varargin);`
 %              -> Determines what Blocks get included in Data output.
 %              -> Can also specify one of the pairs as 
@@ -30,6 +32,7 @@ if isempty(T)
       'A',{},...
       'times',{},...
       'Alignment',{},...
+      'Area',{},...
       'Outcome',{},...
       'Duration',{},...
       'tReach',{},...
@@ -49,15 +52,17 @@ if isempty(T)
 end
 
 if nargin < 2
-   align = 'Grasp';
+   align = "Grasp";
 elseif isempty(align)
-   align = 'Grasp';
-elseif ischar(align)
-   if ~ismember(lower(align),{'reach','grasp'})
-      varargin = [align, varargin];
-      align = 'Grasp';
-   end   
+   align = "Grasp"; 
 end
+
+if nargin < 3
+   area = "All";
+elseif isempty(area)
+   area = "All";
+end
+
 [t_lims,sg_ord,sg_wlen,interp_method,dt] = defaults.jPCA(...
    't_lims','sg_ord','sg_wlen','interp_method','dt');
 
@@ -103,7 +108,13 @@ times_mask = (T.Properties.UserData.t >= t_lims(1)) & ...
 t = T.Properties.UserData.t(times_mask).';
 tq = (t(1):dt:t(end)).'; % "Query" times
 
-T = analyze.slice(T,'Alignment',align,varargin{:});
+switch upper(area)
+   case "ALL"
+      T = analyze.slice(T,'Alignment',align,varargin{:});
+   otherwise
+      T = analyze.slice(T,'Alignment',align,'Area',area,varargin{:});
+end
+
 uTrial = unique(T.Trial_ID);
 
 % Want to make sure we have channels with equal # of trials (meaning that
@@ -129,6 +140,7 @@ T.Properties.UserData.jPCA.key = ["Unsuccessful";... % Outcome == 1
 iTrial = iLeft(uIdx);
 AnimalID = cellstr(string(T.AnimalID(iTrial)));
 Alignment = cellstr(string(T.Alignment(iTrial)));
+Area = upper(string(area));
 Group = cellstr(string(T.Group(iTrial)));
 Outcome = T.Outcome(iTrial);
 Outcome = num2cell((Outcome=='Successful')+1);
@@ -144,7 +156,7 @@ tComplete = num2cell((T.Complete(iTrial)-T.(align)(iTrial))*1e3);
 % groupings will grab Channels (which become columns) as appropriate
 Rate = splitapply(@(rate){rate(:,times_mask).'},T.Rate,G);
 
-% Applay interpolation, as defined in `fcn`:
+% Apply interpolation, as defined in `fcn`:
 fcn = @(rate)interp1(t,...
                      sgolayfilt(rate,sg_ord,sg_wlen,hamming(sg_wlen),1),...
                      tq,...
@@ -158,6 +170,7 @@ Data = struct(...
    'AnimalID',AnimalID,...
    'Trial_ID',TID.Trial_ID,...
    'Alignment',Alignment,...
+   'Area',Area,...
    'Group',Group,...
    'Outcome',Outcome,...
    'PostOpDay',PostOpDay,...
@@ -173,7 +186,7 @@ Data = struct(...
 [Data.times] = deal(tq);
 utils.addHelperRepos();
 fprintf(1,...
-   '\n\t->\tTable conversion for <strong>jPCA</strong> complete.\n');
+   '\n\t\t->\tTable conversion for <strong>jPCA</strong> complete.\n');
 sounds__.play('pop',1.5,-15);
 
    function [opts,update] = check_input_opts(opts,check_opts)

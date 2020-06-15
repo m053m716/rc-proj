@@ -52,7 +52,7 @@ if nargin < 2 || isempty(xi)
 end
 
 % compute ingredients for conf. lim.
-r = circ_r(alpha,w,d,dim);
+r = analyze.jPCA.CircStat2010d.circ_r(alpha,w,d,dim);
 n = sum(w,dim);
 R = n.*r;
 c2 = chi2inv((1-xi),1);
@@ -67,7 +67,9 @@ for i = 1:numel(r)
     t(i) = sqrt(n(i)^2-(n(i)^2-R(i)^2)*exp(c2/n(i)));      % equ. 26.25
   else 
     t(i) = NaN;
-    warning('Requirements for confidence levels not met.');
+%     warning('Requirements for confidence levels not met.');
+    fprintf(1,['\t->\t<strong>[CIRC_CONFMEAN]:</strong> ' ...
+       'Requirements for confidence leveles not met.\n']);
   end
 end
 

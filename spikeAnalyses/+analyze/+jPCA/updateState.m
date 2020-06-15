@@ -21,7 +21,7 @@ end
 
 scores = vertcat(Projection.state);
 Mrot = (M * rot);
-Mrot = Mrot ./ rms(Mrot,1) .* rms(M,1);
+Mrot = Mrot ./ rms(Mrot,1) .* rms(M,1); % Scale to view on same axes
 proj = real(scores * Mrot);
 
 nTrial = numel(Projection);

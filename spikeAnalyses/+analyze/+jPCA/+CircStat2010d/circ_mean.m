@@ -1,30 +1,30 @@
-function [mu ul ll] = circ_mean(alpha, w, dim)
+function [mu, ul, ll] = circ_mean(alpha, w, dim)
+%CIRC_MEAN Computes the mean direction for circular data
 %
-% mu = circ_mean(alpha, w)
-%   Computes the mean direction for circular data.
-%
-%   Input:
-%     alpha	sample of angles in radians
-%     [w		weightings in case of binned angle data]
-%     [dim  compute along this dimension, default is 1]
+%  mu = analyze.jPCA.CircStat2010d.circ_mean(alpha, w, dim)
+%   
+% Inputs
+%  alpha	sample of angles in radians
+%  [w		weightings in case of binned angle data]
+%  [dim  compute along this dimension, default is 1]
 %
 %     If dim argument is specified, all other optional arguments can be
 %     left empty: circ_mean(alpha, [], dim)
 %
-%   Output:
-%     mu		mean direction
-%     ul    upper 95% confidence limit
-%     ll    lower 95% confidence limit 
+% Output
+%  mu		mean direction
+%  ul    upper 95% confidence limit
+%  ll    lower 95% confidence limit 
 %
 % PHB 7/6/2008
 %
-% References:
+% References
 %   Statistical analysis of circular data, N. I. Fisher
 %   Topics in circular statistics, S. R. Jammalamadaka et al. 
 %   Biostatistical Analysis, J. H. Zar
 %
 % Circular Statistics Toolbox for Matlab
-
+%
 % By Philipp Berens, 2009
 % berens@tuebingen.mpg.de - www.kyb.mpg.de/~berens/circStat.html
 
@@ -50,7 +50,7 @@ mu = angle(r);
 
 % confidence limits if desired
 if nargout > 1
-  t = circ_confmean(alpha,0.05,w);
+  t = analyze.jPCA.CircStat2010d.circ_confmean(alpha,0.05,w);
   ul = mu + t;
   ll = mu - t;
 end

@@ -86,27 +86,9 @@ function [Projection,Summary,PhaseData,fig] = jPCA(Data,varargin)
 %           -> Index into `.times` for when Complete occurred this trial
 %
 %   Summary - Struct containing parameter and matrix mapping info:
-%       .jPCs
-%        -> The jPCs in terms of the PCs (not the full-D space)
-%       .PCs
-%        -> The PCs (each column is a PC, each row a neuron)
-%       .jPCs_highD
-%        -> The jPCs, but in the original high-D space.
-%           * This is just PCs * jPCs, and is thus of size neurons x numPCs
-%       .varCaptEachJPC
-%        -> The data variance captured by each jPC
-%       .varCaptEachPC
-%        -> The data variance captured by each PC
-%       .R2_Mskew_2D
-%        -> Fit quality (fitting dx with x) provided by Mskew in top-2 jPCs
-%       .R2_Mbest_2D
-%        -> Fit quality for least-squares top-2 dimensions
-%       .R2_Mskew_kD
-%        -> Quality of map from x to dx provided by Mskew using all jPCs
-%           * (the number of which is determined by 'numPCs')
-%       .R2_Mbest_kD
-%        -> Quality of map from x to dx provided by Mbest using all dims
-%
+%       .PCA -> Struct with original PCA info
+%       .SS  -> Struct with projection matrix and associated statistics
+%        
 %    PhaseData - Cell array where each cell element contains struct
 %                 referring to phase information regarding angle between
 %                 the rate of change (for trajectory in that plane) and the
@@ -246,6 +228,8 @@ if isnan(params.threshPC)
       error(['JPCA:' mfilename ':InvalidParameter'],...
          ['\n\t->\t<strong>[JPCA]:</strong> More principal components '...
          'were requested than there are dimensions of data\n']);
+   else
+      params.plane2plot(params.plane2plot > (params.numPCs/2)) = [];
    end
 else % Otherwise, derive # PCs from % explained data
    nPC = find(explained_total > params.threshPC,1,'first');
@@ -281,7 +265,7 @@ end
 
 % This is what we are really after: the projection of the data onto the PCs
 scores = rawScores(:,1:params.numPCs);  % cut down to the right number of PCs
-
+et = explained_total(params.numPCs);    % For reference later (% original data explained by PCs selected)
 % % Some extra steps
 % %
 % % projection of all the data
@@ -304,7 +288,8 @@ nSamples = size(scores,1)/numTrials;
 % of the state: dState = M*preState
 
 % Apply masks to get and later times within each condition
-dState = scores(maskT2,:) - scores(maskT1,:);
+dt = mode(diff(tt)) * 1e-3; % Convert to seconds
+dState = (scores(maskT2,:) - scores(maskT1,:)) ./ dt;
 % For convenience, keep the "state" in its own variable (we will use the
 % average of the two masks, since each difference estimate is most accurate
 % for the point halfway between the two sets of samples)
@@ -326,33 +311,61 @@ M = (State \ dState)';  % M takes the state and provides a fit to dState
 % (that is, Mskew will transform a column state vector into dx)
 Mskew = analyze.jPCA.skewSymRegress(dState,State)';  % this is the best Mskew for the same equation
 
+% % Decompose Mbest to get "best" system characterization % %
+% get the eigenvalues and eigenvectors
+[~,D] = eig(M); % V are the eigenvectors, D contains the eigenvalues
+lambda_best = diag(D); % eigenvalues
+
+% Eigenvalues are usually in order, but not always.
+% We want the ones with the largest imaginary component!
+[~,sortIndices] = sort(abs(lambda_best),1,'descend');
+lambda_best = lambda_best(sortIndices);  % reorder the eigenvalues
+explained_best = (abs(lambda_best) / sum(abs(lambda_best))) .* et;
+lambda_i_best = imag(lambda_best);  % get rid of any tiny real part
+lambda_r_best = real(lambda_best);
+
 % % Decompose Mskew to get the jPCs % %
 
 % get the eigenvalues and eigenvectors
 [V,D] = eig(Mskew); % V are the eigenvectors, D contains the eigenvalues
-lambda = diag(D); % eigenvalues
+lambda_skew = diag(D); % eigenvalues
 
 % Eigenvalues are usually in order, but not always.
 % We want the ones with the largest imaginary component!
-[~,sortIndices] = sort(abs(lambda),1,'descend');
-lambda = lambda(sortIndices);  % reorder the eigenvalues
-explained_skew = 100 * (abs(lambda) / sum(abs(lambda)));
-lambda = imag(lambda);  % get rid of any tiny real part
+[~,sortIndices] = sort(abs(lambda_skew),1,'descend');
+lambda_skew = lambda_skew(sortIndices);  % reorder the eigenvalues
+explained_skew = (abs(lambda_skew) / sum(abs(lambda_skew))) .* et;
+lambda_i_skew = imag(lambda_skew);  % get rid of any tiny real part
+lambda_r_skew = real(lambda_skew);
 
 V = V(:,sortIndices);  % reorder the eigenvectors (base on eigenvalue size)
 
 % Eigenvalues will be displayed to confirm that everything is working
 % unless we are asked not to output text
 if ~params.suppressText
-   fprintf(1,'<strong>[%s::%s::Day-%02d]</strong>  ',...
-      Data(1).AnimalID,Data(1).Alignment,Data(1).PostOpDay);
-   fprintf(1,'Eigenvalues of M (<strong>skew</strong>): \n');
-   for i = 1:length(lambda)
-      if (lambda(i) > 0)
-         fprintf('                  %1.3fi', lambda(i)*100);
+   fprintf(1,'\n\t<strong>BEGIN</strong> -> [%s::%s::Day-%02d (%s)]\n',...
+      Data(1).AnimalID,Data(1).Alignment,Data(1).PostOpDay,Data(1).Area);
+   fprintf(1,'\t\t\t----------------------------------\n');
+   fprintf(1,'\t\t\tEigenvalues of <strong>best</strong> transformation\n');
+   fprintf(1,'\t\t\t----------------------------------\n');
+   for ii = 1:length(lambda_i_best)
+      if rem(ii,2) > 0
+         fprintf('\t\t->\t%5.2f%+5.2fi',lambda_r_best(ii),lambda_i_best(ii));
       else
-         fprintf('     %1.3fi (%3.2f%%)\n', lambda(i)*100, ...
-            sum(explained_skew([i,i-1])));
+         fprintf('\t%5.2f%+5.2fi (%4.2f%%)\n',lambda_r_best(ii),lambda_i_best(ii), ...
+            sum(explained_best([ii,ii-1])));
+      end
+   end
+   
+   fprintf(1,'\n\t\t\t----------------------------------\n');
+   fprintf(1,'\t\t\tEigenvalues of <strong>skew</strong> transformation\n');
+   fprintf(1,'\t\t\t----------------------------------\n');
+   for ii = 1:length(lambda_i_skew)
+      if (lambda_i_skew(ii) > 0)
+         fprintf('\t\t->\t%5.2f +%5.2fi',lambda_r_skew(ii),lambda_i_skew(ii));
+      else
+         fprintf('\t%5.2f%5.2fi (%4.2f%%)\n',lambda_r_skew(ii),lambda_i_skew(ii), ...
+            sum(explained_skew([ii,ii-1])));
       end
    end
 end
@@ -368,7 +381,7 @@ for pair = 1:params.numPCs/2
    vi2 = 2*pair;
    
    VconjPair = V(:,[vi1,vi2]);  % a conjugate pair of eigenvectors
-   evConjPair = lambda([vi1,vi2]); % and their eigenvalues
+   evConjPair = lambda_i_skew([vi1,vi2]); % and their eigenvalues
    VconjPair = analyze.jPCA.getRealVs(VconjPair,evConjPair,scores,planSamples);
    
    jPCs(:,[vi1,vi2]) = VconjPair;
@@ -415,57 +428,28 @@ supportState = cell2mat(supportState.');
 %        reprojecting using Mbest and Mskew)
 %  -> Once the residual fits are estimated R^2 is computed by taking the
 %        difference between the variance
-e = reshape(explained./100,1,numel(explained));
+
+% % % Recover all-dimensions reconstruction stats % % %
 pc_vec = 1:params.numPCs;
-SS_all = recover_explained_variance(State,dState,M,Mskew,e,pc_vec);
-SS_all.explained = SS_all.RSS.Mskew .* e(pc_vec);
+SS = struct('all',struct,'top',struct);
+SS.all = recover_explained_variance(State,dState,M,Mskew,et,pc_vec,pc_vec,params.rankType);
 
-% % (Optional): Report "High Dims" % reconstruction % %
-if ~params.suppressText
-   fprintf(1,'\t--------- | --------------- | ----------------------\n');
-   fprintf(1,'\t(Mapping) |');
-   fprintf(1,'      <strong>Dims</strong>       |');
-   fprintf(1,' [%% Variance Explained]\n');
-   fprintf(1,'\t--------- | --------------- | ----------------------\n');
-   fprintf(1,'\t (<strong>Best</strong> M) | ');
-   fprintf(1,'   <strong>All (%2d)</strong>     |  ',params.numPCs);
-   fprintf(1,'[%1.2f]\n', sum(SS_all.RSS.Mbest .* e(pc_vec)));
-   fprintf(1,'\t (<strong>Skew</strong> M) | ');
-   fprintf(1,'   <strong>All (%2d)</strong>     |  ',params.numPCs);
-   fprintf(1,'[%1.2f] <<------\n', sum(SS_all.explained(pc_vec)));
-end
-
-% % Compute variance captured by the jPCs % %
-origVar = sum(sum( bsxfun(@minus, smallA, mean(smallA)).^2));
-varCaptEachJPC = sum((scores*jPCs).^2) / origVar;
-varCaptEachPlane = reshape(varCaptEachJPC, 2, params.numPCs/2);
-varCaptEachPlane = sum(varCaptEachPlane,1);
-if strcmp(params.rankType, 'varCapt')
-   [~,sortIndices] = sort(varCaptEachPlane,'descend');
-   sortIndices_jPCs = [(sortIndices-1).*2+1;sortIndices.*2];
-   sortIndices_jPCs = (sortIndices_jPCs(:)).';
-else
-   sortIndices = 1:numel(varCaptEachPlane/2);
-   sortIndices_jPCs = 1:params.numPCs;
-end
-
-iTop = find(ismember(sortIndices_jPCs,[1,2]));
-SS_2D = recover_explained_variance(State,dState,M,Mskew,e,iTop);
-SS_2D.explained = SS_2D.RSS.Mskew .* e(pc_vec(iTop));
-
-% % (Optional): Report "High Dims" % reconstruction % %
-if ~params.suppressText
-   fprintf(1,'\t (<strong>Best</strong> M) | ');
-   fprintf(1,'<strong>Top-2 (%7s)</strong> |  ',params.rankType);
-   fprintf(1,'[%1.2f]\n', sum(SS_2D.RSS.Mbest .* e(pc_vec(iTop))));
-   fprintf(1,'\t (<strong>Skew</strong> M) | ');
-   fprintf(1,'<strong>Top-2 (%7s)</strong> |  ',params.rankType);
-   fprintf(1,'[%1.2f] <<------\n', sum(SS_2D.RSS.Mskew .* SS_2D.explained));
-end
+% % % Recover top-dimensions reconstruction stats % % %
+topVectors_best = SS.all.explained.sort.best.vector(1:2);
+topVectors_skew = SS.all.explained.sort.skew.vector(1:2);
+SS.top = recover_explained_variance(State,dState,M,Mskew,et,...
+   topVectors_best,topVectors_skew);
 
 % % (Optional): plot the rosette(s) to visualize trajectories % %
-vc = varCaptEachPlane;
-% If figures are to be exported, get those parameters now %
+switch lower(params.rankType)
+   case 'eig'
+      vc = SS.all.explained.plane.eig.skew;
+   case 'varcapt'
+      vc = SS.all.explained.plane.R2.skew;
+end
+sortIndices = SS.all.explained.sort.best.plane;
+
+% % % (Optional): generate & export trajectory rosette plots % % %
 if params.batchExportFigs
    [figDir,rosetteDir,rosetteExpr,phaseDir,phaseExpr] = defaults.files(...
       'jpca_fig_folder','jpca_rosettes_folder','jpca_rosettes_fname_expr',...
@@ -484,7 +468,7 @@ RosetteProj = cell(1,max(params.plane2plot));
 if (~params.suppressRosettes) || (params.batchExportFigs)
    for jPCplane = params.plane2plot
       iSort = sortIndices(jPCplane);
-      if ~isnan(varCaptEachPlane(iSort)) && (vc(iSort) > 1e-9)
+      if ~isnan(vc(iSort)) && (vc(iSort) > 1e-9)
          p = analyze.jPCA.setRosetteParams(...
             'WhichPair',jPCplane,'VarCapt',vc(iSort),...
             'batchExportFigs',params.batchExportFigs,...
@@ -505,6 +489,32 @@ if (~params.suppressRosettes) || (params.batchExportFigs)
    end
 end
 
+% % (Optional): Report % reconstruction % %
+if ~params.suppressText
+   fprintf(1,'\n\n\t--------- | --------------- | ------------------------ | --------------------\n');
+   fprintf(1,'\t(Mapping) |');
+   fprintf(1,'      <strong>Dims</strong>       |');
+   fprintf(1,' [%% Eigenspace Explained] |');
+   fprintf(1,' %% Variance Explained\n');
+   fprintf(1,'\t--------- | --------------- | ------------------------ | --------------------\n');
+   fprintf(1,'\t (<strong>Best</strong> M) | ');
+   fprintf(1,' <strong>All  (  %3d  )</strong> |  ',params.numPCs);
+   fprintf(1,'       [%6.2f%%]        | ', sum(SS.all.explained.eig.skew));
+   fprintf(1,' %10.2f%%\n', sum(SS.all.explained.R2.best));
+   fprintf(1,'\t (<strong>Skew</strong> M) | ');
+   fprintf(1,' <strong>All  (  %3d  )</strong> |  ',params.numPCs);
+   fprintf(1,'       [%6.2f%%]        | ',sum(SS.all.explained.eig.skew));
+   fprintf(1,' %10.2f%%\n', sum(SS.all.explained.R2.skew));
+   fprintf(1,'\t (<strong>Best</strong> M) | ');
+   fprintf(1,'<strong>Top-2 (%7s)</strong> |  ',params.rankType);
+   fprintf(1,'       [%6.2f%%]        | ', sum(SS.top.explained.eig.best));
+   fprintf(1,' %10.2f%%\n', sum(SS.top.explained.R2.best));
+   fprintf(1,'\t (<strong>Skew</strong> M) | ');
+   fprintf(1,'<strong>Top-2 (%7s)</strong> |  ',params.rankType);
+   fprintf(1,'       [%6.2f%%]        | ',sum(SS.top.explained.eig.skew));
+   fprintf(1,' <strong>%10.2f%%</strong> <<------\n', sum(SS.top.explained.R2.skew));
+end
+
 % % Analysis of whether things really look like rotations (makes plots) % %
 circStats = cell(size(params.plane2plot));
 PhaseData = cell(1,max(params.plane2plot));
@@ -516,7 +526,7 @@ for jPCplane = params.plane2plot
    PhaseData{jPCplane} = analyze.jPCA.getPhase(...
       Projection,jPCplane,params.wlen,params.S);
    
-   % % Optional: plot the histogram of phase angle differences % %
+   % % (Optional): plot the histogram of phase angle differences % %
    % Notes:
    %  -> 'params' is just what the user passed
    %  -> if suppressHistograms == false, plots are suppressed
@@ -534,31 +544,19 @@ end
 % % Make the summary output structure % %
 Summary.numTrials = numTrials;
 Summary.times = Projection(1).times;
-Summary.jPCs = jPCs;
+Summary.TotalVarExplainedPCs = et;
 Summary.PCA.vectors = PCvectors;
 Summary.PCA.mu = mu;
 Summary.PCA.explained = explained;
 Summary.PCA.scores = rawScores;
-Summary.jPCs_highD = PCvectors * jPCs;
-Summary.varCaptEachJPC = varCaptEachJPC;
-Summary.varCaptEachPlane = varCaptEachPlane;
-Summary.sortIndices = sortIndices;
-Summary.sortIndices_jPCs = sortIndices_jPCs;
 Summary.reachState = reachState;
 Summary.graspState = graspState;
 Summary.completeState = completeState;
 Summary.supportState = supportState;
 % (m053m716, CPL-specific) "Success" or "Failure" among condition labels
-Summary.Mbest = M;
-Summary.Mskew = Mskew;
-Summary.SS.all = SS_all;
-Summary.SS.top = SS_2D;
-% Summary.fitErrorM = SE_Mbest;
-% Summary.fitErrorMskew = SE_Mskew;
-% Summary.R2_Mskew = RSS_Mskew;
-% Summary.R2_Mbest = RSS_Mbest;
-% Summary.R2_Mskew_err = R2_Mskew_err;
-% Summary.R2_Mbest_err = R2_Mbest_err;
+Summary.best = struct('M',M,'lambda',lambda_best);
+Summary.skew = struct('M',Mskew,'lambda',lambda_skew);
+Summary.SS = SS;
 Summary.circStats = circStats;
 Summary.RosetteProj = RosetteProj;
 Summary.crossCondMean = crossCondMeanAllTimes(analyzeIndices,:);
@@ -574,7 +572,10 @@ Summary.params = params;
 
 utils.addHelperRepos();
 sounds__.play('pop',1.2,-10);
-fprintf(1,'\n\t->\t<strong>jPCA</strong> projections recovered\n');
+if ~params.suppressText
+   fprintf(1,'\n\t\t\t\t[%s::%s::Day-%02d (%s)] <- <strong>END JPCA</strong>\n',...
+      Data(1).AnimalID,Data(1).Alignment,Data(1).PostOpDay,Data(1).Area);
+end
 
    function Projection = initProjStruct(Data)
       %INITPROJSTRUCT Initialize `Projection` (output) array struct
@@ -595,6 +596,7 @@ fprintf(1,'\n\t->\t<strong>jPCA</strong> projections recovered\n');
          'AnimalID',iVal,...
          'Trial_ID',iVal,...
          'Alignment',iVal,...
+         'Area',iVal,...
          'PostOpDay',iVal,...
          'Group',iVal,...
          'Outcome',iVal,...
@@ -612,6 +614,7 @@ fprintf(1,'\n\t->\t<strong>jPCA</strong> projections recovered\n');
       [Projection.Trial_ID] = deal(Data.Trial_ID);
       [Projection.AnimalID] = deal(Data.AnimalID);
       [Projection.Alignment] = deal(Data.Alignment);
+      [Projection.Area] = deal(Data.Area);
       [Projection.Outcome] = deal(Data.Outcome);
       [Projection.PostOpDay] = deal(Data.PostOpDay);
       [Projection.Group] = deal(Data.Group);
@@ -689,6 +692,9 @@ fprintf(1,'\n\t->\t<strong>jPCA</strong> projections recovered\n');
       if isempty(params.Alignment)
          params.Alignment = Data(1).Alignment;
       end
+      if isempty(params.Area)
+         params.Area = Data(1).Area;
+      end
       if isempty(params.Day)
          params.Day = Data(1).PostOpDay;
       end
@@ -720,7 +726,7 @@ fprintf(1,'\n\t->\t<strong>jPCA</strong> projections recovered\n');
       keepIndex = {keepIndex};
    end
 
-   function SS = recover_explained_variance(State,dState,M,Mskew,e,dims)
+   function SS = recover_explained_variance(State,dState,M,Mskew,e,bestDims,skewDims,rankType)
       %RECOVER_EXPLAINED_VARIANCE Return struct with % explained var, etc.
       %
       %  SS = recover_explained_variance(State,dState,M,Mskew,e,dims);
@@ -735,8 +741,9 @@ fprintf(1,'\n\t->\t<strong>jPCA</strong> projections recovered\n');
       %                 complex-conjugate eigenvalues, corresponding to
       %                 "rotatory" subspace projections).
       %     e        - Proportion (0 - 1) of original data explained by
-      %                    each column of `State`
-      %     dims     - Indices of dimensions (M) to use
+      %                 PCs that were used for jPCA estimate
+      %     bestDims - Indices of dimensions to use for Mbest
+      %     skewDims - Indices of dimensions to use for Mskew
       %
       %  Output
       %     SS       - Struct with fields corresponding to sums of squares
@@ -745,71 +752,104 @@ fprintf(1,'\n\t->\t<strong>jPCA</strong> projections recovered\n');
       
       
       if nargin < 6
-         dims = 1:size(State,2);
+         bestDims = 1:size(State,2);
       end
       
-      % Get the dimensions to estimate this on
-      rState = State(:,dims);
-      rdState = dState(:,dims);
+      if nargin < 7
+         skewDims = 1:size(State,2);
+      end
       
       % Get the percent explained based on eigenvalues of transform
       % matrices:
       [~,D_m] = eig(M);
-      M_explained = cumsum(diag(abs(D_m)) ./ sum(diag(abs(D_m))));
+      M_explained = diag(abs(D_m)) ./ sum(diag(abs(D_m)));
       [~,D_mskew] = eig(Mskew);
-      Mskew_explained = cumsum(diag(abs(D_mskew)) ./ sum(diag(abs(D_mskew))));
+      Mskew_explained = diag(abs(D_mskew)) ./ sum(diag(abs(D_mskew)));
       
       % Initialize output data struct
       SS = struct(...
-         'info',struct(...
-            'dims',dims,...
-            'M',M,...
-            'M_explained',M_explained,...
-            'Mskew',Mskew, ... % Return full transforms, `dims` indicates index
-            'Mskew_explained',Mskew_explained) ...
-         );
+            'info',struct(...
+               'best',struct(...
+                  'M',M,...
+                  'dims',bestDims,...
+                  'explained',M_explained(bestDims)).',...
+               'skew',struct(...
+                  'M',Mskew,...
+                  'dims',skewDims,...
+                  'explained',Mskew_explained(skewDims)).'...
+                  ), ...
+            'TSS',struct, ...    % 
+            'RSS',struct, ...    % Residual sum-of-squares
+            'explained',struct ...
+            );
       
       % Make M and Mskew in lower dims (less indexing notation):
-      M = M(:,dims);
-      Mskew = M(:,dims);
-      
-      % Mean-Square terms
-      SS.MS.State  = (mean(rState,2)  - rState).^2;
-      SS.MS.dState = (mean(rdState,2) - rdState).^2;
-      SS.MS.orig   = (mean(rdState,2) - rdState) .* ...
-                     (mean(rState,2) - rState);
-      SS.MS.Mbest  = (mean(rdState,2) - rdState) .* ...
-                     (mean(State * M,2) - State*M);
-      SS.MS.Mskew  = (mean(rdState,2) - rdState) .* ...
-                     (mean(State * Mskew,2) - State*Mskew);
-      
-      % Compute square-error terms
-      SS.ESS.Mbest  = (mean(rdState,2) - State * M).^2;
-      SS.ESS.Mskew  = (mean(rdState,2) - State * Mskew).^2;
-      
+      M = M(:,bestDims);
+      Mskew = Mskew(:,skewDims);
+      bestProj = State * M;
+      skewProj = State * Mskew;
+  
       % Compute total sum-of-squares
-      SS.TSS.State  = sum(SS.MS.State, 1);
-      SS.TSS.dState = sum(SS.MS.dState,1);
-      SS.TSS.orig   = sum(SS.MS.orig  ,1);
-%       SS.TSS.Mbest  = sum(SS.MS.Mbest,1);
-%       SS.TSS.Mskew  = sum(SS.MS.Mskew,1);
+      SS.TSS.dState = sum(bsxfun(@minus,dState,mean(dState,1)).^2,1);
+      SS.TSS.total  = sum(SS.TSS.dState);
       
-      % SSE_Mbest_kd = sum(ESS_Mbest_kd,1);
-      % SSE_Mskew_kd = sum(ESS_Mskew_kd,1);
-      SS.RSS.Mbest = mean(SS.TSS.dState - SS.ESS.Mbest,1);
-      SS.RSS.Mskew = mean(SS.TSS.dState - SS.ESS.Mskew,1);
+      % Compute explained sum-of-squares (sum-of-squares due to regression or SSR)
+      SS.ESS.best   = sum(bsxfun(@minus,bestProj,mean(dState(:,bestDims),1)).^2,1);
+      SS.ESS.skew   = sum(bsxfun(@minus,skewProj,mean(dState(:,skewDims),1)).^2,1);
+      
+      % Compute residual sum-of-squares (sum-of-squares due to error or SSE)
+      SS.RSS.best   = sum(bsxfun(@minus,bestProj,dState(:,bestDims)).^2,1);
+      SS.RSS.skew   = sum(bsxfun(@minus,skewProj,dState(:,skewDims)).^2,1);
+      
+      % Percent of original "eigenspace" (from eigenvalue magnitudes):
+      SS.explained.eig.best = SS.info.best.explained .* e;
+      SS.explained.eig.skew = SS.info.skew.explained .* e;
+      
+      % Percent reduction in variance using each fit:
+      % Note that because we are doing linear regression, .R2 and .FVU
+      % should be equivalent for .best, or .skew, as (1 - the other)
+      SS.explained.R2.best = SS.ESS.best ./ SS.TSS.total .* 100;
+      SS.explained.R2.skew = SS.ESS.skew ./ SS.TSS.total .* 100;
+      
+      SS.explained.FVU.best = SS.RSS.best ./ SS.TSS.total .* 100;
+      SS.explained.FVU.skew = SS.RSS.skew ./ SS.TSS.total .* 100;
+      
+      if nargin < 8 % % Do not do any sorting if no `rankType` given % % 
+         return;
+      end
+      
+      % % Recover sort indices according to plane sort type % %
+      nDim = numel(bestDims);
+      nPlane = nDim/2;
+      SS.explained.plane.eig.best = sum(reshape(SS.explained.eig.best,2,nPlane),1);
+      SS.explained.plane.R2.best = sum(reshape(SS.explained.R2.best,2,nPlane),1);
+      if strcmpi(rankType, 'varcapt')
+         sortQ = SS.explained.plane.R2.best;
+      else
+         sortQ = SS.explained.plane.eig.best;
+      end
+      [~,SS.explained.sort.best.plane] = sort(sortQ,'descend');
+      SS.explained.sort.best.vector = [...
+         (SS.explained.sort.best.plane-1).*2+1;...
+          SS.explained.sort.best.plane.*2];
+      SS.explained.sort.best.vector = (SS.explained.sort.best.vector(:)).';
+      
+      % % Repeat for skew-symmetric matrix % % 
+      nDim = numel(skewDims);
+      nPlane = nDim/2;
+      SS.explained.plane.eig.skew = sum(reshape(SS.explained.eig.skew,2,nPlane),1);
+      SS.explained.plane.R2.skew = sum(reshape(SS.explained.R2.skew,2,nPlane),1);
+      if strcmpi(rankType, 'varcapt')
+         sortQ = SS.explained.plane.R2.skew;
+      else
+         sortQ = SS.explained.plane.eig.skew;
+      end
 
-      % Total sum-of-squares of dependent variable scales this.
-      % If the original covariance is equal to the new, 
-      %  then we've explained nothing!
-      % -> Normalize each estimate so that the cumulative sum becomes 1
-      SS.RSS.orig  = SS.TSS.dState .* ...
-         (1 - (SS.TSS.orig ./ (SS.TSS.dState .* SS.TSS.State))); 
-%       SS.RSS.Mbest = ...
-%          (1 - (SS.TSS.orig ./  (SS.TSS.Mbest .* SS.TSS.State))) .* ...
-%          M_explained;
-%       SS.RSS.Mskew = 1 - (SS.TSS.orig ./  (SS.TSS.Mskew .* SS.TSS.State)) ...
-%          .* Mskew_explained; 
+      [~,SS.explained.sort.skew.plane] = sort(sortQ,'descend');
+         SS.explained.sort.skew.vector = [...
+            (SS.explained.sort.skew.plane-1).*2+1;...
+             SS.explained.sort.skew.plane.*2];
+         SS.explained.sort.skew.vector = (SS.explained.sort.skew.vector(:)).';
    end
 
 end

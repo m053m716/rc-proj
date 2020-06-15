@@ -14,10 +14,10 @@ function rotatejPCs(Projection,Summary,rot,nStep)
 %     Draws the phase space for that many projections.
 
 if nargin < 3
-   analyze.jPCA.rotate2jPCA(Projection,Summary,times,totalSteps,1,false);
+   analyze.jPCA.rotatejPCs(Projection,Summary,times,totalSteps,1,false);
    drawnow;
    for ii = 2:totalSteps
-      analyze.jPCA.rotate2jPCA(Projection,Summary,times,totalSteps,ii,true);
+      analyze.jPCA.rotatejPCs(Projection,Summary,times,totalSteps,ii,true);
       drawnow;
    end
    return;

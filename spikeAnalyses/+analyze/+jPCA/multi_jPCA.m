@@ -61,6 +61,7 @@ if nargin < 2
    params.suppressHistograms = true;
    params.suppressText = false;
    params.markEachMetaEvent = false;
+   params.threshPC = nan;
 else
    if isstruct(varargin{1})
       params = varargin{1};
@@ -73,6 +74,7 @@ else
       params.suppressHistograms = true;
       params.suppressText = false;
       params.markEachMetaEvent = false;
+      params.threshPC = nan;
    end
    fn = fieldnames(params);
    for iV = 1:2:numel(varargin)
@@ -88,6 +90,9 @@ else
    end
 end
 % % % % % % % End Argument Parsing % % % %
+
+Areas = ["All","CFA","RFA"];
+nArea = numel(Areas);
 
 % % Collect other `default` parameters % %
 [t_lims,dt,ord,wlen,min_n_trials] = defaults.jPCA(...
@@ -111,38 +116,51 @@ for i = 1:nAlignment
 end
 
 % Initialize output table
-D = analyze.jPCA.gross_output_table(nAlignment*nDay);
+D = analyze.jPCA.gross_output_table(nAlignment*nDay*nArea);
 
 % % Iterate on each alignment, for each day % %
 iRow = 0;
 for iDay = 1:nDay
-   for iAlign = 1:nAlignment
-      if iAlign == 1
+   for iArea = 1:nArea
+      for iAlign = 1:nAlignment
+%          if iAlign == 1
+%             p = params;
+%          elseif iAlign == 2
+%             % Prior to incrementing `iRow`:
+%             p.numPCs = D.Summary{iRow}.params.numPCs;
+%             p.threshPC = nan;
+%          end
          p = params;
-      elseif iAlign == 2
-         % Prior to incrementing `iRow`:
-         p.numPCs = D.Summary{iRow}.params.numPCs;
-         p.threshPC = nan;
+         p.planStateEvent = planEvent{iAlign};
+         iRow = iRow + 1;
+         D.Data{iRow} = analyze.jPCA.convert_table(...
+            S,string(uAlignment(iAlign)),Areas(iArea), ...
+               'PostOpDay',uDays(iDay), ...
+               't_lims',t_lims, ...
+               'dt',dt, ...
+               'sg_ord',ord, ...
+               'sg_wlen',wlen ...
+            );
+         p.numPCs = p.numPCByArea.(Areas(iArea));
+%          nCh = size(D.Data{iRow}(1).A,2);
+%          if isnan(params.numPCs)
+%             if rem(nCh,2)==0 % If even, subtract 2
+%                p.numPCs = nCh-2;
+%             else % Otherwise, subtract 1
+%                p.numPCs = nCh-1;
+%             end
+%          end
+         D.Alignment(iRow) = string(uAlignment(iAlign));
+         D.Area(iRow) = Areas(iArea);
+         if isempty(D.Data{iRow})
+            continue;
+         end
+         D.AnimalID(iRow) = string(D.Data{iRow}(1).AnimalID);
+         D.Group(iRow) = string(D.Data{iRow}(1).Group);
+         D.PostOpDay(iRow) = D.Data{iRow}(1).PostOpDay;
+         [D.Projection{iRow},D.Summary{iRow},D.PhaseData{iRow}] = ...
+            analyze.jPCA.jPCA(D.Data{iRow},p);
       end
-      p.planStateEvent = planEvent{iAlign};
-      iRow = iRow + 1;
-      D.Data{iRow} = analyze.jPCA.convert_table(...
-         S,char(uAlignment(iAlign)), ...
-            'PostOpDay',uDays(iDay), ...
-            't_lims',t_lims, ...
-            'dt',dt, ...
-            'sg_ord',ord, ...
-            'sg_wlen',wlen ...
-         );
-      D.Alignment(iRow) = string(uAlignment(iAlign));
-      if isempty(D.Data{iRow})
-         continue;
-      end
-      D.AnimalID(iRow) = string(D.Data{iRow}(1).AnimalID);
-      D.Group(iRow) = string(D.Data{iRow}(1).Group);
-      D.PostOpDay(iRow) = D.Data{iRow}(1).PostOpDay;
-      [D.Projection{iRow},D.Summary{iRow},D.PhaseData{iRow}] = ...
-         analyze.jPCA.jPCA(D.Data{iRow},params);
    end
 end
 

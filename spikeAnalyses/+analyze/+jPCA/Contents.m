@@ -29,6 +29,7 @@
 % Math Helper Functions
 %   averageDotProduct               - Get the average dot product with a comparison angle
 %   getPhase                        - Get the phase for a given plane over its timecourse
+%   getPlane                        - Return plane `i` from data struct or matrix
 %   getRealVs                       - Get the real analogue of the eigenvectors
 %   minimize                        - Minimize a differentiable multivariate function. 
 %   minusPi2Pi                      - Return value in range [-pi,pi]

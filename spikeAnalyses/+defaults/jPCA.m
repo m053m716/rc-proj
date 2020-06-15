@@ -34,15 +34,17 @@ p.min_n_trials_def = 7;     % Minimum # of trials for a day to be included
 p.phase_wlen = 21; % Number of samples around alignment to look for "phase state"
 p.phase_s = vertcat({'Reach','Grasp','Support','Complete'},... % Cell array for phase states & index name fields
                {'reachIndex','graspIndex','supportIndex','completeIndex'});
-p.phase_pair = 3:-1:1;
+p.phase_pair = 2:-1:1;
             
 % Make jPCA params struct
 jpca_params = struct;
 jpca_params.Alignment = '';
 jpca_params.Animal = '';
+jpca_params.Area = '';
 jpca_params.Day = [];
 jpca_params.numPCs = 12;
-jpca_params.threshPC = 90; % Determines the number of PCs to use
+jpca_params.threshPC = 75; % Determines the number of PCs to use
+jpca_params.numPCByArea = struct('RFA',6,'CFA',6,'All',12);
 jpca_params.plane2plot = p.phase_pair; % Can be vector (e.g. 2:-1:1)
 jpca_params.wlen = p.phase_wlen;
 jpca_params.S = p.phase_s;
@@ -178,6 +180,7 @@ axes_params.vAxisLabelOffsetFactor = 4.5;
 rosette_params = struct;
 rosette_params.Animal = '';
 rosette_params.Alignment = '';
+rosette_params.Area = '';
 rosette_params.Axes = [];
 rosette_params.AxesLineWidth = 1.5;
 rosette_params.AxesTitleExpr = 'jPCA plane %d';

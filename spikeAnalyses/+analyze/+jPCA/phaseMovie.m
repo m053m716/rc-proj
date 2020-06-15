@@ -120,6 +120,7 @@ end
 movieParams.Animal = Projection(1).AnimalID;
 movieParams.Alignment = Projection(1).Alignment;
 movieParams.Day = Projection(1).PostOpDay;
+movieParams.Area = Projection(1).Area;
 
 % % Parse which times to plot & interpolate if needed % %
 tt = Projection(1).times;

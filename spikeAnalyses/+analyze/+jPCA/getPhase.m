@@ -61,6 +61,7 @@ for c=1:numConds
    % make things run horizontally so they can be easily concatenated.
    phaseData(c).times = Proj(c).times;
    phaseData(c).phase = phase'; 
+   phaseData(c).area = Proj(c).Area;
    phaseData(c).phaseOfDelta = phaseOfDelta'; 
    phaseData(c).radius = radius';
    phaseData(c).outcome = Proj(c).Outcome;
@@ -78,6 +79,10 @@ for c=1:numConds
    phaseData(c).phaseDiff.All.delta = d;
    phaseData(c).wAvgDPWithPiOver2 = ...
       analyze.jPCA.averageDotProduct(d,pi/2);
+   [phaseData(c).mu,ul,ll] = analyze.jPCA.CircStat2010d.circ_mean(d',radius);
+   phaseData(c).cb95 = ul - ll;
+   [phaseData(c).k,phaseData(c).k0] = ...
+      analyze.jPCA.CircStat2010d.circ_kurtosis(d',radius);
    phaseData(c).label = Proj(c).Condition;
 end
 
