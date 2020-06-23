@@ -69,12 +69,14 @@ for i = 1:numel(r)
     t(i) = NaN;
 %     warning('Requirements for confidence levels not met.');
     fprintf(1,['\t->\t<strong>[CIRC_CONFMEAN]:</strong> ' ...
-       'Requirements for confidence leveles not met.\n']);
+       'Requirements for confidence levels not met.\n']);
   end
 end
 
 % apply final transform
 t = acos(t./R);
+
+end
   
 
 

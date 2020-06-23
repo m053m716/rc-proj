@@ -1,14 +1,16 @@
-function D = multi_jPCA(S,varargin)
+function D = multi_jPCA(S,min_n_trials,varargin)
 %MULTI_JPCA Apply jPCA to short segments of `Data` focused on tagged events
 %
 %  D = analyze.jPCA.multi_jPCA(S);
-%  D = analyze.jPCA.multi_jPCA(S,params);
+%  D = analyze.jPCA.multi_jPCA(S,min_n_trials,params);
 %  D = analyze.jPCA.multi_jPCA(S,params,'Name',value,...);
 %  D = analyze.jPCA.multi_jPCA(S,'Name',value,...);
 %
 % Inputs
 %  S   - A data table that has the cross-"condition"-mean subtracted for 
 %        each "condition" (alignment/trial/recording) combination.
+%
+%  min_n_trials - Minimum # required trials
 %
 %  params - An optional struct containing the following fields:
 %   .analyzeTimes  
@@ -53,21 +55,23 @@ function D = multi_jPCA(S,varargin)
 %           analyze.slice
 
 % % % Parse Input Arguments  % % % % % % %
-if nargin < 2
-   params = defaults.jPCA('jpca_params');
-   % Note: setting `batchExportFigs` to true overrides this behavior
-   params.suppressPCstem = true;
-   params.suppressRosettes = true;
-   params.suppressHistograms = true;
-   params.suppressText = false;
-   params.markEachMetaEvent = false;
-   params.threshPC = nan;
-else
-   if isstruct(varargin{1})
-      params = varargin{1};
-      varargin(1) = [];
-   else
+switch nargin
+   case 1
+      min_n_trials = 5;
       params = defaults.jPCA('jpca_params');
+      params.suppressPCstem = true;
+      params.suppressRosettes = true;
+      params.suppressHistograms = true;
+      params.suppressText = false;
+      params.markEachMetaEvent = false;
+      params.threshPC = nan;
+   case 2
+      if isstruct(min_n_trials)
+         params = min_n_trials;
+         min_n_trials = params.min_n_trials_def;
+      else
+         params = defaults.jPCA('jpca_params');
+      end
       % Note: setting `batchExportFigs` to true overrides this behavior
       params.suppressPCstem = true;
       params.suppressRosettes = true;
@@ -75,19 +79,35 @@ else
       params.suppressText = false;
       params.markEachMetaEvent = false;
       params.threshPC = nan;
-   end
-   fn = fieldnames(params);
-   for iV = 1:2:numel(varargin)
-      iField = ismember(lower(fn),lower(varargin{iV}));
-      if sum(iField)==1
-         params.(fn{iField}) = varargin{iV+1};
+   otherwise
+      if isstruct(varargin{1})
+         params = varargin{1};
+         varargin(1) = [];
+      elseif isstruct(min_n_trials)
+         params = min_n_trial;
+         min_n_trials = params.min_n_trials_def;
       else
-         warning(['JPCA:' mfilename ':BadParameter'],...
-            ['\n\t->\t<strong>[JPCA]:</strong> ' ...
-             'Unrecognized parameter name: "<strong>%s</strong>"\n'],...
-             varargin{iV});
+         params = defaults.jPCA('jpca_params');
+         % Note: setting `batchExportFigs` to true overrides this behavior
+         params.suppressPCstem = true;
+         params.suppressRosettes = true;
+         params.suppressHistograms = true;
+         params.suppressText = false;
+         params.markEachMetaEvent = false;
+         params.threshPC = nan;
       end
-   end
+      fn = fieldnames(params);
+      for iV = 1:2:numel(varargin)
+         iField = ismember(lower(fn),lower(varargin{iV}));
+         if sum(iField)==1
+            params.(fn{iField}) = varargin{iV+1};
+         else
+            warning(['JPCA:' mfilename ':BadParameter'],...
+               ['\n\t->\t<strong>[JPCA]:</strong> ' ...
+                'Unrecognized parameter name: "<strong>%s</strong>"\n'],...
+                varargin{iV});
+         end
+      end
 end
 % % % % % % % End Argument Parsing % % % %
 
@@ -95,17 +115,15 @@ Areas = ["All","CFA","RFA"];
 nArea = numel(Areas);
 
 % % Collect other `default` parameters % %
-[t_lims,dt,ord,wlen,min_n_trials] = defaults.jPCA(...
+[t_lims,dt,ord,wlen] = defaults.jPCA(...
    't_lims_short','dt_short',...
-   'sg_ord_short','sg_wlen_short',...
-   'min_n_trials_def');
+   'sg_ord_short','sg_wlen_short');
+
+% Get restricted table based on minimum # trials
+S = utils.filterByNTrials(S,min_n_trials);
 
 % % Parse and do some filtering on input Table % %
-if ~contains(S.Properties.UserData.Processing,'Keep-Min-')
-   % If we haven't screened based on minimum number of total trials, do so
-   S = utils.filterByNTrials(S,min_n_trials); % Default is 'All' outcomes
-end
-[uDays,nDay,uAlignment,nAlignment] = parseFromInputTable(S);
+[uDays,nDay,uAlignment,nAlignment,nAnimal] = parseFromInputTable(S);
 
 % Get names of "plan event," which is used in each alignment case to rotate
 % the Mskew projections so that they demonstrate maximum variance at the
@@ -116,55 +134,56 @@ for i = 1:nAlignment
 end
 
 % Initialize output table
-D = analyze.jPCA.gross_output_table(nAlignment*nDay*nArea);
+D = analyze.jPCA.gross_output_table(nAlignment*nDay*nArea*nAnimal);
 
 % % Iterate on each alignment, for each day % %
 iRow = 0;
 for iDay = 1:nDay
-   for iArea = 1:nArea
-      for iAlign = 1:nAlignment
-%          if iAlign == 1
-%             p = params;
-%          elseif iAlign == 2
-%             % Prior to incrementing `iRow`:
-%             p.numPCs = D.Summary{iRow}.params.numPCs;
-%             p.threshPC = nan;
-%          end
-         p = params;
-         p.planStateEvent = planEvent{iAlign};
-         iRow = iRow + 1;
-         D.Data{iRow} = analyze.jPCA.convert_table(...
-            S,string(uAlignment(iAlign)),Areas(iArea), ...
-               'PostOpDay',uDays(iDay), ...
-               't_lims',t_lims, ...
-               'dt',dt, ...
-               'sg_ord',ord, ...
-               'sg_wlen',wlen ...
-            );
-         p.numPCs = p.numPCByArea.(Areas(iArea));
-%          nCh = size(D.Data{iRow}(1).A,2);
-%          if isnan(params.numPCs)
-%             if rem(nCh,2)==0 % If even, subtract 2
-%                p.numPCs = nCh-2;
-%             else % Otherwise, subtract 1
-%                p.numPCs = nCh-1;
-%             end
-%          end
-         D.Alignment(iRow) = string(uAlignment(iAlign));
-         D.Area(iRow) = Areas(iArea);
-         if isempty(D.Data{iRow})
-            continue;
+   sThis = S(S.PostOpDay == uDays(iDay),:);
+   uAnimal = unique(sThis.AnimalID);
+   for iAnimal = 1:numel(uAnimal)
+      sThisAnimal = sThis(sThis.AnimalID == uAnimal(iAnimal),:);
+      for iArea = 1:nArea
+         for iAlign = 1:nAlignment
+            p = params;
+            p.planStateEvent = planEvent{iAlign};
+            
+            [~,iTrial] = unique(sThisAnimal.Trial_ID);
+            nTrial = sum(sThisAnimal.Outcome(iTrial) == "Successful");
+            if (nTrial < min_n_trials)
+               continue;
+            end
+
+            data = analyze.jPCA.convert_table(...
+               sThisAnimal,string(uAlignment(iAlign)),Areas(iArea), ...
+                  'PostOpDay',uDays(iDay),'Outcome','Successful',...
+                  't_lims',t_lims, ...
+                  'dt',dt, ...
+                  'sg_ord',ord, ...
+                  'sg_wlen',wlen ...
+               );
+            p.numPCs = p.numPCByArea.(Areas(iArea));
+            if (size(data(1).A,2) < p.numPCs) || isempty(data)
+               continue;
+            else
+               iRow = iRow + 1;
+               D.Data{iRow} = data;
+            end
+            D.Alignment(iRow) = string(uAlignment(iAlign));
+            D.Area(iRow) = Areas(iArea);
+            D.AnimalID(iRow) = string(D.Data{iRow}(1).AnimalID);
+            D.Group(iRow) = string(D.Data{iRow}(1).Group);
+            D.PostOpDay(iRow) = D.Data{iRow}(1).PostOpDay;
+            [D.Projection{iRow},D.Summary{iRow},D.PhaseData{iRow}] = ...
+               analyze.jPCA.jPCA(D.Data{iRow},p);
          end
-         D.AnimalID(iRow) = string(D.Data{iRow}(1).AnimalID);
-         D.Group(iRow) = string(D.Data{iRow}(1).Group);
-         D.PostOpDay(iRow) = D.Data{iRow}(1).PostOpDay;
-         [D.Projection{iRow},D.Summary{iRow},D.PhaseData{iRow}] = ...
-            analyze.jPCA.jPCA(D.Data{iRow},p);
       end
    end
 end
+% Remove extras
+D(cellfun(@isempty,D.Projection),:) = [];
 
-   function [ud,nDay,uAlign,nAlignment] = parseFromInputTable(S)
+   function [ud,nDay,uAlign,nAlignment,nAnimal] = parseFromInputTable(S)
       %PARSEFROMINPUTTABLE Parse unique days & alignments (depends input)
       %
       %  [ud,nDays,uAlign,nAlignment] = parseFromInputTable(S);
@@ -183,6 +202,8 @@ end
       
       uAlign = unique(S.Alignment);
       nAlignment = numel(uAlign);
+      
+      nAnimal = numel(unique(S.AnimalID));
    end
 
 end

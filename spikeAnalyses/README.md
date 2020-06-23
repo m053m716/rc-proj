@@ -1,6 +1,10 @@
 # Spike Analyses
 
-Analyses of neurophysiological data for `RC` project.
+Analyses of neurophysiological data for `RC` project. This sub-folder has a 3-pronged approach:
+
+1. Object-oriented structure for in-house pre-processing and workflow, designed to ultimately output a table with smoothed single-trial spike rates and associated metadata. From there, data is analyzed using sub-packages in `+analyze` to export endpoint statistic tables. 
+2. [`+analyze/+stat`](https://github.com/m053m716/rc-proj/tree/master/spikeAnalyses/%2Banalyze/%2Bstat) contains code to fit Gaussian-modulated cosine pulses onto observed single-trial data at the single-channel level, recovering parameters that inform us about the **timing** and **overall modulation frequency** of multi-unit activity relative to behavioral recovery, post-operative day, and metadata such as where the recording channel is located. This gives us an idea of any **multi-unit scale** plasticity that occurs as recovery progresses and neurophysiology changes relative to a conserved behavior.
+3. [`+analyze/+jPCA`](https://github.com/m053m716/rc-proj/tree/master/spikeAnalyses/%2Banalyze/%2BjPCA) contains code to perform the **jPCA** *population-scale* analyses, which recover the projection matrix for a linearized dynamical system regressing principal components of all recorded channels onto the derivative of said principal components, under the constraint that eigenvalues are pairs of imaginary complex conjugates. Ultimately, the average **phase angle** is recovered from these projections; in an ideal state plane with high rotatory strength (which is thought to be an important component in neurophysiology relating to motor behavior), this angle would be exactly 90 degrees; therefore, statistics aim to quantify **population-scale** plasticity using this value as a marker for the presence or absence of correct population dynamics during behavior.
 
 ## Overview
 

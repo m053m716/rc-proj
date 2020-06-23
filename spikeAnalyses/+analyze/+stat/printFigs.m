@@ -1,10 +1,10 @@
 function printFigs(figNums,folderName,fileTitle,format)
 %PRINTFIGS Export vectorized figures for insertion to other documents etc
 %
-% printFigs(figNums);
-% printFigs(figNums,folderName);
-% printFigs(figNums,folderName,fileTitle);
-% printFigs(figNums,folderName,fileTitle,format);
+%  analyze.stat.printFigs(figNums);
+%  analyze.stat.printFigs(figNums,folderName);
+%  analyze.stat.printFigs(figNums,folderName,fileTitle);
+%  analyze.stat.printFigs(figNums,folderName,fileTitle,format);
 %
 % Inputs
 %  figNums - Scalar integer or vector of figure numbers (e.g., 1:10)
@@ -20,14 +20,14 @@ function printFigs(figNums,folderName,fileTitle,format)
 %                 * '-dill' (ai)
 %                 * '-dtiff'
 % Examples:
-%   printFigs(1:16, '')
+%   analyze.stat.printFigs(1:16, '')
 %     * prints 16 pdf files into the current directory
-%   printFigs(1:16, 'printedFigures2')
+%   analyze.stat.printFigs(1:16, 'printedFigures2')
 %     * puts the files in the directory printedFigures2
 %        -> (created if necessary)
-%   printFigs(1:16, '', '-djpeg')
+%   analyze.stat.printFigs(1:16, '', '-djpeg')
 %     * output as jpeg into the current directory
-%   printFigs(2, 'printedFigures2', '-dpdf', 'myFig');
+%   analyze.stat.printFigs(2, 'printedFigures2', '-dpdf', 'myFig');
 %     * prints fig 2 as a single pdf named 'myFig' into the folder
 %       'printedFigures2'.
 
@@ -42,7 +42,7 @@ if nargin < 3
 end
 
 if nargin < 2
-   folderName = defaults.files('jpca_fig_folder');
+   folderName = defaults.files('stat_fit_fig_folder');
 end
 
 if ~isempty(folderName)

@@ -1,12 +1,12 @@
-%ANALYZE Package for analyses of spike data
+% +ANALYZE Package for analyses of spike data
 % MATLAB Version 9.7 (R2019b Update 5) 28-May-2020
 %
 % ------------------------------------------------------------------------
-% <strong>A note about Matlab packages:</strong> Matlab package notation essentially 
-% creates a "namespace" such that any folder starting with a '+' can be 
-% thought of as "on the search path" if that folder is within the Current 
-% Folder. To address functions contained inside a "package" folder, 
-% simply use '.' notation. For example:
+% <strong>A note about Matlab packages:</strong> Matlab package notation 
+% essentially creates a "namespace" such that any folder starting with a 
+% '+' can be thought of as "on the search path" if that folder is within 
+% the Current Folder. To address functions contained inside a "package" 
+% folder, simply use '.' notation. For example:
 %
 % >> S = analyze.slice(T);
 %
@@ -22,6 +22,7 @@
 %
 % <strong>Functions</strong> (Common to several analytical flows)
 %   factor_pairs - Gives factor cross correlations, as well as indexing
+%   example      - Returns random rows from table T (always includes first/last row)
 %   slice        - Return "sliced" table using filters in `varargin`
 %   sliceRate    - Return "sliced" table & rate using filters in `varargin`
 %
@@ -35,4 +36,5 @@
 %   nullspace    - Package for relating nullspace activity at different task-relevant epochs
 %   pc           - Package for principal components-related analyses and reconstructions
 %   rec          - Package for all code applied to data at single-recording level
+%   stat         - Package for running Matlab statistical models
 %   trials       - Package for all code applied to data at single-trial level

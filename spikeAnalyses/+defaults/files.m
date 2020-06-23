@@ -53,6 +53,7 @@ p.jpca_phase_folder = 'Phase';
 p.jpca_phase_fname_expr = '%s_%s_Day-%02d_Plane-%02d_Phase';
 
 % From analyses
+p.stat_fit_fig_folder = fullfile(pname,'2020_FMINCON_FIT');
 p.spike_folder_tag = '_wav-sneo_CAR_Spikes';
 p.condition_response_corr_loc = 'cross-day-correlations';
 p.fname_corr = '%s-%s__%s__corr';

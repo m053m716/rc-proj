@@ -28,13 +28,12 @@ p.sg_ord_short = 3;         % Order for short time-basis analyses
 p.sg_wlen = 9;              % Length of SG LPF window
 p.sg_wlen_short = 5;        % Window length for short time-basis analyses
 p.interp_method = 'spline'; % Method for `interp1`
-p.min_n_trials_def = 7;     % Minimum # of trials for a day to be included
 
 % For phase difference
 p.phase_wlen = 21; % Number of samples around alignment to look for "phase state"
 p.phase_s = vertcat({'Reach','Grasp','Support','Complete'},... % Cell array for phase states & index name fields
                {'reachIndex','graspIndex','supportIndex','completeIndex'});
-p.phase_pair = 2:-1:1;
+p.phase_pair = 3:-1:1;
             
 % Make jPCA params struct
 jpca_params = struct;
@@ -42,14 +41,18 @@ jpca_params.Alignment = '';
 jpca_params.Animal = '';
 jpca_params.Area = '';
 jpca_params.Day = [];
+jpca_params.epsilon = 1e-3;
 jpca_params.numPCs = 12;
 jpca_params.threshPC = 75; % Determines the number of PCs to use
+jpca_params.min_n_trials_def = 5; % Default minimum # trials
+jpca_params.normalize = false; 
 jpca_params.numPCByArea = struct('RFA',6,'CFA',6,'All',12);
 jpca_params.plane2plot = p.phase_pair; % Can be vector (e.g. 2:-1:1)
+jpca_params.rankType = 'eig'; % can be 'eig' or 'varCapt'
 jpca_params.wlen = p.phase_wlen;
 jpca_params.S = p.phase_s;
-jpca_params.rankType = 'eig'; % can be 'eig' or 'varCapt'
-jpca_params.normalize = false; 
+
+
 % About jpca_params.softenNorm
 % -----------------------------
 % We soften the normalization (so weak signals stay small-ish) numbers 
@@ -96,6 +99,7 @@ jpca_params.PCStem.LineWidth = 1.5;
 jpca_params.PCStem.Marker = 'o';
 jpca_params.PCStem.MarkerSize = 10; % point
 jpca_params.PCStem.MarkerColor = [ 0.2 0.2 1]; % blue (lighter)
+jpca_params.PCStem.PlotMeans = true; % Set true to plot mean score instead of individual trial overlays
 jpca_params.PCStem.StemColor = [   0   0   0]; % black (lines)
 jpca_params.PCStem.ThresholdColor = [ 0.1 0.1 0.7]; % blue (darker)
 jpca_params.PCStem.FigurePosition = ...

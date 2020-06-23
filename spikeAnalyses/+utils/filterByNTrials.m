@@ -19,7 +19,12 @@ function T = filterByNTrials(T,N,outcome,varargin)
 if nargin < 3
    outcome = {'Successful','Unsuccessful'};
 elseif ~iscell(outcome)
-   outcome = {outcome};
+   if ~ismember(lower(outcome),{'successful','unsuccessful'})
+      varargin = [outcome, varargin];
+      outcome = {'Successful','Unsuccessful'};
+   else
+      outcome = {outcome};
+   end
 end
 
 if nargin < 2

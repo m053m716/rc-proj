@@ -1,18 +1,19 @@
-function fig = stemPCvariance(e,p)
+function fig = stemPCvariance(e,Proj,p)
 %STEMPCVARIANCE Stem plot of variance explained per Principal Component
 %
-% fig = analyze.jPCA.stemPCvariance(e);
-% fig = analyze.jPCA.stemPCvariance(e,p);
+% fig = analyze.jPCA.stemPCvariance(e,Proj);
+% fig = analyze.jPCA.stemPCvariance(e,Proj,p);
 %
 % Inputs
-%  e   - Vector of cumulative % of variance explained by each PC
-%  p   - (Optional) Parameters struct that is `jpca_params.PCStem` field
+%  e    - Vector of cumulative % of variance explained by each PC
+%  Proj - Projection array struct that has field for PC projections
+%  p    - (Optional) Parameters struct that is `jpca_params.PCStem` field
 %
 % Output
 %  fig - Figure handle of generated figure 
 %           (or provided figure handle from `p.Figure`)
 
-if nargin < 2
+if nargin < 3
    p = defaults.jPCA('jpca_params');
 end
 
@@ -48,7 +49,11 @@ end
 
 % % Similarly, if no axes handle given, create axes % %
 if isempty(p.Axes)
-   ax = axes(fig,...
+
+   ax = gobjects(4,1);
+   ax(1) = subplot(2,3,1:3);
+
+   set(ax(1),'Parent',fig,...
       'XColor','k',...
       'YColor','k',...
       'TickDir','out',...
@@ -56,29 +61,52 @@ if isempty(p.Axes)
       'FontName',p.FontName,...
       'FontSize',12,...
       'NextPlot','add');
+
+   for i = 1:3
+      ax(i+1) = subplot(2,3,i+3);
+      set(ax(i+1),'Parent',fig,...
+         'XColor','k',...
+         'YColor','k',...
+         'TickDir','out',...
+         'LineWidth',p.LineWidth,...
+         'FontName',p.FontName,...
+         'FontSize',12,...
+         'NextPlot','add');
+   end
 else
    ax = p.Axes;
 end
 
-% % Contain all PCA stem objects in one group % %
-hg = hggroup(ax,...
+% % Contain all PCA stem objects in one group on first (top) axes % %
+hg = hggroup(ax(1),...
    'DisplayName','PC Variance Captured',...
    'Tag','All-PCs');
 
 index = 1:p.numPCs;
+if p.numPCs > 3
+   col = [getColorMap(3,'vibrant');
+          getColorMap(p.numPCs-3,'pastel')];
+else
+   col = getColorMap(3,'vibrant');
+end
+for ii = index
 hKeep = stem(...
-   index, e(index), ...
+   ii, e(ii), ...
    'Color',p.StemColor,...
    'LineWidth',p.LineWidth,...
    'LineStyle','-',...
    'Marker',p.Marker,...
-   'MarkerFaceColor',p.MarkerColor,...
+   'MarkerFaceColor',col(ii,:),...
    'MarkerEdgeColor',p.MarkerColor,...
    'MarkerSize',p.MarkerSize,...
    'Tag','PC-Include',...
    'DisplayName','Included PCs', ...
+   'HandleVisibility','off',...
    'Parent',hg ...
    );
+   hKeep.Annotation.LegendInformation.IconDisplayStyle = 'off';
+end
+hKeep.HandleVisibility = p.IconDisplayStyle;
 hKeep.Annotation.LegendInformation.IconDisplayStyle = p.IconDisplayStyle;
 if p.numPCs < nTotal
    index = (p.numPCs+1):nTotal;
@@ -110,7 +138,7 @@ hThresh.Annotation.LegendInformation.IconDisplayStyle = p.IconDisplayStyle;
 % Label the threshold y-abscissa %
 tX = p.numPCs;
 tY = min(e(p.numPCs)+15,105);
-text(ax,tX,tY,sprintf('%3.2g%%',e(p.numPCs)),...
+text(ax(1),tX,tY,sprintf('%5.1f%%',e(p.numPCs)),...
    'VerticalAlignment','top',...
    'HorizontalAlignment','center',...
    'FontName',p.FontName,...
@@ -129,39 +157,109 @@ if strcmpi(p.IconDisplayStyle,'on')
 end
 hg.Annotation.LegendInformation.IconDisplayStyle = 'off';
 
-title(ax,sprintf(p.AxesTitleExpr,p.numPCs,e(p.numPCs)),...
+title(ax(1),sprintf(p.AxesTitleExpr,p.numPCs,e(p.numPCs)),...
    'FontName',p.FontName,...
    'Color','k',...
    'FontWeight','bold',...
    'FontSize',16);
-xlabel(ax,'PC Index',...
+ylabel(ax(1),'Percent of Original Explained',...
    'FontName',p.FontName,...
    'Color','k',...
    'FontWeight','normal',...
    'FontSize',13);
-ylabel(ax,'Percent of Original Explained',...
-   'FontName',p.FontName,...
-   'Color','k',...
-   'FontWeight','normal',...
-   'FontSize',13);
-xlim(ax,xl);
-ylim(ax,[0 105]);
-ax.YTick = [0 25 50 75 100];
+xlim(ax(1),xl);
+ylim(ax(1),[0 105]);
+ax(1).YTick = [0 25 50 75 100];
 
 switch p.numPCs
    case 1
-      ax.XTick = [1 nTotal];
-      ax.XTickLabel = ...
+      ax(1).XTick = [1 nTotal];
+      ax(1).XTickLabel = ...
          {'\bf \color{blue} 1',num2str(nTotal)};
    case nTotal
-      ax.XTick = [1 nTotal];
-      ax.XTickLabel = ...
+      ax(1).XTick = [1 nTotal];
+      ax(1).XTickLabel = ...
          {'1',['\bf \color{blue} ' num2str(nTotal)]};
    otherwise
-      ax.XTick = [1 p.numPCs nTotal];
-      ax.XTickLabel = ...
+      ax(1).XTick = [1 p.numPCs nTotal];
+      ax(1).XTickLabel = ...
          {'1',['\bf \color{blue} ' num2str(p.numPCs)],num2str(nTotal)};
 end
 
+% % Second (bottom) axes is the actual PCs % %
+ee = [0; e];
+tt = Proj(1).times;
+if p.PlotMeans
+   outcome = ["Successful","Unsuccessful"];
+   lw = [1.5,1.0];
+   for ii = 1:min(3,p.numPCs)
+      mu = get_avg_PC_score(Proj,ii);
+      for iOut = 1:2
+         line(ax(ii+1),tt,mu(iOut,:),...
+            'LineStyle','-',...
+            'LineWidth',lw(iOut),...
+            'Color',col(ii,:) .* ((iOut-1) * 0.75),...
+            'DisplayName',outcome(iOut),...
+            'Tag',outcome(iOut));
+      end
+      xlim(ax(ii+1),[tt(1) tt(end)]);
+   end
+else
+   for ii = 1:min(3,p.numPCs)
+      str = sprintf('PC-%02d (%5.1f%%)',ii,ee(ii+1)-ee(ii));
+      plot(ax(ii+1),tt,get_trial_PC_scores(Proj,ii),...
+         'LineStyle','-',...
+         'LineWidth',1.25,...
+         'Color',col(ii,:),...
+         'DisplayName',str);
+      xlim(ax(ii+1),[tt(1) tt(end)]);
+      title(ax(ii+1),str,'FontName','Arial','Color','k');
+   end
+end
+
+   function avg_score = get_avg_PC_score(Proj,iPC)
+      %GET_AVG_PC_SCORE  Returns average PC score from all trials
+      %
+      %  avg_score = get_avg_PC_score(Proj,iPC);
+      %
+      % Inputs
+      %  Proj      - Projection array struct
+      %  iPC       - Index to which PC (column)
+      %
+      % Output
+      %  avg_score - Trial-averaged PC score for selected PC (iPC)
+      
+      good = [Proj.Outcome] == 2; % Successful
+      bad = [Proj.Outcome] == 1;  % Unsuccessful
+      if sum(good) >= 1
+         score_good = mean(cell2mat(arrayfun(@(A){A.state(:,iPC).'},Proj(good),...
+            'UniformOutput',true)'),1);
+      else
+         score_good = nan(1,numel(Proj(1).times));
+      end
+      if sum(bad) >= 1
+         score_bad = mean(cell2mat(arrayfun(@(A){A.state(:,iPC).'},Proj(bad),...
+            'UniformOutput',true)'),1);
+      else
+         score_bad = nan(1,numel(Proj(1).times));
+      end
+      avg_score = [score_good; score_bad];
+   end
+
+   function score = get_trial_PC_scores(Proj,iPC)
+      %GET_TRIAL_PC_SCORES  Returns average PC score from all trials
+      %
+      %  score = get_trial_PC_scores(Proj,iPC);
+      %
+      % Inputs
+      %  Proj      - Projection array struct
+      %  iPC       - Index to which PC (column)
+      %
+      % Output
+      %  score     - Trial-aligned PC scores for selected PC (iPC)
+      
+      score = cell2mat(arrayfun(@(A){A.state(:,iPC).'},Proj,...
+         'UniformOutput',true)');
+   end
 
 end
