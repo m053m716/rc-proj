@@ -62,9 +62,10 @@ jpca_params.S = p.phase_s;
 % -> 10 may be a terrible default value!
 jpca_params.softenNorm           = 10;
 jpca_params.histBins             = pi*(-1:0.066:1);
+jpca_params.suppressHistograms   = false;   % Histograms of binned phase angles
+jpca_params.suppressMultiTextPause = true;    % Suppress batch export pausing for multi text
 jpca_params.suppressPCstem       = false;   % Stem plot of cumulative variance
 jpca_params.suppressRosettes     = false;   % Rosette plots of trajectories
-jpca_params.suppressHistograms   = false;   % Histograms of binned phase angles
 jpca_params.suppressText         = false;   % Suppress reported R^2 info printed to 
 jpca_params.batchExportFigs      = false;
 jpca_params.plotPlanEllipse      = false;

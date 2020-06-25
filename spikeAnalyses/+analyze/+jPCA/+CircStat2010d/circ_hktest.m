@@ -1,8 +1,8 @@
-function [pval table] = circ_hktest(alpha, idp, idq, inter, fn)
-
+function [pval, T] = circ_hktest(alpha, idp, idq, inter, fn)
+%CIRC_HKTEST Parametric two-way ANOVA for circular data with interactions
 %
-% [pval, stats] = circ_hktest(alpha, idp, idq, inter, fn)
-%   Parametric two-way ANOVA for circular data with interations.
+% [pval, T] = analyze.jPCA.CircStat2010d.circ_hktest(alpha, idp, idq, inter, fn)
+%   Parametric two-way ANOVA for circular data with interactions
 %
 %   Input:
 %     alpha   angles in radians
@@ -14,7 +14,7 @@ function [pval table] = circ_hktest(alpha, idp, idq, inter, fn)
 %
 %   Output:
 %     pval    vector of pvalues testing column, row and interaction effects
-%     table   cell array containg the anova table
+%     T       cell array containg the anova table
 %
 %   The test assumes underlying von-Mises distributrions.
 %   All groups are assumed to have a common concentration parameter k,
@@ -59,27 +59,27 @@ for pp = 1:p
         q_id = idq == qu(qq); % indices of factor2 = qq
         idx = p_id & q_id;
         cn(pp,qq) = sum(idx);     % number of items in cell
-        cr(pp,qq) = cn(pp,qq) * circ_r(alpha(idx)); % R of cell
+        cr(pp,qq) = cn(pp,qq) * analyze.jPCA.CircStat2010d.circ_r(alpha(idx)); % R of cell
     end
     % R and mean angle for factor 1
-    pr(pp) = sum(p_id) * circ_r(alpha(p_id));
-    pm(pp) = circ_mean(alpha(p_id));
+    pr(pp) = sum(p_id) * analyze.jPCA.CircStat2010d.circ_r(alpha(p_id));
+    pm(pp) = analyze.jPCA.CircStat2010d.circ_mean(alpha(p_id));
     pn(pp) = sum(p_id);
 end
 
 % R and mean angle for factor 2
 for qq = 1:q
     q_id = idq == qu(qq);
-    qr(qq) = sum(q_id) * circ_r(alpha(q_id));
-    qm(qq) = circ_mean(alpha(q_id));
+    qr(qq) = sum(q_id) * analyze.jPCA.CircStat2010d.circ_r(alpha(q_id));
+    qm(qq) = analyze.jPCA.CircStat2010d.circ_mean(alpha(q_id));
     qn(qq) = sum(q_id);
 end
 
 % R and mean angle for whole sample (total)
-tr = n * circ_r(alpha);
+tr = n * analyze.jPCA.CircStat2010d.circ_r(alpha);
 
 % estimate kappa
-kk = circ_kappa(tr/n);
+kk = analyze.jPCA.CircStat2010d.circ_kappa(tr/n);
 
 % different formulas for different width of the distribution
 if kk > 2
@@ -221,14 +221,14 @@ prepareOutput;
     
     if na > 1
       if kk>2
-        table = {'Source','d.f.','SS','MS','F','P-Value'; ...
+        T = {'Source','d.f.','SS','MS','F','P-Value'; ...
                   fn{1}, df_1 , eff_1, ms_1, F1, p1; ...
                   fn{2}, df_2 , eff_2, ms_2, F2, p2; ...
                   'Interaction', df_i , eff_i, ms_i, FI, pI; ...
                   'Residual', df_r, eff_r, ms_r, [], []; ...
                   'Total',df_t,eff_t,[],[],[]};
       else
-        table = {'Source','d.f.','CHI2','P-Value'; ...
+        T = {'Source','d.f.','CHI2','P-Value'; ...
           fn{1}, df_1 , chi1, p1;
           fn{2}, df_2 , chi2, p2;
           'Interaction', df_i , chiI, pI};

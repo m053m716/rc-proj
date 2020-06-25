@@ -176,6 +176,10 @@ for iDay = 1:nDay
             D.PostOpDay(iRow) = D.Data{iRow}(1).PostOpDay;
             [D.Projection{iRow},D.Summary{iRow},D.PhaseData{iRow}] = ...
                analyze.jPCA.jPCA(D.Data{iRow},p);
+            if ~p.suppressMultiTextPause
+               pause(1.5);
+               clc;
+            end
          end
       end
    end
