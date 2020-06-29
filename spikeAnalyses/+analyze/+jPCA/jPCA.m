@@ -1,8 +1,8 @@
-function [Projection,Summary,PhaseData,fig] = jPCA(Data,varargin)
+function [P,S,Phi,fig] = jPCA(Data,varargin)
 %JPCA Recover rotatory subspace projections from spike rate time-series
 %
-% [Projection,Summary] = analyze.jPCA.jPCA(Data);
-% [Projection,Summary,PhaseData,fig] = analyze.jPCA.jPCA(Data,params);
+% [P,S] = analyze.jPCA.jPCA(Data);
+% [P,S,Phi,fig] = analyze.jPCA.jPCA(Data,params);
 % [__] = analyze.jPCA.jPCA(Data,'param1Name',param1Val,...)
 %
 % Inputs
@@ -65,7 +65,7 @@ function [Projection,Summary,PhaseData,fig] = jPCA(Data,varargin)
 %              still be parsed correctly).
 %
 % Output
-%   Projection - A struct array with same dimension as `Data` with fields:
+%   P - A struct array with same dimension as `Data` with fields:
 %       Main output field:
 %       .proj
 %        -> The projection into the 6D jPCA space.
@@ -85,17 +85,17 @@ function [Projection,Summary,PhaseData,fig] = jPCA(Data,varargin)
 %        .completeIndex
 %           -> Index into `.times` for when Complete occurred this trial
 %
-%   Summary - Struct containing parameter and matrix mapping info:
+%   S - Struct containing parameter and matrix mapping info:
 %       .PCA -> Struct with original PCA info
 %       .SS  -> Struct with projection matrix and associated statistics
 %        
-%    PhaseData - Cell array where each cell element contains struct
+%   Phi - Cell array where each cell element contains struct
 %                 referring to phase information regarding angle between
 %                 the rate of change (for trajectory in that plane) and the
 %                 actual position of the trajectory itself in the jPCA
 %                 plane (see analyze.jPCA.getPhase)
 %
-%    fig - (Optional) Figure handle to output figure or array of output
+%   fig - (Optional) Figure handle to output figure or array of output
 %                       figure handles (depends on settings in `params`)
 %                       -> If no figures generated, returns as []
 %
@@ -140,7 +140,8 @@ else
    end
 end
 % % % % % % % End Input Parsing % % % %
-
+% Set warning status
+warning(params.warningState);
 
 % % Mild Error-Checking % % % % % % % % % % % % % % % % % % % % % % % % % %
 % Ensure that the number of PCs is an even value %
@@ -172,6 +173,7 @@ end
 numTrials = length(Data); % total number of trials (conditions)
 analyzeMask = repmat(analyzeIndices,numTrials,1);  % used to mask bigA
 tt = Data(1).times(analyzeIndices); % relative sample times in all trials
+tZ = (tt(1:(end-1)) + tt(2:end))./2;
 
 % % (m053m716 June-2020): Added "State" indexing fields.               % %
 % % -> Main use is for bookkeeping, for example useful to superimpose  % %
@@ -180,10 +182,6 @@ tt = Data(1).times(analyzeIndices); % relative sample times in all trials
 % Check that input Data even contains `tReach` or other metadata %
 params = parseMetaTimes(params,Data,tt);
 
-% these are used to take the derivative
-bunchOtruth = true(sum(analyzeIndices)-1,1);
-maskT1 = repmat( [bunchOtruth;false],numTrials,1);  % skip the last time for each condition
-maskT2 = repmat( [false;bunchOtruth],numTrials,1);  % skip the first time for each condition
 if sum(analyzeIndices) < params.minTimeSamplesToWarn
    warning(['JPCA:' mfilename ':TooFewSamples'],...
       ['\n\t->\t<strong>[JPCA]:</strong> ' ...
@@ -220,6 +218,7 @@ smallA = bigA(analyzeMask,:);
 % (m053m716 June-2020: update from `princomp` to `pca`):
 [PCvectors,rawScores,~,~,explained,mu] = pca(smallA,'Economy',true);
 meanFReachNeuron = mean(smallA,1);
+stdFReachNeuron = std(smallA,[],1);
 explained_total = cumsum(explained); % For plot purposes and/or estimation
 
 % these are the directions in the high-D space (the PCs themselves)
@@ -252,6 +251,12 @@ end
 % number of EVEN number of PCs based on % explained threshold:
 PCvectors = PCvectors(:,1:params.numPCs);
 
+% % % Get the independent components as well % %
+% ICA = struct;
+% x = (smallA - meanFReachNeuron) ./ stdFReachNeuron;
+% [Zica,ICA.W,ICA.T,ICA.mu] = math__.fastICA(x.',params.numPCs);
+% ICA.ICvectors = ICA.T \ (ICA.W');
+
 % % % % % % % % % % % % % % % % %
 % % % CRITICAL STEP UP NEXT % % %
 % % % % % % % % % % % % % % % % %
@@ -282,27 +287,18 @@ nSamples = size(scores,1)/numTrials;
 
 % Apply masks to get and later times within each condition
 dt = mode(diff(tt)) * 1e-3; % Convert to seconds
-dState = (scores(maskT2,:) - scores(maskT1,:)) ./ dt;
-% For convenience, keep the "state" in its own variable (we will use the
-% average of the two masks, since each difference estimate is most accurate
-% for the point halfway between the two sets of samples)
-State = (scores(maskT1,:) + scores(maskT2,:)) ./ 2;
+% these are used to take the derivative
+T1 = [true(sum(analyzeIndices)-1,1); false];
+T2 = [false; true(sum(analyzeIndices)-1,1)];
+maskT1 = repmat(T1,numTrials,1);  % skip the last time for each condition
+maskT2 = repmat(T2,numTrials,1);  % skip the first time for each condition
+[Mskew,M,~,~,xtAvg,SS] = analyze.jPCA.get_projection_matrix(...
+   scores,maskT1,maskT2,dt,et,params.epsilon);
 
-% First compute M_best. Note that we mean "best" in the least-squares
-% sense; therefore we can solve this using standard least-squares
-% regression, which we can implement in MATLAB via `mldivide`, which is
-% numerically stable due to use of QR decomposition
-
-M = (State \ dState)';  % M takes the state and provides a fit to dState
-% Note on sizes of matrices:
-% dState' and preState' have time running horizontally and state dimension running vertically
-% We are thus solving for dx = Mx.
-% M is a matrix that takes a column state vector and gives the derivative
-
-% now compute Mskew using John's method
-% Mskew expects time to run vertically, transpose result so Mskew in the same format as M
-% (that is, Mskew will transform a column state vector into dx)
-Mskew = analyze.jPCA.skewSymRegress(dState,State)';  % this is the best Mskew for the same equation
+% SS.OrigICA = analyze.jPCA.recover_explained_variance(x,Zica',ICA.ICvectors);
+% 
+% [ICA.Mskew,ICA.M,~,~,~,SS.ICA] = analyze.jPCA.get_projection_matrix(...
+%    Zica',maskT1,maskT2,dt,et,params.epsilon);
 
 % % % Get eigenvalues of both projection matrices % % %
 % % Decompose Mbest to get "best" system characterization % %
@@ -320,7 +316,7 @@ lambda_r_best = real(lambda_best);
 
 % % Decompose Mskew to get the jPCs % %
 % get the eigenvalues and eigenvectors
-[V,D] = eig(Mskew); % V are the eigenvectors, D contains the eigenvalues
+[~,D] = eig(Mskew); % V are the eigenvectors, D contains the eigenvalues
 lambda_skew = diag(D); % eigenvalues
 
 % Eigenvalues are usually in order, but not always.
@@ -330,8 +326,6 @@ lambda_skew = lambda_skew(sortIndices);  % reorder the eigenvalues
 explained_skew = (abs(lambda_skew) / sum(abs(lambda_skew))) .* et;
 lambda_i_skew = imag(lambda_skew);  % get rid of any tiny real part
 lambda_r_skew = real(lambda_skew);
-
-V = V(:,sortIndices);  % reorder the eigenvectors (base on eigenvalue size)
 
 % Eigenvalues will be displayed to confirm that everything is working
 % unless we are asked not to output text
@@ -364,21 +358,12 @@ if ~params.suppressText
 end
 
 % % Recover pairs of complex conjugate eigenvectors (jPC planes) % %
-jPCs = zeros(size(V));
-tPlan = params.(params.planStateEvent).';
-fcn = @(D,tKeep)analyze.jPCA.recover_align_index(D,tKeep);
-planSamples = arrayfun(fcn,Data,tPlan) + 0:nSamples:(numTrials-1)*nSamples;
-planSamples = planSamples(~isnan(planSamples));
-for pair = 1:params.numPCs/2
-   vi1 = 1+2*(pair-1);
-   vi2 = 2*pair;
-   
-   VconjPair = V(:,[vi1,vi2]);  % a conjugate pair of eigenvectors
-   evConjPair = lambda_i_skew([vi1,vi2]); % and their eigenvalues
-   VconjPair = analyze.jPCA.getRealVs(VconjPair,evConjPair,scores,planSamples);
-   
-   jPCs(:,[vi1,vi2]) = VconjPair;
-end
+% tPlan = params.(params.planStateEvent).';
+% fcn = @(D,tKeep)analyze.jPCA.recover_align_index(D,tKeep);
+% planSamples = arrayfun(fcn,Data,tPlan) + 0:nSamples:(numTrials-1)*nSamples;
+% planSamples = planSamples(~isnan(planSamples));
+% jPCs = analyze.jPCA.convert_Mskew_to_jPCs(Mskew,State,planSamples,sortIndices);
+jPCs = analyze.jPCA.convert_Mskew_to_jPCs(Mskew);
 
 % % Reproject data using recovered jPCs % %
 proj = scores * jPCs; %
@@ -387,65 +372,51 @@ crossCondMeanAllTimes = meanAred * jPCs; % Offsets to recover original using jPC
 % Do some annoying output formatting.
 % Put things back so we have one entry per condition
 index1 = 1;
-Projection = initProjStruct(Data);
+P = initProjStruct(Data);
 
 for c = 1:numTrials
-   index1b = index1 + nSamples -1;  % we will go from index1 to this point
-   Projection(c).proj = proj(index1:index1b,:); %#ok<*AGROW>
-   Projection(c).state = scores(index1:index1b,:);
-   Projection(c).times = Data(1).times(analyzeIndices);
-   index1 = index1+nSamples;
+   index1b = index1 + nSamples-1;  % we will go from index1 to this point
+   P(c).proj = proj(index1:index1b,:); %#ok<*AGROW>
+   P(c).state = scores(index1:index1b,:);
+   P(c).times = tt(analyzeIndices);
+   
+   % Now, recover projection matrix that is trial-specific
+   [P(c).Mskew,P(c).M,P(c).Z,P(c).dZ,P(c).zMu,P(c).SS] = ...
+      analyze.jPCA.get_projection_matrix(...
+         P(c).state,T1,T2,dt,et,params.epsilon);
+   P(c).Zt = tZ;
+   
+   % Increment by number of samples per trial
+   index1 = index1+nSamples; 
 end
 
 % % % % Optional: plot stem of PCs % % % %
 if ~params.suppressPCstem
-   fig = analyze.jPCA.stemPCvariance(explained_total,Projection,params);
+   fig = analyze.jPCA.stemPCvariance(explained_total,P,params);
 else
    fig = [];
 end
 
 % Do indexing on individual array elements (trials) %
 keepFcn = @(structArray,keepTime)recover_state_index(structArray,keepTime,tt);
-[reachState,reachIndex] = arrayfun(@(s,tKeep)keepFcn(s,tKeep),Projection,params.tReach);
+[reachState,reachIndex] = arrayfun(@(s,tKeep)keepFcn(s,tKeep),P,params.tReach);
 reachState = cell2mat(reachState.');
-[graspState,graspIndex] = arrayfun(@(s,tKeep)keepFcn(s,tKeep),Projection,params.tGrasp);
+[graspState,graspIndex] = arrayfun(@(s,tKeep)keepFcn(s,tKeep),P,params.tGrasp);
 graspState = cell2mat(graspState.');
-[completeState,completeIndex] = arrayfun(@(s,tKeep)keepFcn(s,tKeep),Projection,params.tComplete);
+[completeState,completeIndex] = arrayfun(@(s,tKeep)keepFcn(s,tKeep),P,params.tComplete);
 completeState = cell2mat(completeState.');
-[supportState,supportIndex] = arrayfun(@(s,tKeep)keepFcn(s,tKeep),Projection,params.tSupport);
+[supportState,supportIndex] = arrayfun(@(s,tKeep)keepFcn(s,tKeep),P,params.tSupport);
 supportState = cell2mat(supportState.');
-[Projection.reachIndex] = deal(reachIndex{:});
-[Projection.graspIndex] = deal(graspIndex{:});
-[Projection.completeIndex] = deal(completeIndex{:});
-[Projection.supportIndex] = deal(supportIndex{:});
-
-% % % SUMMARY STATS % % %
-% % Compute R^2 for the fit provided by M (Mbest) and Mskew % %
-% Notes:
-%  -> This step obtains the `fit error` (distribution of residuals from
-%        reprojecting using Mbest and Mskew)
-%  -> Once the residual fits are estimated R^2 is computed by taking the
-%        difference between the variance
-
-% % % Recover all-dimensions reconstruction stats % % %
-pc_vec = 1:params.numPCs;
-SS = struct('all',struct,'top',struct);
-SS.all = recover_explained_variance(State,dState,M,Mskew,et,pc_vec,pc_vec,params.rankType);
-
-% % % Recover top-dimensions reconstruction stats % % %
-topVectors_best = SS.all.explained.sort.best.vector(1:2);
-topVectors_skew = SS.all.explained.sort.skew.vector(1:2);
-SS.top = recover_explained_variance(State,dState,M,Mskew,et,...
-   topVectors_best,topVectors_skew);
+[P.reachIndex] = deal(reachIndex{:});
+[P.graspIndex] = deal(graspIndex{:});
+[P.completeIndex] = deal(completeIndex{:});
+[P.supportIndex] = deal(supportIndex{:});
 
 % % (Optional): plot the rosette(s) to visualize trajectories % %
-switch lower(params.rankType)
-   case 'eig'
-      vc = SS.all.explained.plane.eig.skew;
-   case 'varcapt'
-      vc = SS.all.explained.plane.R2.skew;
-end
-sortIndices = SS.all.explained.sort.best.plane;
+vc = SS.skew.explained.plane.(lower(params.rankType));
+iSkewVec = SS.skew.explained.sort.vec.(lower(params.rankType));
+iSkewPlane = SS.skew.explained.sort.plane.(lower(params.rankType));
+iBestVec = SS.best.explained.sort.vec.(lower(params.rankType));
 
 % % % (Optional): generate & export trajectory rosette plots % % %
 if params.batchExportFigs
@@ -465,7 +436,7 @@ end
 RosetteProj = cell(1,max(params.plane2plot));
 if (~params.suppressRosettes) || (params.batchExportFigs)
    for jPCplane = params.plane2plot
-      iSort = sortIndices(jPCplane);
+      iSort = iSkewPlane(jPCplane);
       if ~isnan(vc(iSort)) && (vc(iSort) > 1e-9)
          p = analyze.jPCA.setRosetteParams(...
             'WhichPair',jPCplane,'VarCapt',vc(iSort),...
@@ -476,7 +447,7 @@ if (~params.suppressRosettes) || (params.batchExportFigs)
             'Day',params.Day,...
             'markEachMetaEvent',params.markEachMetaEvent);
          [thisFig,RosetteProj{jPCplane}] = ...
-            analyze.jPCA.plotRosette(Projection,p);
+            analyze.jPCA.plotRosette(P,p);
          if params.batchExportFigs
             f = sprintf(rosetteExpr,...
                params.Animal,params.Alignment,params.Day,jPCplane);
@@ -490,47 +461,47 @@ end
 
 % % (Optional): Report % reconstruction % %
 if ~params.suppressText
-   fprintf(1,'\n\n\t--------- | --------------- | ------------------------ | --------------------\n');
+   fprintf(1,'\n\n\t--------- | --------------- | ------------------------ | -------------------------\n');
    fprintf(1,'\t(Mapping) |');
    fprintf(1,'      <strong>Dims</strong>       |');
    fprintf(1,' [%% Eigenspace Explained] |');
-   fprintf(1,' %% Variance Explained\n');
-   fprintf(1,'\t--------- | --------------- | ------------------------ | --------------------\n');
+   fprintf(1,' Mean %% Variance Explained\n');
+   fprintf(1,'\t--------- | --------------- | ------------------------ | -------------------------\n');
    fprintf(1,'\t (<strong>Best</strong> M) | ');
    fprintf(1,' <strong>All  (  %3d  )</strong> |  ',params.numPCs);
-   fprintf(1,'       [%6.2f%%]        | ', sum(SS.all.explained.eig.skew));
-   fprintf(1,' %10.2f%%\n', sum(SS.all.explained.R2.best));
+   fprintf(1,'       [%6.2f%%]        | ', sum(SS.best.explained.eig));
+   fprintf(1,' %10.2f%%\n', mean(SS.best.explained.varcapt));
    fprintf(1,'\t (<strong>Skew</strong> M) | ');
    fprintf(1,' <strong>All  (  %3d  )</strong> |  ',params.numPCs);
-   fprintf(1,'       [%6.2f%%]        | ',sum(SS.all.explained.eig.skew));
-   fprintf(1,' %10.2f%%\n', sum(SS.all.explained.R2.skew));
+   fprintf(1,'       [%6.2f%%]        | ',sum(SS.skew.explained.eig));
+   fprintf(1,' %10.2f%%\n', mean(SS.skew.explained.varcapt));
    fprintf(1,'\t (<strong>Best</strong> M) | ');
    fprintf(1,'<strong>Top-2 (%7s)</strong> |  ',params.rankType);
-   fprintf(1,'       [%6.2f%%]        | ', sum(SS.top.explained.eig.best));
-   fprintf(1,' %10.2f%%\n', sum(SS.top.explained.R2.best));
+   fprintf(1,'       [%6.2f%%]        | ', sum(SS.best.explained.plane.eig(iBestVec(1:2))));
+   fprintf(1,' %10.2f%%\n', mean(SS.best.explained.varcapt(iBestVec(1:2))));
    fprintf(1,'\t (<strong>Skew</strong> M) | ');
    fprintf(1,'<strong>Top-2 (%7s)</strong> |  ',params.rankType);
-   fprintf(1,'       [%6.2f%%]        | ',sum(SS.top.explained.eig.skew));
-   fprintf(1,' <strong>%10.2f%%</strong> <<------\n', sum(SS.top.explained.R2.skew));
+   fprintf(1,'       [%6.2f%%]        | ',sum(SS.skew.explained.eig(iSkewVec(1:2))));
+   fprintf(1,' <strong>%10.2f%%</strong> <<------\n', mean(SS.skew.explained.varcapt(iSkewVec(1:2))));
 end
 
 % % Analysis of whether things really look like rotations (makes plots) % %
 circStats = cell(size(params.plane2plot));
-PhaseData = cell(1,max(params.plane2plot));
+Phi = cell(1,max(params.plane2plot));
 for jPCplane = params.plane2plot
    % % Compute phaseData to be plotted % %
    % Notes:
    % -> Kept as a separate function from `plotPhaseDiff` so that it can be
    %     referenced using the `Projection` output later (if needed)
-   PhaseData{jPCplane} = analyze.jPCA.getPhase(...
-      Projection,jPCplane,params.wlen,params.S);
+   Phi{jPCplane} = analyze.jPCA.getPhase(...
+      P,jPCplane,params.wlen,params.S);
    
    % % (Optional): plot the histogram of phase angle differences % %
    % Notes:
    %  -> 'params' is just what the user passed
    %  -> if suppressHistograms == false, plots are suppressed
    [circStats{jPCplane},thisFig] = analyze.jPCA.plotPhaseDiff(...
-      PhaseData{jPCplane},jPCplane,params);
+      Phi{jPCplane},jPCplane,params);
    if params.batchExportFigs
       f = sprintf(phaseExpr,...
          params.Animal,params.Alignment,params.Day,jPCplane);
@@ -541,33 +512,37 @@ for jPCplane = params.plane2plot
 end
 
 % % Make the summary output structure % %
-Summary.numTrials = numTrials;
-Summary.times = Projection(1).times;
-Summary.TotalVarExplainedPCs = et;
-Summary.PCA.vectors = PCvectors;
-Summary.PCA.mu = mu;
-Summary.PCA.explained = explained;
-Summary.PCA.scores = rawScores;
-Summary.reachState = reachState;
-Summary.graspState = graspState;
-Summary.completeState = completeState;
-Summary.supportState = supportState;
+S.M = M;
+S.Mskew = Mskew;
+S.numTrials = numTrials;
+S.times = P(1).times;
+S.TotalVarExplainedPCs = et;
+S.PCA.vectors = PCvectors;
+S.PCA.mu = mu;
+S.PCA.explained = explained;
+S.PCA.scores = rawScores;
+S.crossTrialAverages = xtAvg;
+S.reachState = reachState;
+S.graspState = graspState;
+S.completeState = completeState;
+S.supportState = supportState;
 % (m053m716, CPL-specific) "Success" or "Failure" among condition labels
-Summary.best = struct('M',M,'lambda',lambda_best);
-Summary.skew = struct('M',Mskew,'lambda',lambda_skew);
-Summary.SS = SS;
-Summary.circStats = circStats;
-Summary.RosetteProj = RosetteProj;
-Summary.crossCondMean = crossCondMeanAllTimes(analyzeIndices,:);
-Summary.crossCondMeanAllTimes = crossCondMeanAllTimes;
+S.best = struct('M',M,'lambda',lambda_best);
+S.skew = struct('M',Mskew,'lambda',lambda_skew);
+S.SS = SS;
+S.circStats = circStats;
+S.RosetteProj = RosetteProj;
+S.crossCondMean = crossCondMeanAllTimes(analyzeIndices,:);
+S.crossCondMeanAllTimes = crossCondMeanAllTimes;
 % You should first normalize and then mean subtract using this
 % (the original) mean. Conversely, to come back out, you must add the mean
 % back on and then MULTIPLY by the normFactors to undo the normalization:
-Summary.preprocessing.meanFReachNeuron = meanFReachNeuron;
+S.preprocessing.meanFReachNeuron = meanFReachNeuron;
+S.preprocessing.stdFReachNeuron = stdFReachNeuron;
 % Used for projecting new data from the same neurons into the jPC space (in
 % case that `normFactors` are non-ones):
-Summary.preprocessing.normFactors = normFactors;
-Summary.params = params;
+S.preprocessing.normFactors = normFactors;
+S.params = params;
 
 utils.addHelperRepos();
 sounds__.play('pop',1.2,-10);
@@ -575,6 +550,7 @@ if ~params.suppressText
    fprintf(1,'\n\t\t\t\t[%s::%s::Day-%02d (%s)] <- <strong>END JPCA</strong>\n',...
       Data(1).AnimalID,Data(1).Alignment,Data(1).PostOpDay,Data(1).Area);
 end
+warning('on');
 
    function Projection = initProjStruct(Data)
       %INITPROJSTRUCT Initialize `Projection` (output) array struct
@@ -608,6 +584,13 @@ end
          'times',iVal,...
          'proj',iVal,...
          'state',iVal,...
+         'Z',iVal,...
+         'dZ',iVal,...
+         'Zt',iVal,...
+         'zScl',iVal,...
+         'M',iVal,...
+         'SS',iVal,...
+         'Mskew',iVal,...
          'proj_rot',iVal ...
          );
       [Projection.Trial_ID] = deal(Data.Trial_ID);
@@ -723,132 +706,6 @@ end
          c = {projArray.proj(keepIndex,:)};
       end
       keepIndex = {keepIndex};
-   end
-
-   function SS = recover_explained_variance(State,dState,M,Mskew,e,bestDims,skewDims,rankType)
-      %RECOVER_EXPLAINED_VARIANCE Return struct with % explained var, etc.
-      %
-      %  SS = recover_explained_variance(State,dState,M,Mskew,e,dims);
-      %
-      %  Inputs
-      %     State    - Matrix of "X" data (the independent variables)
-      %     dState   - Matrix of "Y" data (dependent variables; derivative)
-      %     M        - Matrix recovered by LS optimal regression
-      %     Mskew    - Matrix recovered by LS optimal regression under
-      %                 constraint that transformation matrix is
-      %                 skew-symmetric (and therefore has pairs of
-      %                 complex-conjugate eigenvalues, corresponding to
-      %                 "rotatory" subspace projections).
-      %     e        - Proportion (0 - 1) of original data explained by
-      %                 PCs that were used for jPCA estimate
-      %     bestDims - Indices of dimensions to use for Mbest
-      %     skewDims - Indices of dimensions to use for Mskew
-      %
-      %  Output
-      %     SS       - Struct with fields corresponding to sums of squares
-      %                 and square error etc.
-      
-      
-      
-      if nargin < 6
-         bestDims = 1:size(State,2);
-      end
-      
-      if nargin < 7
-         skewDims = 1:size(State,2);
-      end
-      
-      % Get the percent explained based on eigenvalues of transform
-      % matrices:
-      [~,D_m] = eig(M);
-      M_explained = diag(abs(D_m)) ./ sum(diag(abs(D_m)));
-      [~,D_mskew] = eig(Mskew);
-      Mskew_explained = diag(abs(D_mskew)) ./ sum(diag(abs(D_mskew)));
-      
-      % Initialize output data struct
-      SS = struct(...
-            'info',struct(...
-               'best',struct(...
-                  'M',M,...
-                  'dims',bestDims,...
-                  'explained',M_explained(bestDims)).',...
-               'skew',struct(...
-                  'M',Mskew,...
-                  'dims',skewDims,...
-                  'explained',Mskew_explained(skewDims)).'...
-                  ), ...
-            'TSS',struct, ...    % 
-            'RSS',struct, ...    % Residual sum-of-squares
-            'explained',struct ...
-            );
-      
-      % Make M and Mskew in lower dims (less indexing notation):
-      M = M(:,bestDims);
-      Mskew = Mskew(:,skewDims);
-      bestProj = State * M;
-      skewProj = State * Mskew;
-  
-      % Compute total sum-of-squares
-      SS.TSS.dState = sum(bsxfun(@minus,dState,mean(dState,1)).^2,1);
-      SS.TSS.total  = sum(SS.TSS.dState);
-      
-      % Compute explained sum-of-squares (sum-of-squares due to regression or SSR)
-      SS.ESS.best   = sum(bsxfun(@minus,bestProj,mean(dState(:,bestDims),1)).^2,1);
-      SS.ESS.skew   = sum(bsxfun(@minus,skewProj,mean(dState(:,skewDims),1)).^2,1);
-      
-      % Compute residual sum-of-squares (sum-of-squares due to error or SSE)
-      SS.RSS.best   = sum(bsxfun(@minus,bestProj,dState(:,bestDims)).^2,1);
-      SS.RSS.skew   = sum(bsxfun(@minus,skewProj,dState(:,skewDims)).^2,1);
-      
-      % Percent of original "eigenspace" (from eigenvalue magnitudes):
-      SS.explained.eig.best = SS.info.best.explained .* e;
-      SS.explained.eig.skew = SS.info.skew.explained .* e;
-      
-      % Percent reduction in variance using each fit:
-      % Note that because we are doing linear regression, .R2 and .FVU
-      % should be equivalent for .best, or .skew, as (1 - the other)
-      SS.explained.R2.best = SS.ESS.best ./ SS.TSS.total .* 100;
-      SS.explained.R2.skew = SS.ESS.skew ./ SS.TSS.total .* 100;
-      
-      SS.explained.FVU.best = SS.RSS.best ./ SS.TSS.total .* 100;
-      SS.explained.FVU.skew = SS.RSS.skew ./ SS.TSS.total .* 100;
-      
-      if nargin < 8 % % Do not do any sorting if no `rankType` given % % 
-         return;
-      end
-      
-      % % Recover sort indices according to plane sort type % %
-      nDim = numel(bestDims);
-      nPlane = nDim/2;
-      SS.explained.plane.eig.best = sum(reshape(SS.explained.eig.best,2,nPlane),1);
-      SS.explained.plane.R2.best = sum(reshape(SS.explained.R2.best,2,nPlane),1);
-      if strcmpi(rankType, 'varcapt')
-         sortQ = SS.explained.plane.R2.best;
-      else
-         sortQ = SS.explained.plane.eig.best;
-      end
-      [~,SS.explained.sort.best.plane] = sort(sortQ,'descend');
-      SS.explained.sort.best.vector = [...
-         (SS.explained.sort.best.plane-1).*2+1;...
-          SS.explained.sort.best.plane.*2];
-      SS.explained.sort.best.vector = (SS.explained.sort.best.vector(:)).';
-      
-      % % Repeat for skew-symmetric matrix % % 
-      nDim = numel(skewDims);
-      nPlane = nDim/2;
-      SS.explained.plane.eig.skew = sum(reshape(SS.explained.eig.skew,2,nPlane),1);
-      SS.explained.plane.R2.skew = sum(reshape(SS.explained.R2.skew,2,nPlane),1);
-      if strcmpi(rankType, 'varcapt')
-         sortQ = SS.explained.plane.R2.skew;
-      else
-         sortQ = SS.explained.plane.eig.skew;
-      end
-
-      [~,SS.explained.sort.skew.plane] = sort(sortQ,'descend');
-         SS.explained.sort.skew.vector = [...
-            (SS.explained.sort.skew.plane-1).*2+1;...
-             SS.explained.sort.skew.plane.*2];
-         SS.explained.sort.skew.vector = (SS.explained.sort.skew.vector(:)).';
    end
 
 end

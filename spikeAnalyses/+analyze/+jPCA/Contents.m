@@ -28,12 +28,14 @@
 %
 % Math Helper Functions
 %   averageDotProduct               - Get the average dot product with a comparison angle
+%   convert_Mskew_to_jPCs           - Convert projection matrix to jPC vector pairs
 %   getPhase                        - Get the phase for a given plane over its timecourse
 %   getPlane                        - Return plane `i` from data struct or matrix
 %   getRealVs                       - Get the real analogue of the eigenvectors
 %   minimize                        - Minimize a differentiable multivariate function. 
 %   minusPi2Pi                      - Return value in range [-pi,pi]
 %   multi_jPCA                      - Apply jPCA to short segments of `Data` focused on tagged events
+%   recover_explained_variance      - Return struct with % explained var, etc.
 %   reshapeSkew                     - Reindexes a vector to a matrix or vice versa
 %   skewSymLSeval                   - Evaluates distance & derivative, imposing skew symmetry on M
 %   skewSymRegress                  - Apply least-squares regression to recover skew-symmetric M

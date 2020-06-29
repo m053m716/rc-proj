@@ -19,7 +19,9 @@ function [fig,ax] = plot_glme_residuals(glme,Gr,groupings,TID,varargin)
 % Set parameters
 p = struct('ax',[],'fig',[],'mdlIndex',1,...
    'xVar','PostOpDay',...
-   'yVar','PeakOffset');
+   'yVar','PeakOffset',...
+   'scatterAlpha',0.15,...
+   'scatterSize',12);
 fn = fieldnames(p);
 for iV = 1:2:numel(varargin)
    iP = strcmpi(fn,varargin{iV});
@@ -58,8 +60,8 @@ nCol = ceil(nTotal/nRow);
 varNames = Gr.Properties.VariableNames;
 Ypred = splitapply(@(varargin){glme.predict(table(varargin{:},'VariableNames',varNames))},Gr,groupings);
 Yact = splitapply(@(y){y},Gr.(p.yVar),groupings);
-Y = cellfun(@(C1,C2)C1-C2,Yact,Ypred,'UniformOutput',false);
-X = splitapply(@(x){x},Gr.(p.xVar),groupings);
+% Y = cellfun(@(C1,C2)C1-C2,Yact,Ypred,'UniformOutput',false);
+% X = splitapply(@(x){x},Gr.(p.xVar),groupings);
 for ii = 1:nTotal
    ax = subplot(nRow,nCol,ii);
    set(ax,'XColor','k','YColor','k','LineWidth',1.25,...
@@ -70,9 +72,9 @@ for ii = 1:nTotal
 %    scatter3(ax,X{ii},Ypred{ii},Y{ii},'filled','MarkerFaceColor',...
 %       'k','MarkerEdgeColor','k','Marker','.');
 %    legend(ax,{'Actual','Predicted'},'Location','best');
-   scatter(ax,Yact{ii},Ypred{ii},'filled',...
+   scatter(ax,Yact{ii},Ypred{ii},'filled','SizeData',p.scatterSize,...
       'MarkerFaceColor','r','MarkerEdgeColor','none',...
-      'MarkerFaceAlpha',0.15);
+      'MarkerFaceAlpha',p.scatterAlpha);
    str = '';
    if nargin > 3
       for ik = 1:size(TID,2)
@@ -90,6 +92,11 @@ for ii = 1:nTotal
    title(ax,str,'FontName','Arial','Color','k');
    xlabel(ax,sprintf('%s_{actual}',p.yVar),'FontName','Arial','Color','k');
    ylabel(ax,sprintf('%s_{pred}',p.yVar),'FontName','Arial','Color','k');
+   % Add line indicating "X == Y"
+   xl = ax.XLim;
+   line(ax,xl,xl,...
+      'Color','k','LineWidth',1.75,'LineStyle',':',...
+      'DisplayName','y_{pred} = y_{actual}');
 %    xlabel(ax,p.xVar,'FontName','Arial','Color','k');
 %    ylabel(ax,sprintf('%s',p.yVar),'FontName','Arial','Color','k');
 %    zlabel(ax,'Residuals','FontName','Arial','Color','k');

@@ -30,6 +30,9 @@ p.rate_csv = fullfile(pname,'rate_data.csv');
 % Rate table default:
 p.rate_table_default_matfile = fullfile(pname,'T_default.mat');
 
+% Population Dynamics ('multi_jPCA.m' exported table)
+p.multi_jpca_default_matfile = fullfile(pname,'Multi_jPCA_Table.mat');
+
 % For "Tableau" visualization:
 p.rate_tableau_table = fullfile(ptableau,'All Rates.xlsx');
 p.rate_tableau_table_matfile = fullfile(pname,'T.mat');

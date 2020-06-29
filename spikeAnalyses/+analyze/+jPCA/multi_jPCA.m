@@ -111,7 +111,7 @@ switch nargin
 end
 % % % % % % % End Argument Parsing % % % %
 
-Areas = ["All","CFA","RFA"];
+Areas = "All";
 nArea = numel(Areas);
 
 % % Collect other `default` parameters % %
@@ -135,6 +135,7 @@ end
 
 % Initialize output table
 D = analyze.jPCA.gross_output_table(nAlignment*nDay*nArea*nAnimal);
+params.warningState = 'off'; % Turn off warnings
 
 % % Iterate on each alignment, for each day % %
 iRow = 0;
@@ -176,10 +177,6 @@ for iDay = 1:nDay
             D.PostOpDay(iRow) = D.Data{iRow}(1).PostOpDay;
             [D.Projection{iRow},D.Summary{iRow},D.PhaseData{iRow}] = ...
                analyze.jPCA.jPCA(D.Data{iRow},p);
-            if ~p.suppressMultiTextPause
-               pause(1.5);
-               clc;
-            end
          end
       end
    end
