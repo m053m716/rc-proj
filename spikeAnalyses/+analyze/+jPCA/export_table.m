@@ -168,7 +168,7 @@ if showDistributions
          ylim(ax2(ii),xl(ii,:));
       end
       labInfo = strsplit(responseVars{ii,2},': ');
-      xPlot = 3:30; % See X0 in helper function
+      xPlot = linspace(0,30,100); % See X in helper function
       yPlot = nan(2,numel(xPlot));
       Y = cell(1,2);
       zObs = cell(1,2);
@@ -188,22 +188,18 @@ if showDistributions
             'SizeData',12,...
             'DisplayName',G(iG)); 
          gThis= findgroups(eThis(:,{'AnimalID'}));
-         [Y{iG},stat] = splitapply(@(x,y)addLinearRegression(ax2(ii),x,y,col(iG,:),xPlot),...
+         [Y{iG},stat] = splitapply(...
+            @(x,y)analyze.stat.addLogisticRegression(ax2(ii),x,y,col(iG,:),...
+            xPlot,'addlabel',false),...
             eThis.PostOpDay,eThis.(responseVars{ii,1}),gThis);
          stat = cell2mat(stat);
          Y{iG} = cell2mat(Y{iG});
          yPlot(iG,:) = nanmean(Y{iG},1);
-         line(ax2(ii),xPlot,yPlot(iG,:),...
-            'LineWidth',1.5,'Color',col(iG,:),...
-            'LineStyle','-','DisplayName',sprintf('Fit: %s',G(iG)));
-         zObs{iG} = vertcat(stat.z);
-         zHat{iG} = vertcat(stat.zhat);
-         TSS = nansum((zObs{iG} - nanmean(zObs{iG})).^2);
-         ESS = nansum((zHat{iG} - nanmean(zObs{iG})).^2);
-         R2 = ESS / TSS;
-         yloc = yPlot(iG,yIdx(iG));
-         text(ax2(ii),xloc(iG),yloc,sprintf('R^2 = %4.2f',R2),...
-            'FontName','Arial','FontWeight','bold','Color',col(iG,:));
+         xThis = vertcat(stat.x);
+         yThis = vertcat(stat.y);
+         usePts = ~isnan(xThis) & ~isnan(yThis);
+         analyze.stat.addLogisticRegression(ax2(ii),xThis(usePts),yThis(usePts),col(iG,:),...
+            xPlot,'addlabel',true,'LineStyle','-','LineWidth',2.0,'TX',xloc(iG));
       end
       yTest = Y{2}(~any(isnan(Y{2}),2),:)';
       yTest = mat2cell(yTest,ones(1,size(yTest,1)),size(yTest,2));
@@ -213,7 +209,6 @@ if showDistributions
       gfx__.addSignificanceLine(ax2(ii),xTest,yTest,hTest,...
          'Alpha',0.05,'DoMultipleComparisonsCorrection',false,...
          'NormalizedBracketY',0.1,'NormalizedTickY',0.125);
-%       legend(ax2(ii),'Location','best');
       
       ylabel(ax2(ii),labInfo{end},'FontName','Arial','Color','k');
       if numel(labInfo) > 1
@@ -225,208 +220,8 @@ if showDistributions
       end
    end
    
-
-   fig = [fig; ...
-      figure('Name','Rotatory Planes R^2: Trends by Day',...
-      'Color','w',...
-      'Units','Normalized',...
-      'Position',gfx__.addToSecondMonitor(),...
-      'NumberTitle','off')];
-   ax3 = axes(fig(3),...
-      'XColor','k','YColor','k',...
-      'NextPlot','add','LineWidth',1.5,...
-      'FontName','Arial',...
-      'XLim',[-4 35],'XTick',[0 7 14 21 28],...
-      'YLim',[0 1]);
-   for iG = 1:2
-      eThis = E(E.GroupID==G(iG),:);
-      scatter(ax3,...
-         eThis.PostOpDay,...
-         eThis.R2_Skew,...
-         'Marker',mark(iG),...
-         'MarkerFaceColor',col(iG,:),...
-         'MarkerEdgeColor',col(iG,:),...
-         'MarkerFaceAlpha',0.66,...
-         'MarkerEdgeAlpha',0.75,...
-         'SizeData',12,...
-         'DisplayName',G(iG)); 
-   end
-   expected = addLinearRegression(ax3,E.PostOpDay,E.R2_Skew,[0 0 0],xPlot,...
-      'LineStyle','-','DisplayName','Expected');
-   hTest = num2cell(expected{1}');
-   gThis= findgroups(E(:,{'GroupID'}));
-   c_all = col((E.GroupID=="Ischemia")+1,:);
-   splitapply(@(x,y,col,groupTag)addLinearRegression(ax3,x,y,col(1,:),xPlot,...
-      'DisplayName',string(groupTag(1))),E.PostOpDay,E.R2_Skew,c_all,...
-      E.GroupID,gThis);
-   
-   for iG = 1:2
-      % Aggregate data for comparison to expected value
-      yTest = cell(size(hTest));
-      for ii = 1:numel(xPlot)
-         yTest{ii} = E.R2_Skew(E.PostOpDay == xPlot(ii));
-      end
-      gfx__.addSignificanceLine(ax3,xTest,yTest,hTest,...
-         'Alpha',0.05,'DoMultipleComparisonsCorrection',false,...
-         'NormalizedBracketY',0.1,'NormalizedTickY',0.125);
-   end
-   legend(ax3,'Location','Best');
 else
    fig = [];
-end
-
-E.R2_Skew = E.R2_Skew - mean(E.R2_Skew);
-
-% Helper functions for graphing & stats
-   function [Y,stat] = addLinearRegression(ax,x,y,c,X,varargin)
-      %ADDLINEARREGRESSION Helper for splitapply to add lines for animals
-      %
-      %  [Y,stat] = addLinearRegression(ax,x,y,c,X);
-      %
-      %  Uses median of dependent variable for offset and median of all
-      %  pairs of distances of dependent variable for slope estimate.
-      %
-      % Inputs
-      %  ax    - Target axes to add line to
-      %  x     - X-Data (independent variable for linear regression)
-      %  y     - Y-Data (dependent variable for linear regression)
-      %  c     - Color of line
-      %  X     - Points to use in projection to actually plot fit
-      %
-      % Output
-      %  Y     - Model output for each day
-      %  stat  - Statistics for model fit
-      %
-      %  Adds line to `axObj` object
-      
-      % DEFAULTS TO PLOT
-      if nargin < 5
-         X  = 3:30; % Plot line using prediction at these points
-      end
-%       TX = 33;   % Text x-coordinate
-      
-      % Put data into correct orientation for `pdist`
-      if ~iscolumn(x)
-         x = x.';
-      end
-      
-      if ~iscolumn(y)
-         y = y.';
-      end
-      
-      if (numel(unique(x)) < 2) || (numel(unique(y)) < 2)
-         Y  = {nan(size(X))};
-         stat = {struct('R2',nan,'RSS',nan,'TSS',nan,'x',[],'y',[],...
-            'yhat',[],'z',[],'zhat',[],'f',@(x)x,'g',@(x)x)};
-         return;
-      end
-
-      % Get link function and inverse link function
-      [yn,o,s] = scaleResponse(y);
-      z = real(log(yn) - log(1-yn));
-      
-      % Get differences and median slope, intercept
-      dZ = pdist(z);
-      dX = pdist(x);
-      iBad = isinf(dZ) | isinf(dX) | isnan(dZ) | isnan(dX);
-      if ~any(~iBad)
-         Y = {nan(size(X))};
-         stat = {struct('R2',nan,'RSS',nan,'TSS',nan,'x',[],'y',[],...
-            'yhat',[],'z',[],'zhat',[],'f',@(x)x,'g',@(x)x)};
-         return;
-      end
-%       Beta  = median(dZ(~iBad) ./ dX(~iBad));
-      Beta = dZ(~iBad) / dX(~iBad);
-      Beta0 = mean(z);
-      x0 = mean(x);
-
-      f   = @(x)reshape(Beta0 + Beta.*(x - x0),numel(x),1); 
-      g   = @(x)reshape(s./(1 + exp(-f(x)))+o,numel(x),1);
-      
-      % Plot
-      Y = g(X);
-      stat = struct;
-      [stat.R2,stat.RSS,stat.TSS] = getR2(g,x,y);
-      stat.x = x;
-      stat.y = y;
-      stat.yhat = g(x);
-      stat.z = z;
-      stat.zhat = f(x);
-      stat.f = f;
-      stat.g = g;
-      stat = {stat};
-      
-      hReg = line(ax,X,Y,'Color',c,'LineStyle','--',...
-         'LineWidth',1.25,'Tag','Median Regression',varargin{:});
-      hReg.Annotation.LegendInformation.IconDisplayStyle = 'off';  
-%       text(ax,TX,Y(end),sprintf('R^2 = %4.2f',R2),'FontName','Arial',...
-%          'Color',c,'FontSize',12,'FontWeight','bold');
-      Y = {reshape(Y,1,numel(Y))};
-   end
-
-   function [R2,RSS,TSS] = getR2(g,x,y)
-      %GETR2 Return R2 for observations & model
-      %
-      %  [R2,RSS,TSS,x,y,yn,ynhat,yhat] = getR2(g,x,y);
-      %
-      % Inputs
-      %  g - Function handle (model)
-      %  x - Independent variable vector (days)
-      %  y - Matched dependent variable vector (should match model g)
-      %
-      % Output
-      %  R2  - Coefficient of determination based on model
-      %  RSS - Residual sum of squares (sum-of-squares due to estimate
-      %           errors)
-      %  TSS - Total sum of squares (data variance, essentially)
-      %  x   - Input data (independent variable)
-      %  y   - Output data (dependent variable)
-      %  yn  - Normalized output data (dependent variable; observation)
-      %  ynhat - Normalized predicted output (model prediction)
-      %  yhat- Function output estimate (prediction; scaled as normal)
-      
-      
-      mu = mean(y);
-      TSS = sum((y - mu).^2);
-      RSS = sum((g(x) - y).^2);
-      R2 = 1 - (RSS / TSS);
-   end
-
-   function [yn,o,s] = scaleResponse(y)
-      %SCALERESPONSE Scale y to be "well-tolerated" for logistic regression
-      %
-      %  [yn,s,o] = scaleResponse(y);
-      %
-      % Inputs
-      %  y  - Observed response of interest
-      %
-      % Output
-      %  yn - "Normalized" response that is bounded on open interval (0,1)
-      %  o  - Offset constant: 
-      %        ```
-      %           mu = median(y);
-      %           yc = y - mu;
-      %           ys = (yc) ./ s;
-      %           o = min(ys) + e;
-      %        ```
-      %  s  - Scale constant:  
-      %        ```
-      %           mu = median(y);
-      %           yc = y - mu;
-      %           [s1,idx] = max(abs(yc)); 
-      %           s = s1*sign(yc(idx)) + epsilon*sign(yc(idx));
-      %           e = epsilon*sign(yc(idx));
-      %        ```
-      %  Default epsilon value is 1e-3
-      %
-      % yn = (y - o)./s;
-      % y  = yn.*s + o;
-      
-      epsilon = 1e-3; % Error term to ensure behavior of y as open interval      
-      o = min(y);
-      s = max(abs(y - o + epsilon)) + epsilon;
-      
-      yn = (y - o + epsilon) ./ s;
-   end
+end 
 
 end

@@ -11,7 +11,8 @@ function varargout = files(varargin)
 %  -> 'icms_data_name'  : Name of icms excel spreadsheet
 
 p = struct;
-[tank,pname,ptableau] = local.defaults('CommunalDataTank','LocalDataTank','TableauFolder');
+[tank,pname,ptableau] = local.defaults(...
+   'CommunalDataTank','LocalDataTank','TableauFolder');
 p.tank = tank;
 p.local_tank = pname;
 p.remote_tank = tank;
@@ -29,9 +30,14 @@ p.rate_csv = fullfile(pname,'rate_data.csv');
 
 % Rate table default:
 p.rate_table_default_matfile = fullfile(pname,'T_default.mat');
+p.rate_unique_trials_matfile = fullfile(pname,'T_unique_trials.mat');
 
 % Population Dynamics ('multi_jPCA.m' exported table)
 p.multi_jpca_default_matfile = fullfile(pname,'Multi_jPCA_Table.mat');
+
+% Single-channel dynamics
+p.default_gauspuls_table = fullfile(pname,'Fitted-GausPuls-Table.mat');
+p.single_channel_stats_mlx_table = fullfile(pname,'Fitted_GausPuls-Table_Restricted-Subset.mat');
 
 % For "Tableau" visualization:
 p.rate_tableau_table = fullfile(ptableau,'All Rates.xlsx');

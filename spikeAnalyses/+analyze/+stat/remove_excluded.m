@@ -54,25 +54,30 @@ Gr.Alignment = string(Gr.Alignment);
 Gr.Alignment = categorical(Gr.Alignment);
 
 % Compute PostOpWeek %
-Gr.PostOpPhase = ceil(Gr.PostOpDay/10);
+Gr.PostOpPhase = ceil((Gr.PostOpDay-2)/7);
 Gr.PostOpPhase = ordinal(Gr.PostOpPhase);
-Gr.PostOpDay = ordinal(Gr.PostOpDay);
+% Gr.PostOpDay = ordinal(Gr.PostOpDay);
 
 % % % Remove exclusions % % %
 iData = iHighEnvelopeBW & iHighError & iLowTau & iHighTau;
 Gr.Properties.UserData.Excluded.FitParameter = sum(~iData);
 Gr = Gr(iData,:);
 
-% Compute PCs %
-Z = [...
-   Gr.PeakOffset,         ...
-   Gr.EnvelopeBW,         ...
-   Gr.PeakFreq,           ...
-   Gr.LinearTrendCoeff,   ...
-   Gr.LinearTrendOffset  ...
-     ];
-[~,score] = pca(Z);
-Gr.Z = score(:,z_pc_index);
+% % Compute PCs %
+% Z = [...
+%    Gr.PeakOffset,         ...
+%    Gr.EnvelopeBW,         ...
+%    Gr.PeakFreq,           ...
+%    Gr.LinearTrendCoeff,   ...
+%    Gr.LinearTrendOffset  ...
+%      ];
+% [~,score] = pca(Z);
+% Gr.Z = score(:,z_pc_index);
+
+Gr.Properties.UserData.Z.Offset = min(Gr.PeakOffset)-1e-3;
+o = Gr.PeakOffset-Gr.Properties.UserData.Z.Offset;
+Gr.Properties.UserData.Z.Scale = max(o)+1e-3;
+Gr.Z = (o)./ Gr.Properties.UserData.Z.Scale;
 
 % Update UserData to reflect current state of table %
 Gr.Properties.UserData.exclusions_removed = true;
