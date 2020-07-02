@@ -118,12 +118,27 @@ if plotline
    hReg = line(ax,X,Y,'Color',c,'LineStyle','--',...
       'LineWidth',1.25,'Tag','Median Regression',varargin{:});
    hReg.Annotation.LegendInformation.IconDisplayStyle = 'off';
+   if numel(varargin)>0
+      if any(strcmpi(varargin(1:2:end),'DisplayName')) && ~addlabel
+         hReg.Annotation.LegendInformation.IconDisplayStyle = 'on';
+      else
+         hReg.Annotation.LegendInformation.IconDisplayStyle = 'off';
+      end
+   else
+      hReg.Annotation.LegendInformation.IconDisplayStyle = 'off';
+   end
 end
 
 if addlabel
-   text(ax,TX,Y(end),sprintf('%sR^2 = %4.2f',tag,stat.R2),...
-      'FontName','Arial',...
-      'Color',c,'FontSize',12);
+   if TX < 15
+      text(ax,TX,Y(1),sprintf('%sR^2 = %4.2f',tag,stat.R2),...
+         'FontName','Arial',...
+         'Color',c,'FontSize',12,'FontWeight','bold');
+   else
+      text(ax,TX,Y(end),sprintf('%sR^2 = %4.2f',tag,stat.R2),...
+         'FontName','Arial',...
+         'Color',c,'FontSize',12,'FontWeight','bold');
+   end
 end
 stat = {stat};
 Y = {reshape(Y,1,numel(Y))};

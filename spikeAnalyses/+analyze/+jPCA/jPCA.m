@@ -249,7 +249,7 @@ else % Otherwise, derive # PCs from % explained data
 end
 % Reduce the total number of PCvectors based on fixed number or threshold
 % number of EVEN number of PCs based on % explained threshold:
-PCvectors = PCvectors(:,1:params.numPCs);
+coeff = PCvectors(:,1:params.numPCs);
 
 % % % Get the independent components as well % %
 % ICA = struct;
@@ -273,7 +273,7 @@ et = explained_total(params.numPCs);    % For reference later (% original data e
 % % scores from smallA, and we want that projection to match this one.
 
 % projection of the mean
-meanAred = bsxfun(@minus, meanA, mean(smallA)) * PCvectors(:,1:params.numPCs);  % projection of the across-cond mean (which we subtracted out) into the low-D space.
+meanAred = bsxfun(@minus, meanA, mean(smallA)) * coeff;  % projection of the across-cond mean (which we subtracted out) into the low-D space.
 
 % will need this later for some indexing
 nSamples = size(scores,1)/numTrials;
@@ -378,6 +378,7 @@ for c = 1:numTrials
    index1b = index1 + nSamples-1;  % we will go from index1 to this point
    P(c).proj = proj(index1:index1b,:); %#ok<*AGROW>
    P(c).state = scores(index1:index1b,:);
+   P(c).data = smallA(index1:index1b,:);
    P(c).times = tt(analyzeIndices);
    
    % Now, recover projection matrix that is trial-specific
@@ -514,10 +515,12 @@ end
 % % Make the summary output structure % %
 S.M = M;
 S.Mskew = Mskew;
+S.jPCs = jPCs;
 S.numTrials = numTrials;
 S.times = P(1).times;
 S.TotalVarExplainedPCs = et;
-S.PCA.vectors = PCvectors;
+S.PCA.vectors = coeff;
+S.PCA.vectors_all = PCvectors;
 S.PCA.mu = mu;
 S.PCA.explained = explained;
 S.PCA.scores = rawScores;
@@ -584,6 +587,7 @@ warning('on');
          'times',iVal,...
          'proj',iVal,...
          'state',iVal,...
+         'data',iVal,...
          'Z',iVal,...
          'dZ',iVal,...
          'Zt',iVal,...

@@ -34,6 +34,7 @@ p.rate_unique_trials_matfile = fullfile(pname,'T_unique_trials.mat');
 
 % Population Dynamics ('multi_jPCA.m' exported table)
 p.multi_jpca_default_matfile = fullfile(pname,'Multi_jPCA_Table.mat');
+p.exported_jpca_matfile = fullfile(pname,'jPCA_Export_Table_for-stats.mat');
 
 % Single-channel dynamics
 p.default_gauspuls_table = fullfile(pname,'Fitted-GausPuls-Table.mat');

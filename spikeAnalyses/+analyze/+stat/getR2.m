@@ -26,10 +26,19 @@ else
    y_hat = g(x);
 end
    
-mu = nanmean(y);
-mu_hat = nanmean(y_hat);
+mu = nanmedian(y);
+mu_hat = nanmedian(y_hat);
 TSS = nansum((y - mu).^2);
 RSS = nansum(((y_hat - mu_hat) - (y - mu)).^2);
-ESS = nansum((y_hat - mu).^2);
-R2 = ESS/TSS;
+% Since we used medians, RSS could be greater than TSS; for example, if
+% there is a large outlier or something like that, the square of that
+% outlier will not be captured as well by the model we've fit, so that will
+% cause RSS to be higher than TSS. In this instance, our estimate of R2 is
+% typically supposed to be an underestimate of the actual model accuracy
+% (we are using medians to be conservative with outlier data). To make it
+% look "less-weird" we are setting a bound on RSS here to be no larger than
+% TSS, with the understanding that a negative value of R2 would basically
+% just indicate the model is being fit poorly in the same sense as R2 = 0.
+R2 = 1 - (min(RSS,TSS)/TSS);
+
 end
