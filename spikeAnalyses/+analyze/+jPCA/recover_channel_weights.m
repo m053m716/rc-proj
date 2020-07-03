@@ -1,16 +1,22 @@
-function out = recover_channel_weights(P,S)
+function out = recover_channel_weights(P,S,wrap)
 %RECOVER_CHANNEL_WEIGHTS Recover weightings for individual channels jPCs
 %
 %  out = analyze.jPCA.recover_channel_weights(P,S);
+%  out = analyze.jPCA.recover_channel_weights(P,S,wrap);
 %
 % Inputs
 %  P   - Projection struct array from analyze.jPCA
 %  S   - Summary struct from analyze.jPCA that matches `P`
+%  wrap - Set true to "wrap" output as cell (default is false)
 %
 % Output
 %  out - Scalar cell. Cell contains:
 %        Updated projection struct array with new field: 'W'
 %        -> 'W' is the weightings for original rate data, using jPCA matrix
+
+if nargin < 3
+   wrap = false;
+end
 
 n = size(P(1).state,1); % # samples per trial
 nTrial = numel(P); 
@@ -46,6 +52,10 @@ Wc = mat2cell(W,ones(1,nTrial).*n,nPC,nChannels);
 [P.W] = deal(Wc{:});
 
 % Wrap it as a cell so we can use with `splitapply` workflow
-out = {P};
+if wrap
+   out = {P};
+else
+   out = P;
+end
 
 end

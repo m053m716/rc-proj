@@ -211,14 +211,15 @@ end
 % Note this is the same as "cross-trial mean" (by sample) if
 % normFactors are ones:
 meanA = sumA/numTrials;
-bigA = bigA-repmat(meanA,numTrials,1);
+bigZ = bigA-repmat(meanA,numTrials,1);
 
 % % % Apply traditional PCA % % %
 smallA = bigA(analyzeMask,:);
+smallZ = bigZ(analyzeMask,:);
 % (m053m716 June-2020: update from `princomp` to `pca`):
-[PCvectors,rawScores,~,~,explained,mu] = pca(smallA,'Economy',true);
-meanFReachNeuron = mean(smallA,1);
-stdFReachNeuron = std(smallA,[],1);
+[PCvectors,rawScores,~,~,explained,mu] = pca(smallZ,'Economy',true);
+meanFReachNeuron = mean(smallZ,1);
+stdFReachNeuron = std(smallZ,[],1);
 explained_total = cumsum(explained); % For plot purposes and/or estimation
 
 % these are the directions in the high-D space (the PCs themselves)
@@ -231,7 +232,7 @@ if isnan(params.threshPC)
       params.plane2plot(params.plane2plot > (params.numPCs/2)) = [];
    end
 else % Otherwise, derive # PCs from % explained data
-   nPC = find(explained_total > params.threshPC,1,'first');
+   nPC = max(find(explained_total > params.threshPC,1,'first'),params.pc_floor);
    if rem(nPC,2) > 0
       if nPC < numel(explained_total)
          nPC = nPC + 1;
@@ -273,7 +274,7 @@ et = explained_total(params.numPCs);    % For reference later (% original data e
 % % scores from smallA, and we want that projection to match this one.
 
 % projection of the mean
-meanAred = bsxfun(@minus, meanA, mean(smallA)) * coeff;  % projection of the across-cond mean (which we subtracted out) into the low-D space.
+meanAred = bsxfun(@minus, meanA, mean(smallZ)) * coeff;  % projection of the across-cond mean (which we subtracted out) into the low-D space.
 
 % will need this later for some indexing
 nSamples = size(scores,1)/numTrials;
@@ -478,7 +479,7 @@ if ~params.suppressText
    fprintf(1,' %10.2f%%\n', mean(SS.skew.explained.varcapt));
    fprintf(1,'\t (<strong>Best</strong> M) | ');
    fprintf(1,'<strong>Top-2 (%7s)</strong> |  ',params.rankType);
-   fprintf(1,'       [%6.2f%%]        | ', sum(SS.best.explained.plane.eig(iBestVec(1:2))));
+   fprintf(1,'       [%6.2f%%]        | ', sum(SS.best.explained.eig(iBestVec(1:2))));
    fprintf(1,' %10.2f%%\n', mean(SS.best.explained.varcapt(iBestVec(1:2))));
    fprintf(1,'\t (<strong>Skew</strong> M) | ');
    fprintf(1,'<strong>Top-2 (%7s)</strong> |  ',params.rankType);
@@ -524,6 +525,7 @@ S.PCA.vectors_all = PCvectors;
 S.PCA.mu = mu;
 S.PCA.explained = explained;
 S.PCA.scores = rawScores;
+S.PCA.cross_trial_mean = meanA;
 S.crossTrialAverages = xtAvg;
 S.reachState = reachState;
 S.graspState = graspState;

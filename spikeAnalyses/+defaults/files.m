@@ -40,6 +40,11 @@ p.exported_jpca_matfile = fullfile(pname,'jPCA_Export_Table_for-stats.mat');
 p.default_gauspuls_table = fullfile(pname,'Fitted-GausPuls-Table.mat');
 p.single_channel_stats_mlx_table = fullfile(pname,'Fitted_GausPuls-Table_Restricted-Subset.mat');
 
+% For movie exports
+p.movie_loc = fullfile(pname,'Spatial-Movie-Exports');
+p.movie_fname_expr = '%s_Plane-%02d_Trial-%03d';
+p.movie_fs = 30; % frames per second
+
 % For "Tableau" visualization:
 p.rate_tableau_table = fullfile(ptableau,'All Rates.xlsx');
 p.rate_tableau_table_matfile = fullfile(pname,'T.mat');
@@ -77,8 +82,6 @@ p.norm_includestruct_fig_dir = 'includeStruct';
 p.channel_mask_loc = 'channel-masks';
 p.channel_mask_tag = '_ChannelMask.mat';
 p.coh_fig_str = '%s_%s__%s__';
-p.movie_loc = 'channel-plot-movies';
-p.movie_fname_str = '%s_%s_power-v-time.avi';
 
 % From `block`
 p.elec_info_xlsx = fullfile(p.tank,'electrode_stereotaxic_centers.xlsx');

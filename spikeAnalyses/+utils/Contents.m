@@ -6,6 +6,7 @@
 %   addSlicing             - Add 'Slicing' field to UserData struct table property or append to existing 'Slicing' list
 %   addStructField         - Add field(s) to an existing struct.
 %	 addProcessing 		   - Add 'Processing' field to UserData struct table property or append to existing 'Processing' list
+%   c2sizedata             - Change some value to scaled sizes
 %   check_table_type       - Return char indicating "type" of data table
 %   doPCAreconstruction    - Y = utils.doPCAreconstruction(score,coeff,mu);
 %   doTrialPCA             - Do PCA where rows are channels and columns are concatenated time-series

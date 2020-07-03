@@ -1,5 +1,5 @@
 function imageData = screencapture(varargin)
-% screencapture - get a screen-capture of a figure frame, component handle, or screen area rectangle
+%SCREENCAPTURE Get a screen-capture of a figure frame, component handle, or screen area rectangle
 %
 % ScreenCapture gets a screen-capture of any Matlab GUI handle (including desktop, 
 % figure, axes, image or uicontrol), or a specified area rectangle located relative to
@@ -9,7 +9,7 @@ function imageData = screencapture(varargin)
 % This utility also enables adding a toolbar button for easy interactive screen-capture.
 %
 % Syntax:
-%    imageData = screencapture(handle, position, target, 'PropName',PropValue, ...)
+%    imageData = utils.screencapture(handle, position, target, 'PropName',PropValue, ...)
 %
 % Input Parameters:
 %    handle   - optional handle to be used for screen-capture origin.

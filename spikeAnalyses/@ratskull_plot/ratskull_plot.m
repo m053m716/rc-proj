@@ -1,34 +1,46 @@
 classdef ratskull_plot < handle
-   %RATSKULL_PLOT  Graphics object handle
+   %RATSKULL_PLOT  Skull plot image for spatial map overlay
    % 
    % obj = ratskull_plot;        % Goes onto current axes
-   % obj = ratskull_plot(ax);    % 
+   % obj = ratskull_plot(ax);     
       
    properties(GetAccess = public, SetAccess = public)
-      Name
-      Children
+      Name        % Name of plot
+      Children    % "Child" graphics of plot
    end
    
    properties (GetAccess = public, SetAccess = private)
-      Figure
-      Axes
-      Score
-      Image
-      Bregma
-      Scale_Compass
+      Figure         % Figure handle ("Parent" figure to Axes)
+      Axes           % Axes handle ("Parent" axes)
+      Covariate      % Covariate associated with plot
+      Image          % Graphics image object
+      Bregma         % Graphics group representing Bregma, stereotaxic 0
+      Scale_Compass  % Compass graphics group for showing size scale
    end
    
    properties (GetAccess = public, Hidden = true)
-      XLim
-      YLim
+      XLim  % X-axis limits (determines scaling)
+      YLim  % Y-axis limits (determines scaling)
    end
    
    properties (Access = private)
-      CData
+      CData % Image data for actual rat skull image
    end
    
    methods (Access = public)
+      % Class constructor
       function obj = ratskull_plot(ax)
+         %RATSKULL_PLOT Skull plot image for spatial map overlay
+         %
+         %  obj = ratskull_plot();
+         %  obj = ratskull_plot(ax);
+         %
+         % Inputs
+         %  ax  - Axes object
+         %
+         % Output
+         %  obj - ratskull_plot class object
+         
          if nargin == 0
             ax = gca;
             fig = ax.Parent;
@@ -52,9 +64,9 @@ classdef ratskull_plot < handle
          obj.Image.Parent = ax;
          obj.Axes = ax;
          
-         % Set figure properties
-         fig = ratskull_plot.setFigProperties(fig);
-         obj.Figure = fig;
+%          % Set figure properties
+%          fig = ratskull_plot.setFigProperties(fig);
+%          obj.Figure = fig;
          
          % Make "Bregma" marker
          obj.Bregma = ratskull_plot.buildBregma(ax);
@@ -64,16 +76,32 @@ classdef ratskull_plot < handle
       end
       
       % Add a scatter plot group to the skull layout plot
-      function hgg = addScatterGroup(obj,x,y,sizeData,ICMS)
+      function hgg = addScatterGroup(obj,x,y,sz,ICMS)
+         %ADDSCATTERGROUP Add a scatter plot group to the skull layout plot
+         %
+         %  hgg = addScatterGroup(obj,x,y,sz,ICMS);
+         %
+         % Inputs
+         %  obj  - ratskull_plot object
+         %  x    - X-coordinates of scatter plot objects
+         %  y    - Y-coordinates of scatter plot objects
+         %  sz   - Size data of scatter plot objects
+         %  ICMS - ICMS representation of scatter plot objects
+         %
+         % Output
+         %  hgg  - Graphics hgroup object
+         %
+         % See also: ratskull_plot
+         
          if nargin < 5
             ICMS = categorical(repmat({'O'},numel(x),1));
          end
          
          if nargin < 4
-            sizeData = ones(size(x)) * 30;
+            sz = ones(size(x)) * 30;
          else
-            if (numel(sizeData) == 1) && (numel(sizeData)~=numel(x))
-               sizeData = ones(size(x)) * sizeData;
+            if (numel(sz) == 1) && (numel(sz)~=numel(x))
+               sz = ones(size(x)) * sz;
             end
          end
          icms_key = defaults.group('skull_icms_key');
@@ -84,7 +112,7 @@ classdef ratskull_plot < handle
             scatter(obj,x(ii),y(ii),icms,...
                   'MarkerFaceColor',col,...
                   'MarkerEdgeColor','none',...
-                  'MarkerSize',sizeData(ii),...
+                  'SizeData',sz(ii),...
                   'Parent',hgg);
          end
          obj.Children = [obj.Children; hgg];
@@ -94,92 +122,114 @@ classdef ratskull_plot < handle
       % Make the movie frame sequence as a tensor that can then be exported
       % one frame at a time. MV is a nRows x nColumns x 3 (RGB) x nFrames
       % tensor of class uint8.
-      function MV = buildMovieFrameSequence(obj,sizeData,scoreData,scoreAx,scoreDays,t_orig_score,orig_score)
+      function MV = buildMovieFrameSequence(obj,t,sz,covAx,cY)
+         %BUILDMOVIEFRAMESEQUENCE Make movie frame sequence as tensor
+         %
+         %  MV = buildMovieFrameSequence(obj,t,sz,covAx,cY);
+         %  
+         % Inputs
+         %  obj   - ratskull_plot object
+         %  t     - Time-array corresponding to elements of covariate
+         %  sz    - Array of point sizes for spatial data indicator
+         %           -> Should be nChannels x nDataPoints
+         %  covAx - Axes to put time-series covariate on
+         %  cY    - Array of covariate that progresses with time
+         %
+         % Output
+         %  MV    - Tensor that contains all movie frame images to write
+         
+         
          set(obj.Figure,'Position',[0.3 0.3 0.2 0.5]);
          set(obj.Figure,'MenuBar','none');
          set(obj.Figure,'Toolbar','none');
          tmp = utils.screencapture(obj.Figure);
-         MV = zeros(size(tmp,1),size(tmp,2),size(tmp,3),size(sizeData,2),...
+         MV = zeros(size(tmp,1),size(tmp,2),size(tmp,3),size(sz,2),...
                class(tmp));
-         keepvec = true(size(sizeData,2),1);
          
-         if nargin > 3
-            obj.Score = struct;
-            obj.Score.Axes = scoreAx;
-            obj.Score.Axes.NextPlot = 'add';
-            ylim(obj.Score.Axes,[0 100]);
-            xlim(obj.Score.Axes,[1 31]);
-            obj.Score.t = t_orig_score;
-            obj.Score.pct = round(orig_score*100);
-            ylabel(obj.Score.Axes,'% Successful',...
-               'FontName','Arial',...
-               'Color','k','FontSize',14);
-            xlabel(obj.Score.Axes,'Post-Op Day',...
-               'FontName','Arial',...
-               'Color','k','FontSize',14);
-            obj.Score.Trace = line(obj.Score.Axes,...
-               scoreDays,nan(size(scoreDays)),...
+         if nargin > 4
+            obj.Covariate = struct;
+            obj.Covariate.Axes = covAx;
+            obj.Covariate.Axes.NextPlot = 'add';
+            ylim(obj.Covariate.Axes,[0 100]);
+            xlim(obj.Covariate.Axes,[1 31]);
+            obj.Covariate.t = t_o;
+            obj.Covariate.Trace = repmat(...
+               line(obj.Covariate.Axes,...
+               t,nan(size(t)),...
                'Color','b',...
                'LineWidth',3,...
-               'LineStyle','-');
-            obj.Score.OrigPts = scatter(obj.Score.Axes,...
-               obj.Score.t,obj.Score.pct,50,...
-               'MarkerEdgeColor','b',...
-               'MarkerFaceColor','flat',...
-               'CData',ones(numel(obj.Score.t),3),...
-               'LineWidth',2);
-            obj.Score.OrigPts.SizeData = nan(numel(obj.Score.t),1);
-            mindiff_scoreDays = false(size(scoreDays));
-            for ii = 1:numel(obj.Score.t)
-               [~,d] = min(abs(scoreDays - obj.Score.t(ii)));
-               mindiff_scoreDays(d) = true;
-            end
+               'LineStyle','-'),size(cY,1),1);
          end     
-         iCount = 0;
-         for ii = 1:size(sizeData,2)
-            if nargin > 2
-               s = round(scoreData(ii)*100);
-               title(obj.Axes,...
-                  [obj.Name sprintf(' (%g%%)',s)],...
-                  'FontName','Arial','FontSize',14,'Color','k');
-            end
+
+         for ii = 1:size(sz,2)
             if nargin > 3
-               obj.Score.Trace.YData(ii) = s;
-               if mindiff_scoreDays(ii)
-                  iCount = iCount + 1;
-%                   obj.Score.OrigPts.YData(iCount) = obj.Score.pct(iCount);
-                  obj.Score.OrigPts.SizeData(iCount) = 100;
-                  obj.Score.OrigPts.CData(iCount,:) = [1 1 0];
-                  if iCount > 1
-                     obj.Score.OrigPts.SizeData(iCount-1) = 50;
-                     obj.Score.OrigPts.CData(iCount-1,:) = [1 1 1];
-                  end
-                  drawnow;
+               for iTr = 1:numel(obj.Covariate.Trace)
+                  obj.Covariate.Trace(iTr).YData(ii) = cY(iTr,ii);
                end
             end
-            obj.changeScatterGroupSizeData(sizeData(:,ii));
+            obj.changeScatterGroupSizeData(sz(:,ii));
             MV(:,:,:,ii) = utils.screencapture(obj.Figure);
          end
       end
       
-      % Change the sizes for data on an existing scatter group of electrode
-      % channels
-      function changeScatterGroupSizeData(obj,sizeData,groupIdx)
+      % Change the sizes for data on an existing scatter group of electrode channels
+      function changeScatterGroupSizeData(obj,sz,g)
+         %CHANGESCATTERGROUPSIZEDATA Change sizes for data on an existing scatter group of electrode channels
+         %
+         %  changeScatterGroupSizeData(obj,sizeData,groupIdx);
+         %
+         % Inputs
+         %  obj - ratskull_plot object
+         %  sz  - Size data to update
+         %  g   - Group index
+         %
+         % Output
+         %  -- none -- Simply updates the correct scatter point sizes
+         
          if nargin < 3
-            groupIdx = 1;
+            g = 1;
          end
-         for ii = 1:numel(sizeData)
-            obj.Children(groupIdx).Children(ii).SizeData = sizeData(ii);
+         for ii = 1:numel(sz)
+            obj.Children(g).Children(ii).SizeData = sz(ii);
          end
+         drawnow;
       end
       
       % MV(:,:,:,fi) = getMovieFrame(obj);
       function MV = getMovieFrame(obj)
+         %GETMOVIEFRAME Returns a single movie frame capture
+         %
+         %  MV = getMovieFrame(obj);
+         %
+         % Inputs
+         %  obj - ratskull_plot scalar object
+         %
+         % Output
+         %  MV  - Tensor for image of a single frame capture
+         
          MV = utils.screencapture(obj.Axes);
       end
       
       % Overloads SCATTER method
       function hgg = scatter(obj,x,y,scattername,varargin)
+         %SCATTER Overloads `scatter` built-in method
+         %
+         %  hgg = scatter(obj,x,y);
+         %  hgg = scatter(obj,x,y,scattername);
+         %  hgg = scatter(obj,x,y,scattername,'name',value,...);
+         %
+         % Inputs
+         %  obj         - ratskull_plot class object
+         %  x           - X-coordinates for scatter points
+         %  y           - Y-coordinates for scatter points
+         %  scattername - char or string array of name of scatter group
+         %  varargin    - (Optional 'name',value input argument pairs)
+         %
+         % Output
+         %  hgg         - Graphics hgroup object for scatter points
+         %
+         % See also: ratskull_plot, make.fig, make.fig.skullPlot
+         
          if nargin < 4
             scattername = defaults.ratskull_plot('Scatter_GroupName');
          end
@@ -187,57 +237,54 @@ classdef ratskull_plot < handle
          if numel(obj) > 1
             if iscell(x)
                for ii = 1:numel(obj)
-                  scatter(obj(ii),x{ii},y{ii},varargin);
+                  scatter(obj(ii),x{ii},y{ii},scattername,varargin{:});
                end
             else
                for ii = 1:numel(obj)
-                  scatter(obj(ii),x,y,varargin);
+                  scatter(obj(ii),x,y,scattername,varargin{:});
                end
             end
             return;
          end
          
          % Parse variable 'Name' value pairs
-         p = defaults.ratskull_plot('Scatter');
-         f = fieldnames(p);
-         if ~isempty(varargin)
-            if (numel(varargin)==1)&&(iscell(varargin{1}))
-               varargin = varargin{1};
-            end
-            for iV = 1:2:numel(varargin)
-               % Check that it is a correct property
-               if isfield(p,varargin{iV})
-                  p.(varargin{iV}) = varargin{iV+1};
-               else
-                  idx = find(ismember(lower(f),lower(varargin{iV})),1,'first');
-                  if isempty(idx)
-                     error('%s is not a valid Scatter Property.',varargin{iV});
-                  else
-                     p.(f{idx}) = varargin{iV+1};
-                  end
-               end
-            end
-         end
-         
+         p = defaults.ratskull_plot('Scatter');         
          if isempty(p.Parent)
             hgg = hggroup(obj.Axes,'DisplayName',scattername);
-            scatter(obj.Axes,x,y,p.MarkerSize,...
+            scatter(obj.Axes,x,y,...
+               'SizeData',p.MarkerSize,...
                'MarkerEdgeColor',p.MarkerEdgeColor,...
                'Marker',p.Marker,...
                'MarkerFaceColor',p.MarkerFaceColor,...
                'MarkerFaceAlpha',p.MarkerFaceAlpha,...
-               'Parent',hgg);
+               'Parent',hgg,...
+               varargin{:});
          else
-            scatter(obj.Axes,x,y,p.MarkerSize,...
+            scatter(obj.Axes,x,y,...
+               'SizeData',p.MarkerSize,...
                'MarkerEdgeColor',p.MarkerEdgeColor,...
                'Marker',p.Marker,...
                'MarkerFaceColor',p.MarkerFaceColor,...
                'MarkerFaceAlpha',p.MarkerFaceAlpha,...
-               'Parent',p.Parent);
+               'Parent',p.Parent,...
+               varargin{:});
          end
       end
       
+      % Set properties
       function setProp(obj,propName,propVal)
+         %SETPROP Set properties
+         %
+         %  setProp(obj,propName,propVal);
+         %
+         % Inputs
+         %  obj      - Scalar ratskull_plot object
+         %  propName - Cell array or char array of property name to set
+         %  propVal  - Values match elements of propName to update
+         %
+         % Output
+         %  -- none -- Updates corresponding properties
+         
          % Parse input arrays
          if numel(obj) > 1
             if (numel(propName) > 1) 
@@ -278,6 +325,18 @@ classdef ratskull_plot < handle
    methods (Access = private)
       % Listener function that handles changes in axes limits
       function handleAxesLimChange(obj,src,evt)
+         %HANDLEAXESLIMCHANGE Listener that fires if axes limits change
+         %
+         %  handleAxesLimChange(obj,src,evt);
+         %
+         % Inputs
+         %  obj - ratskull_plot object
+         %  src - Event source object
+         %  evt - Event object
+         %
+         % Output
+         %  -- none -- Handles changes in axes limits
+         
          setProp(obj,src.Name,evt.AffectedObject.(src.Name));
       end
       
@@ -286,6 +345,16 @@ classdef ratskull_plot < handle
    methods (Access = private, Static = true)
       % Make property struct with graphics object and graphics text label
       function bregma = buildBregma(ax)
+         %BUILDBREGMA Creates the "bregma" graphics object marker struct
+         %
+         %  bregma = ratskull_plot.buildBregma(ax);
+         %
+         % Inputs
+         %  ax - Graphics axes object
+         %
+         % Output
+         %  bregma - Struct with 'Marker' and 'Label' fields
+         
          bregma.Marker = fill(ax,...
             defaults.ratskull_plot('Bregma_X'),...
             defaults.ratskull_plot('Bregma_Y'),...
@@ -296,6 +365,16 @@ classdef ratskull_plot < handle
       
       % Make Scale_Compass property using graphics objects and text labels
       function scale_compass = buildScale_Compass(ax)
+         %BUILDSCALE_COMPASS Create graphics group for scale compass
+         %
+         %  scale_compass = ratskull_plot.buildScale_Compoass(ax);
+         %
+         % Inputs
+         %  ax            - Axes object
+         %
+         % Output
+         %  scale_compass - Graphics hggroup object
+         
          scale_compass = hggroup(ax,'DisplayName','Compass');
          
          w = defaults.ratskull_plot('Scale_X');
@@ -339,6 +418,17 @@ classdef ratskull_plot < handle
       
       % Set axes properties in constructor
       function ax = setAxProperties(ax)
+         %SETAXPROPERTIES  Set properties of the axes with ratskull_plot
+         %
+         %  ax = ratskull_plot.setAxProperties(ax);
+         %
+         % Inputs
+         %  ax - Axes object that ratskull_plot goes on
+         %  varargin - Any `axes` 'name',value pairs
+         %
+         % Output
+         %  ax - Updated version of input
+         
          ax.XLim = defaults.ratskull_plot('XLim');
          ax.YLim = defaults.ratskull_plot('YLim');
          ax.XTick = [];
@@ -348,6 +438,19 @@ classdef ratskull_plot < handle
       
       % Set figure properties in constructor
       function fig = setFigProperties(fig)
+         %SETFIGPROPERTIES Set figure properties of ratskull_plot figure
+         %
+         %  fig = ratskull_plot.setFigProperties(fig);
+         %
+         % Inputs
+         %  fig - Graphics figure object that contains axes with
+         %        ratskull_plot.
+         %  varargin - Any 'Figure' 'name',value pairs
+         %
+         % Output
+         %  fig - Same as input with properties set to defaults for
+         %        ratskull_plot.
+         
          if isempty(get(fig,'Name'))
             set(fig,'Name',defaults.ratskull_plot('Fig_Name'));
          end

@@ -43,6 +43,7 @@ jpca_params.Area = '';
 jpca_params.Day = [];
 jpca_params.epsilon = 1e-5;
 jpca_params.numPCs = 12;
+jpca_params.pc_floor = 6;  % Absolute minimum # pcs
 jpca_params.threshPC = 75; % Determines the number of PCs to use
 jpca_params.min_n_trials_def = 5; % Default minimum # trials
 jpca_params.normalize = false; 
