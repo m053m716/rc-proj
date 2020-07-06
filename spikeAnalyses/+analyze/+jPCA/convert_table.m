@@ -124,7 +124,14 @@ uTrial = unique(T.Trial_ID);
 % Want to make sure we have channels with equal # of trials (meaning that
 % the channel can be expected for each condition). Also want to ensure that
 % we have 
-[G_pre,CID] = findgroups(T(:,{'Alignment','ChannelID'}));
+cid_vars = {'Alignment','ChannelID', ... % main grouping variables
+   'ProbeID','AnimalID','Area','ML','ICMS','X','Y'}; % for metadata/labels
+[G_pre,CID] = findgroups(T(:,cid_vars));
+CID.Properties.Description = 'Channel information/metadata';
+CID.Properties.VariableUnits = {...
+   '','','','','','','Evoked Movement','mm','mm'...
+   };
+CID.Properties.UserData = struct('type','ChannelInfo');
 nTrial = splitapply(@(tid)sum(ismember(uTrial,tid)),T.Trial_ID,G_pre);
 iRemove = find(nTrial ~= max(nTrial));
 T(ismember(G_pre,iRemove),:) = [];

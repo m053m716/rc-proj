@@ -35,6 +35,8 @@
 %   minimize                        - Minimize a differentiable multivariate function. 
 %   minusPi2Pi                      - Return value in range [-pi,pi]
 %   multi_jPCA                      - Apply jPCA to short segments of `Data` focused on tagged events
+%   recover_align_index             - Get indices of alignment for individual trials
+%   recover_channel_weights         - Recover weightings for individual channels jPCs
 %   recover_explained_variance      - Return struct with % explained var, etc.
 %   reshapeSkew                     - Reindexes a vector to a matrix or vice versa
 %   skewSymLSeval                   - Evaluates distance & derivative, imposing skew symmetry on M
@@ -47,6 +49,8 @@
 %   formatWarped                    - Convert "warped" rate data <strong>deprecated</strong>
 %   export_jPCA_movie               - Export movie created by <a href="matlab:help analyze.jPCA.phaseMovie">phaseMovie</a> <strong>deprecated</strong>
 %   reshapeSkew_orth                - Reshape matrix for minimization with increased constraints <strong>deprecated</strong>
+%   rotate2jPCA                     - Rotate a trajectory to the corresponding jPCA projection
+%   rotationMovie                   - This is a hastily written and not well commented function.
 %   skewSymLSeval_orth              - Evaluate LS function with increased constraint from SKEWSYMLSEVAL <strong>deprecated</strong>
 %   skewSymRegress_orth             - Find sets of orthogonal subspaces with rotatory structure <strong>deprecated</strong>
 %
@@ -58,15 +62,17 @@
 %   plotMultiRosette                - Plot multiple rosettes
 %   printFigs                       - Export vectorized figures for insertion to other documents etc
 %   RC_cmap                         - Returns specific color map for RC project success vs fail trials
-%   rotate2jPCA                     - Rotate a trajectory to the corresponding jPCA projection
-%   rotationMovie                   - This is a hastily written and not well commented function.
+%   scatter_channel_activations     - Create scatter plots of channelwise activity
+%   scatter_R2skew                  - Make scatter plot of R2 for a single animal
 %   stemPCvariance                  - Stem plot of variance explained per Principal Component
 %
 % Export Functions
+%   gross_output_table              - Initializes "aggregate" output table for jPCA analyses
 %   export_table                    - Create table that can be exported for JMP statistics
 %
 % <strong>Main Functions</strong>
 %   convert_table                   - Converts from table format to jPCA struct array format
+%   get_projection_matrix           - Core function to return projection matrices
 %   jPCA                            - Recover rotatory projections from spiking rate time-series
 %
 % <strong>Main Visualization Tools</strong>
@@ -74,6 +80,3 @@
 %   phaseSpace                      - For making publication quality rosette plots
 %   plotPhaseDiff                   - Plots histogram of angle between dx(t)/dt and x(t) 
 %   plotRosette                     - Plot the rosette (lines with arrows) itself
-%
-% Scripts
-%   example                         - Get `example.mat` dataset from the <a href="https://www.dropbox.com/sh/2q3m5fqfscwf95j/AAC3WV90hHdBgz0Np4RAKJpYa?dl=0">source website</a>

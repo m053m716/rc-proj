@@ -1,10 +1,11 @@
-function params = phaseSpace(Projection,Summary,varargin)
+function params = phaseSpace(Projection,varargin)
+% function params = phaseSpace(Projection,Summary,varargin)
 %PHASESPACE  For making publication quality rosette plots
 %
-% >> analyze.jPCA.phaseSpace(Projection,Summary)
-% >> params = analyze.jPCA.phaseSpace(Projection,Summary,params)
-% >> params = analyze.jPCA.phaseSpace(Projection,Summary,'Name',val,...)
-% >> params = analyze.jPCA.phaseSpace(__,params,'Name',val,...)
+%  analyze.jPCA.phaseSpace(Projection,Summary)
+%  params = analyze.jPCA.phaseSpace(Projection,Summary,params)
+%  params = analyze.jPCA.phaseSpace(Projection,Summary,'Name',val,...)
+%  params = analyze.jPCA.phaseSpace(__,params,'Name',val,...)
 %
 % Inputs
 %  Projection - Struct array of projections and metadata
@@ -50,10 +51,12 @@ function params = phaseSpace(Projection,Summary,varargin)
 %           parameters that were estimated from the data during
 %           `analyze.jPCA.phaseSpace`
 %
-%  See Also:   analyze.jPCA.jPCA, analyze.jPCA.multi_jPCA
+%  See Also:   analyze.jPCA, analyze.jPCA.jPCA, analyze.jPCA.multi_jPCA,
+%              make.exportSkullPlotMovie
 
 % Check input arguments
-if nargin < 3
+if nargin < 2
+% if nargin < 3
    params = defaults.jPCA('movie_params');
 else
    if isstruct(varargin{1})
@@ -81,25 +84,27 @@ else
    trials2plot = 1:numTrials;
 end
 
-% If asked, substitue the raw PC projections.
-if params.substRawPCs 
-   % total number of planes provided (may only plot a subset):
-   numPlanes = length(Summary.varCaptEachPlane); 
-   for c = 1:numTrials
-      Projection(c).proj = Projection(c).state;
-   end
-   Summary.varCaptEachPlane = sum(reshape(Summary.varCaptEachPC,2,numPlanes));
-end
+% % If asked, substitue the raw PC projections.
+% if params.substRawPCs 
+%    % total number of planes provided (may only plot a subset):
+%    numPlanes = length(Summary.varCaptEachPlane); 
+%    for c = 1:numTrials
+%       Projection(c).proj = Projection(c).state;
+%    end
+%    Summary.varCaptEachPlane = sum(reshape(Summary.varCaptEachPC,2,numPlanes));
+% end
 
-if strcmp(params.rankType, 'varCapt')  && params.substRawPCs == 0  % we WONT reorder if they were PCs
-   [~, sortIndices] = sort(Summary.varCaptEachPlane,'descend');
-   planes2plot_Orig = params.plane2plot;  % keep this so we can label the plane appropriately
-   planeRankings = sortIndices(planes2plot_Orig);  % get the asked for planes, but by var accounted for rather than eigenvalue
-else
-   planeRankings = params.plane2plot;
-end
+% if strcmp(params.rankType, 'varCapt')  && params.substRawPCs == 0  % we WONT reorder if they were PCs
+%    [~, sortIndices] = sort(Summary.varCaptEachPlane,'descend');
+%    planes2plot_Orig = params.plane2plot;  % keep this so we can label the plane appropriately
+%    planeRankings = sortIndices(planes2plot_Orig);  % get the asked for planes, but by var accounted for rather than eigenvalue
+% else
+%    planeRankings = params.plane2plot;
+% end
 
-if numTrials < 5
+planeRankings = params.plane2plot;
+
+if (numTrials < params.min_trials)
    fprintf(1,'Only %g trials for this dataset. skipping.\n',numTrials);
    return;
 end
@@ -133,8 +138,8 @@ for pindex = 1:numel(planeRankings)
    % need this for ellipse plotting
    ellipseRadii = std(planData,[],1);  % we may plot an ellipse for the plan activity
    mu = nanmean(planData,1);
-   R = nancov(planData);
-   theta_rot = atan2(sqrt(sum(R(:,2).^2)),sqrt(sum(R(:,1).^2)));
+%    R = nancov(planData);
+%    theta_rot = atan2(sqrt(sum(R(:,2).^2)),sqrt(sum(R(:,1).^2)));
    
    % these will be altered further below based on how far the data extends left and down
    farthestLeft = mu(1)-ellipseRadii(1)*5;  % used figure out how far the axes need to be offset
@@ -228,10 +233,10 @@ for pindex = 1:numel(planeRankings)
       delete(allMarker);
    end
    
-   % first deal with the ellipse for the plan variance (we want this under the rest of the data)
-   if params.plotPlanEllipse
-      analyze.jPCA.circle(ellipseRadii,theta_rot,mu);
-   end
+%    % first deal with the ellipse for the plan variance (we want this under the rest of the data)
+%    if params.plotPlanEllipse
+%       analyze.jPCA.circle(ellipseRadii,theta_rot,mu);
+%    end
    
    % % % % THIS PLOTS THE INDIVIDUAL TRAJECTORIES % % % % %
    
@@ -241,6 +246,12 @@ for pindex = 1:numel(planeRankings)
    X = cell2mat(X);
    Y = cell2mat(Y);
    C = cell2mat(C);
+   
+   if ~isempty(params.highlight_trial)
+      offset = zeros(1,size(C,2));
+      offset(params.highlight_trial) = params.highlight_offset;
+      C = C + offset;
+   end
    
    if params.plotIndividualTrajs
       patch(params.Axes,X,Y,C,...
@@ -263,49 +274,49 @@ for pindex = 1:numel(planeRankings)
       'FaceColor','interp',...
       'Tag','Marker');  % plot a central cross
 
-   % if asked we will also plot the cross condition mean
-   if params.plotMeanTrajs && (size(Summary.crossCondMean,1) > 1)
-      cond = [Projection.Outcome];
-      for iC = 1:2
-         iCond = cond==iC;
-         if sum(iCond)==0
-            continue;
-         end
-         nPt = floor(size(X,1)/2);
-         P1 = mean(X(1:nPt,iCond),2);
-         P2 = mean(Y(1:nPt,iCond),2);
-
-         if (numel(P1) < 2) || (numel(P2) < 2)
-            str = repmat('->\t%6.7g\n',1,numel(overrideTimes));
-            fprintf(1,['Could not find matches for:\n' str],overrideTimes);
-            continue;
-         end
-
-         % make slightly thicker than for rest of data
-         line(params.Axes,P1, P2,...
-            'Color', params.meanColor(iC,:), ...
-            'LineWidth', 2*params.lineWidth,...
-            'LineStyle',':',...
-            'Tag','Trajectory');  
-
-         % for arrow, figure out last two points, and (if asked) supress 
-         % the arrow if velocity is below a threshold.
-         penultimatePoint = [P1(end-1), P2(end-1)];
-         lastPoint = [P1(end), P2(end)];
-         vel = norm(lastPoint - penultimatePoint);
-
-         % if asked (e.g. for movies) arrow size may grow with vel
-         aSize = params.arrowSize + params.arrowGain * vel;  
-         analyze.jPCA.arrowMMC(penultimatePoint, lastPoint, [], ...
-            'Size',aSize, ...
-            'XLim',params.axLim(1:2),...
-            'YLim',params.axLim(3:4),...
-            'FaceColor',params.meanColor(iC,:),...
-            'EdgeColor',params.meanColor(iC,:),...
-            'Axes',params.Axes,...
-            'FaceAlpha',1);
-      end
-   end
+%    % if asked we will also plot the cross condition mean
+%    if params.plotMeanTrajs && (size(Summary.crossCondMean,1) > 1)
+%       cond = [Projection.Outcome];
+%       for iC = 1:2
+%          iCond = cond==iC;
+%          if sum(iCond)==0
+%             continue;
+%          end
+%          nPt = floor(size(X,1)/2);
+%          P1 = mean(X(1:nPt,iCond),2);
+%          P2 = mean(Y(1:nPt,iCond),2);
+% 
+%          if (numel(P1) < 2) || (numel(P2) < 2)
+%             str = repmat('->\t%6.7g\n',1,numel(overrideTimes));
+%             fprintf(1,['Could not find matches for:\n' str],overrideTimes);
+%             continue;
+%          end
+% 
+%          % make slightly thicker than for rest of data
+%          line(params.Axes,P1, P2,...
+%             'Color', params.meanColor(iC,:), ...
+%             'LineWidth', 2*params.lineWidth,...
+%             'LineStyle',':',...
+%             'Tag','Trajectory');  
+% 
+%          % for arrow, figure out last two points, and (if asked) supress 
+%          % the arrow if velocity is below a threshold.
+%          penultimatePoint = [P1(end-1), P2(end-1)];
+%          lastPoint = [P1(end), P2(end)];
+%          vel = norm(lastPoint - penultimatePoint);
+% 
+%          % if asked (e.g. for movies) arrow size may grow with vel
+%          aSize = params.arrowSize + params.arrowGain * vel;  
+%          analyze.jPCA.arrowMMC(penultimatePoint, lastPoint, [], ...
+%             'Size',aSize, ...
+%             'XLim',params.axLim(1:2),...
+%             'YLim',params.axLim(3:4),...
+%             'FaceColor',params.meanColor(iC,:),...
+%             'EdgeColor',params.meanColor(iC,:),...
+%             'Axes',params.Axes,...
+%             'FaceAlpha',1);
+%       end
+%    end
    if params.substRawPCs
       titleText = sprintf('raw PCA plane %d', plane);
    elseif strcmp(params.rankType, 'varCapt')
@@ -323,6 +334,7 @@ for pindex = 1:numel(planeRankings)
       params.titleText_plane = ...
          text(params.Axes,0,0.99*params.axLim(4),titleText, ...
          'HorizontalAlignment','center',...
+         'VerticalAlignment','bottom',...
          'Color','w',...
          'FontSize',16,...
          'FontWeight','bold',...

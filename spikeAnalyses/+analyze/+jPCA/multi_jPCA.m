@@ -184,6 +184,7 @@ for iDay = 1:nDay
 end
 % Remove extras
 D(cellfun(@isempty,D.Projection),:) = [];
+D.Properties.UserData = struct('type','MultiJPCA');
 
    function [ud,nDay,uAlign,nAlignment,nAnimal] = parseFromInputTable(S)
       %PARSEFROMINPUTTABLE Parse unique days & alignments (depends input)

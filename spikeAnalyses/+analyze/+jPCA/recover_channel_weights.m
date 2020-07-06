@@ -1,26 +1,123 @@
-function out = recover_channel_weights(P,S,wrap)
+function out = recover_channel_weights(D,varargin)
 %RECOVER_CHANNEL_WEIGHTS Recover weightings for individual channels jPCs
 %
-%  out = analyze.jPCA.recover_channel_weights(P,S);
-%  out = analyze.jPCA.recover_channel_weights(P,S,wrap);
+%  out = analyze.jPCA.recover_channel_weights(D);
+%  out = analyze.jPCA.recover_channel_weights(D,varargin);
+%
+% Examples:
+%  out = analyze.jPCA.recover_channel_weights(D,'wrap',true);
+%     -> "Wraps" output in cell array for `splitapply` workflow
+%
+%  out = analyze.jPCA.recover_channel_weights(D'groupings',groups);
+%     -> `groups` is a vector of length nChannels, with `k` unique indices
+%         that correspond to matching columns of `P.data` and group them
+%         together according to some scheme (see 'CID' parameter below)
+%
+%  out = analyze.jPCA.recover_channel_weights(D,pars);
+%     -> Give `pars` directly as parameters struct (see `pars` in code)
 %
 % Inputs
-%  P   - Projection struct array from analyze.jPCA
-%  S   - Summary struct from analyze.jPCA that matches `P`
-%  wrap - Set true to "wrap" output as cell (default is false)
+%  D        - Table recovered from analyze.jPCA.multi_jPCA
+%  varargin - 'name',value optional input argument pairs
+%              'wrap': 
+%                 Set true to "wrap" output as cell (default is false)
+%              'groupings': 
+%                 Default is NaN; can provide as vector with k 
+%                 unique indexing elements and length nChannels. 
+%                 If `P` is table with 'CID' variable, then groupings is 
+%                 the name of a 'CID' variable used with `findgroups` (or
+%                 if 'CID' is provided directly via 'Name',value pairs.
 %
 % Output
 %  out - Scalar cell. Cell contains:
-%        Updated projection struct array with new field: 'W'
-%        -> 'W' is the weightings for original rate data, using jPCA matrix
+%        Updated projection struct array (`P`) with new fields: 
+%        'W' 
+%        -> 'W' is a tensor of dimension [nSample x nPC x nGroupings]
+%           * If `pars.groupings` is kept as nan, then
+%              nGroupings == nChannels
+%           * Otherwise, groupings can be used for example to combine array
+%              elements by area or some other relevant channel grouping.
+%        -> For a given grouping (g), this means that row (i) of column (j)
+%           are equivalent to the contribution (linear scaling) of grouping
+%           `g` to jPC component `j` at timestep `i` during some trial
+%           (indexed by the corresponding struct element of the output `P`)
+%        'W_Key'
+%        -> 'W_Key' is a table where each row corresponds to the groupings
+%                    dimension (third dimension) of 'W' and it indicates
+%                    how groups were aggregated.
+%        'W_Groups'
+%        -> 'W_Groups' gives the index groupings (same as pars.groupings)
+%        'CID'
+%        -> 'CID' gives "channel" info (specifically, X and Y centers for
+%              spatial plots for each group)
+%
+% See also: analyze.jPCA, analyze.jPCA.jPCA, analyze.jPCA.multi_jPCA,
+%           analyze.jPCA.convert_table, jPCA.mlx
 
-if nargin < 3
-   wrap = false;
+% % pars struct % %
+pars = struct;
+pars.wrap = false;
+pars.groupings = nan;
+% % end pars struct % %
+
+% % Parse variable inputs % %
+fn = fieldnames(pars);
+
+if ~istable(D)
+   error(['JPCA:' mfilename ':BadInputClass'],...
+         ['\n\t->\t<strong>[RECOVER_CHANNEL_WEIGHTS]:</strong> ' ...
+          '`D` should be table (result of `multi_jPCA`)']);
+else
+   if ~utils.check_table_type(D,'MultiJPCA')
+      error(['JPCA:' mfilename ':BadTable'],...
+         ['\n\t->\t<strong>[RECOVER_CHANNEL_WEIGHTS]:</strong> ' ...
+          'Bad table type, should be result of `multi_jPCA`']);
+   end
 end
 
-n = size(P(1).state,1); % # samples per trial
+if numel(varargin) >= 1
+   if isstruct(varargin{1})
+      pars = varargin{1};
+      varargin(1) = [];
+   end
+end
+
+for iV = 1:2:numel(varargin)
+   idx = strcmpi(fn,varargin{iV});
+   if sum(idx)==1
+      pars.(fn{idx}) = varargin{iV+1};
+   end
+end
+
+if size(D,1)>1
+   out = cell(size(D,1),1);
+   pars.wrap = false;
+   for ii = 1:size(D,1)
+      out{ii} = analyze.jPCA.recover_channel_weights(D(ii,:),pars);
+   end
+   return;
+end
+
+CID = D.CID{1};
+S = D.Summary{1};
+P = D.Projection{1};
+
+if ischar(pars.groupings) || isstring(pars.groupings) || iscell(pars.groupings)   
+   if ischar(pars.groupings)
+      [pars.groupings,groupKey] = findgroups(CID(:,{pars.groupings}));
+   else
+      [pars.groupings,groupKey] = findgroups(CID(:,pars.groupings));
+   end
+end
+
+% % Compute weights etc. below % %
+% nTrial:   # "conditions" per jPCA nomenclature
+% n:        # samples per trial
+% nPC:      # principal components (and therefore, # jPCs); must be EVEN
+n = size(P(1).state,1); 
 nTrial = numel(P); 
-M = analyze.jPCA.convert_Mskew_to_jPCs(S.Mskew);
+M = analyze.jPCA.convert_Mskew_to_jPCs(S.Mskew); % sort by eig:
+M = M(:,S.SS.skew.explained.sort.vec.eig);
 nPC = size(M,1);
 C = S.PCA.vectors_all; 
 
@@ -33,26 +130,71 @@ C = S.PCA.vectors_all;
 % particular jPC plane.
 Ci = inv(C'); 
 
+% Get cross-trial mean as well as cross-condition mean.
+mu = repmat(nanmean(cat(3,P.data),3),nTrial,1);
+
 % Create data matrix using original observed rates
 X = vertcat(P.data);
+X = X - mu; % Subtract cross-trial mean
 X = X - nanmean(X); % Remove cross-condition mean from rates.
-nChannels = size(X,2);
 
-% Our "activations" are therefore a tensor that is different for each
-% channel.
-W = nan(size(X,1),nPC,nChannels);
+% % Depending on `groupings` either parse individual channel           % %
+% % contributions (if `groupings` is NaN) or else use `groupings` in   % %
+% % defining the output size as well as the matrix multiplies.         % %
 
-% Use projection matrix and PC coefficients to recover rotated rates
-for iCh = 1:nChannels
-   W(:,:,iCh) = X(:,iCh)*Ci(iCh,1:nPC)*M;
+if isnan(pars.groupings(1)) % Then parse from data
+   nChannels = size(X,2);
+
+   % Our "activations" are therefore a tensor that is different for each
+   % channel.
+   W = nan(size(X,1),nPC,nChannels);
+
+   % Use projection matrix and PC coefficients to recover activations %
+   for iCh = 1:nChannels
+      W(:,:,iCh) = X(:,iCh)*Ci(iCh,1:nPC)*M;
+   end
+
+   % Distribute back as individual trials
+   W_c = mat2cell(W,ones(1,nTrial).*n,nPC,nChannels);
+   groupKey = table((1:nChannels)','VariableNames',{'Channel'});
+   pars.groupings = (1:nChannels)';
+else % Otherwise just define off size of groupings and grouping indices
+   uG = unique(pars.groupings);
+   nGroups = numel(uG);
+   
+   % Our "activations" are therefore a tensor that is different for each
+   % grouping.
+   W = nan(size(X,1),nPC,nGroups);
+   
+   % Use projection matrix and PC coefficients to recover activations %
+   for iG = 1:nGroups
+      idx = pars.groupings==uG(iG);
+      W(:,:,iG) = X(:,idx)*Ci(idx,1:nPC)*M;
+   end
+   
+   % Distribute back as individual trials
+   W_c = mat2cell(W,ones(1,nTrial).*n,nPC,nGroups);
+   X = splitapply(@mean,CID.X,pars.groupings);
+   Y = splitapply(@mean,CID.Y,pars.groupings);
+   Alignment = repmat(CID.Alignment(1),nGroups,1);
+   AnimalID = repmat(CID.AnimalID(1),nGroups,1);
+   
+   CID = [table(Alignment,AnimalID,X,Y), groupKey];
+   CID.Properties.Description = 'Channel information/metadata';
+   CID.Properties.VariableUnits = [strings(1,2),"mm","mm",...
+      strings(1,size(groupKey,2))];
+   CID.Properties.UserData = struct('type','ChannelInfo');
 end
-
-% Distribute back as individual trials
-Wc = mat2cell(W,ones(1,nTrial).*n,nPC,nChannels);
-[P.W] = deal(Wc{:});
+W_Key_c = repmat({groupKey},nTrial,1);
+W_Groups_c = repmat({pars.groupings},nTrial,1);
+CID_c = repmat({CID},nTrial,1);
+[P.W] = deal(W_c{:});
+[P.W_Key] = deal(W_Key_c{:});
+[P.W_Groups] = deal(W_Groups_c{:});
+[P.CID] = deal(CID_c{:});
 
 % Wrap it as a cell so we can use with `splitapply` workflow
-if wrap
+if pars.wrap
    out = {P};
 else
    out = P;
