@@ -58,15 +58,40 @@ function out = recover_channel_weights(D,varargin)
 pars = struct;
 pars.wrap = false;
 pars.groupings = nan;
+pars.matType  = 'skew';
+pars.projType = 'skew';
+pars.rankType = 'eig';
+pars.subtract_mean = true;
+pars.subtract_xc_mean = true;
 % % end pars struct % %
 
 % % Parse variable inputs % %
 fn = fieldnames(pars);
 
 if ~istable(D)
-   error(['JPCA:' mfilename ':BadInputClass'],...
-         ['\n\t->\t<strong>[RECOVER_CHANNEL_WEIGHTS]:</strong> ' ...
-          '`D` should be table (result of `multi_jPCA`)']);
+   if isstruct(D)
+      if ~isfield(D,'CID')
+         error(['JPCA:' mfilename ':BadInputClass'],...
+            ['\n\t->\t<strong>[RECOVER_CHANNEL_WEIGHTS]:</strong> ' ...
+             '`D` as a struct must contain fields: `CID`, `W_Key`, `W_Groups`)']);
+      end
+   elseif iscell(D)
+      if isstruct(D{1})
+         if ~isfield(D{1},'CID')
+            error(['JPCA:' mfilename ':BadInputClass'],...
+            ['\n\t->\t<strong>[RECOVER_CHANNEL_WEIGHTS]:</strong> ' ...
+             '`D` as a struct must contain fields: `CID`, `W_Key`, `W_Groups`)']);
+         end
+      else
+         error(['JPCA:' mfilename ':BadInputClass'],...
+            ['\n\t->\t<strong>[RECOVER_CHANNEL_WEIGHTS]:</strong> ' ...
+             '`D` can be a cell array of structs)']);
+      end
+   else
+      error(['JPCA:' mfilename ':BadInputClass'],...
+            ['\n\t->\t<strong>[RECOVER_CHANNEL_WEIGHTS]:</strong> ' ...
+             '`D` should be table (result of `multi_jPCA`)']);
+   end
 else
    if ~utils.check_table_type(D,'MultiJPCA')
       error(['JPCA:' mfilename ':BadTable'],...
@@ -89,18 +114,49 @@ for iV = 1:2:numel(varargin)
    end
 end
 
-if size(D,1)>1
+if (size(D,1)>1) && (~isstruct(D))
    out = cell(size(D,1),1);
    pars.wrap = false;
-   for ii = 1:size(D,1)
-      out{ii} = analyze.jPCA.recover_channel_weights(D(ii,:),pars);
+   if iscell(D)
+      for ii = 1:size(D,1)
+         out{ii} = analyze.jPCA.recover_channel_weights(D{ii},pars);
+      end
+   else
+      for ii = 1:size(D,1)
+         out{ii} = analyze.jPCA.recover_channel_weights(D(ii,:),pars);
+      end
    end
    return;
 end
 
-CID = D.CID{1};
-S = D.Summary{1};
-P = D.Projection{1};
+matField = sprintf('M%s',lower(pars.matType));
+if istable(D)
+   CID = D.CID{1};
+   S = D.Summary{1};
+   P = D.Projection{1};
+   m = S.(matField);
+   C = S.PCA.vectors_all; 
+   if strcmpi(pars.rankType,'eig')
+      [~,dEig] = eig(m);
+      [~,sortIndices] = sort(abs(diag(dEig)),'descend');
+   else
+      sortIndices = S.SS.(pars.projType).explained.sort.vec.(pars.rankType);
+   end
+else
+   CID = D(1).CID;
+   C = D(1).misc.PCs;
+   m = D(1).misc.(matField);
+   if strcmpi(pars.rankType,'eig')
+      [~,dEig] = eig(m);
+      [~,sortIndices] = sort(abs(diag(dEig)),'descend');
+   else
+      sortIndices = D(1).misc.(pars.projType).explained.sort.vec.(pars.rankType);
+   end
+   P = D;
+end
+
+M = analyze.jPCA.convert_Mskew_to_jPCs(m); % sort by eig:
+M = M(:,sortIndices);
 
 if ischar(pars.groupings) || isstring(pars.groupings) || iscell(pars.groupings)   
    if ischar(pars.groupings)
@@ -116,10 +172,7 @@ end
 % nPC:      # principal components (and therefore, # jPCs); must be EVEN
 n = size(P(1).state,1); 
 nTrial = numel(P); 
-M = analyze.jPCA.convert_Mskew_to_jPCs(S.Mskew); % sort by eig:
-M = M(:,S.SS.skew.explained.sort.vec.eig);
 nPC = size(M,1);
-C = S.PCA.vectors_all; 
 
 % Principal components map scores onto rates as: 
 %     rates = scores * C' + repmat(mean(rates,1),n,1);
@@ -130,14 +183,16 @@ C = S.PCA.vectors_all;
 % particular jPC plane.
 Ci = inv(C'); 
 
-% Get cross-trial mean as well as cross-condition mean.
-mu = repmat(nanmean(cat(3,P.data),3),nTrial,1);
-
 % Create data matrix using original observed rates
 X = vertcat(P.data);
-X = X - mu; % Subtract cross-trial mean
-X = X - nanmean(X); % Remove cross-condition mean from rates.
-
+if pars.subtract_mean
+   % Get cross-trial mean as well as cross-condition mean.
+   mu = repmat(nanmean(cat(3,P.data),3),nTrial,1);
+   X = X - mu; % Subtract cross-trial mean
+end
+if pars.subtract_xc_mean
+   X = X - nanmean(X,1); % Remove cross-condition mean from rates.
+end
 % % Depending on `groupings` either parse individual channel           % %
 % % contributions (if `groupings` is NaN) or else use `groupings` in   % %
 % % defining the output size as well as the matrix multiplies.         % %
@@ -185,13 +240,23 @@ else % Otherwise just define off size of groupings and grouping indices
       strings(1,size(groupKey,2))];
    CID.Properties.UserData = struct('type','ChannelInfo');
 end
+W_mu = nanmean(W,1);
+W_mu_c = mat2cell(W_mu,1,nPC,nGroups);
 W_Key_c = repmat({groupKey},nTrial,1);
 W_Groups_c = repmat({pars.groupings},nTrial,1);
 CID_c = repmat({CID},nTrial,1);
-[P.W] = deal(W_c{:});
-[P.W_Key] = deal(W_Key_c{:});
-[P.W_Groups] = deal(W_Groups_c{:});
-[P.CID] = deal(CID_c{:});
+
+if strcmpi(pars.matType,'skew')
+   [P.W] = deal(W_c{:});
+   [P.W_Key] = deal(W_Key_c{:});
+   [P.W_Groups] = deal(W_Groups_c{:});
+   [P.W_mu] = deal(W_mu_c{:});
+   [P.CID] = deal(CID_c{:});
+else
+   outField = sprintf('W_%s',lower(pars.matType));
+   [P.(outField)] = deal(W_c{:});
+end
+
 
 % Wrap it as a cell so we can use with `splitapply` workflow
 if pars.wrap

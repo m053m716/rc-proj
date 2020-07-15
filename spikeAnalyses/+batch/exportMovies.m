@@ -1,12 +1,17 @@
-function exportMovies(Pa,block_indices,varargin)
+function exportMovies(P,block_indices,varargin)
 %EXPORTMOVIES Batch export movies of rotatory projections and area weights
 %
-%  batch.exportMovies(Pa);
-%  batch.exportMovies(Pa,block_indices);
-%  batch.exportMovies(Pa,block_indices,'name',value,...);
+%  batch.exportMovies(D);
+%    -> Can specify as result of `analyze.jPCA.multi_jPCA`, which is a
+%       table. In this case, P will be estimated from `D`, using the
+%       parameter in `pars` struct corresponding to the `pars.ProjectFcn`
+%       field.
+%  batch.exportMovies(P);
+%  batch.exportMovies(P,block_indices);
+%  batch.exportMovies(P,block_indices,'name',value,...);
 %
 % Inputs
-%  Pa - Projection cell array by area, with 'Weights' field added
+%  P  - Projection cell array by area, with 'Weights' field added
 %     -> obtained from `analyze.jPCA.recover_channel_weights`
 %  block_indices - (Optional) if not specified, exports all blocks.
 %                    Otherwise, specify as a vector of block indices
@@ -23,17 +28,13 @@ function exportMovies(Pa,block_indices,varargin)
 
 % Parse inputs %
 if nargin < 2
-   block_indices = 1:numel(Pa);
+   block_indices = 1:numel(P);
 else
    block_indices = reshape(block_indices,1,numel(block_indices)); % make row
 end
 
 % Defaults for `pars` parameters struct %
-pars = struct;
-pars.pname = 'D:\MATLAB\Data\RC\Spatial-Movie-Exports\Grouped\Ischemia-Exemplars';
-pars.max_plane = 3;
-pars.mute_sounds = false;
-pars.SizeMethod = 'square';
+pars = defaults.movies('batch_skull');
 
 fn = fieldnames(pars);
 for iV = 1:2:numel(varargin)
@@ -48,11 +49,11 @@ if ~pars.mute_sounds
 end
 
 for iBlock = block_indices
-   for iTrial = 1:numel(Pa{iBlock})
+   for iTrial = 1:numel(P{iBlock})
       for iPlane = 1:pars.max_plane
-         make.exportSkullPlotMovie(Pa{iBlock},...
-            'plane',iPlane,'trial',iTrial,...
-            'pname',pars.pname,...
+         make.exportSkullPlotMovie(P{iBlock},...
+            'plane',iPlane,'trial',iTrial,'tag',pars.tag,...
+            'pname',pars.pname,'sub_folder',pars.sub_folder,...
             'SizeMethod',pars.SizeMethod);
          if ~pars.mute_sounds
             sounds__.play('pop',1.25,-25);

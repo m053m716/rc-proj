@@ -24,26 +24,26 @@ p.group_data_file = '2020_gData.mat';
 p.group_data_name = fullfile(pname,p.group_data_file);
 p.icms_data_file = 'icms_data.xlsx';
 p.icms_data_name = fullfile(pname,p.icms_data_file);
-p.behavior_data_file = fullfile(pname,'behavior_data.xlsx');
+p.behavior_data_file = fullfile(pname,'behavior_data.xlsx'); % For score type = 'BehaviorScore'
+p.neurophys_behavior_data_file = fullfile(pname,'neurophys_behavior_data'); % For score type = 'NeurophysScore'
+
 p.rate_table = fullfile(pname,'rate_data.mat');
 p.rate_csv = fullfile(pname,'rate_data.csv');
 
 % Rate table default:
+p.rate_table_base_matfile = fullfile(pname,'T.mat');
 p.rate_table_default_matfile = fullfile(pname,'T_default.mat');
 p.rate_unique_trials_matfile = fullfile(pname,'T_unique_trials.mat');
 
 % Population Dynamics ('multi_jPCA.m' exported table)
-p.multi_jpca_default_matfile = fullfile(pname,'Multi_jPCA_Table.mat');
-p.exported_jpca_matfile = fullfile(pname,'jPCA_Export_Table_for-stats.mat');
+p.multi_jpca_default_matfile = fullfile(pname,'Multi_jPCA_Table.mat'); % Original "multi-jPCA" table
+p.multi_jpca_long_timescale_matfile = fullfile(pname,'Multi_jPCA_Table_Long-Timescale.mat'); % "Multi-jPCA" table using longer time basis
+p.exported_jpca_matfile = fullfile(pname,'jPCA_Export_Table_for-stats.mat');  % Table for population dynamics statistics
+p.cell_array_of_projections = fullfile(pname,'jPCA_Projections_Cell_Array.mat'); % Projections used for exporting videos etc.
 
 % Single-channel dynamics
 p.default_gauspuls_table = fullfile(pname,'Fitted-GausPuls-Table.mat');
 p.single_channel_stats_mlx_table = fullfile(pname,'Fitted_GausPuls-Table_Restricted-Subset.mat');
-
-% For movie exports
-p.movie_loc = fullfile(pname,'Spatial-Movie-Exports');
-p.movie_fname_expr = '%s_Plane-%02d_Trial-%03d';
-p.movie_fs = 30; % frames per second
 
 % For "Tableau" visualization:
 p.rate_tableau_table = fullfile(ptableau,'All Rates.xlsx');

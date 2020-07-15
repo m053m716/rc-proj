@@ -1,5 +1,5 @@
 function [smoothedData,allDays] = smoothFitDays(dataToSmooth,postOpDay)
-%% SMOOTHFITDAYS  Interpolate to all post-op days and smooth data by day
+%SMOOTHFITDAYS  Interpolate to all post-op days and smooth data by day
 %
 %  [smoothedData,allDays] = SMOOTHFITDAYS(dataToSmooth,postOpDay);
 %
@@ -23,23 +23,30 @@ function [smoothedData,allDays] = smoothFitDays(dataToSmooth,postOpDay)
 %  allDays        :     Corresponding days for smoothedData; days start on
 %                          the first post-op Day and increments by 1 day
 %                          until the last post-op Day.
-%
-% By: Max Murphy  v1.0  2019-10-13  Original version (R2017a)
 
-%% PARSE INPUT
+% PARSE INPUT
 if numel(dataToSmooth) ~= numel(postOpDay)
    error('dataToSmooth and postOpDay must have same number of elements.');
 end
 
-%% INTERPOLATE
+% INTERPOLATE
 allDays = postOpDay(1):postOpDay(end);
+iBad = isnan(dataToSmooth) | isinf(dataToSmooth);
+dataToSmooth(iBad) = [];
+postOpDay(iBad) = [];
+
+if isempty(dataToSmooth)
+   smoothedData = nan(size(allDays));
+   return;
+end
+
 if numel(allDays) == numel(postOpDay)
    x = dataToSmooth;
-else
+else   
    x = interp1(postOpDay,dataToSmooth,allDays);
 end
 
-%% SMOOTH
+% SMOOTH
 [b,a] = butter(4,0.2);
 smoothedData = filtfilt(b,a,x);
 

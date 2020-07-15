@@ -14,6 +14,7 @@
 %   jPCA                          - Default parameters for jPCA analyses
 %   load_cm                       - Loads default custom colormap (or specified)
 %   MaxRateByDay                  - Default parameters for getting max rate by day
+%   movies                        - Return parameters associated with movie exports
 %   nnmf_analyses                 - Subset of defaults that dealing with file names
 %   nullspace_analyses            - Defaults for analyses using "premotor nullspace"
 %   pca_analyses                  - Subset of defaults that deals with PCA analysis parameters

@@ -28,7 +28,8 @@
 %   mtb                    - Move variable to base workspace
 %   name2numeric_id        - Convert categorical name to numeric ID
 %   parseIncludeStruct     - Parse include struct from weird format for setting cross condition mean using loops
-%   parseParams            - p = utils.parseParams(cfg_key,arg_pairs);
+%   parseParameters        - Utility to parse <'Name', value> parameter pairs, when default parameters struct is specified directly in the beginning of the function or method
+%   parseParams            - Utility to parse varargin when default parameter struct is stored in a particular `+defaults` file
 %   plotPCAreconstruction  - fig = utils.plotPCAreconstruction(xPC);
 %   remove_cols            - Simple function checks for a variable column & removes it
 %   screencapture          - screencapture - get a screen-capture of a figure frame, component handle, or screen area rectangle

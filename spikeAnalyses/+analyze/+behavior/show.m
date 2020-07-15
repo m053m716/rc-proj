@@ -1,20 +1,26 @@
-function fig = durations(T,varargin)
-%DURATIONS Make figure(s) of durations by Animal using Rate Table
+function fig = show(T,response,varargin)
+%SHOW  Shows figure(s) of response variable by Animal using Rate Table
 %
-%  fig = analyze.behavior.durations(T);
-%  fig = analyze.behavior.durations(T,'var1',{val1},'var2',{val2},...);
+%  fig = analyze.behavior.show(T,response);
+%  fig = analyze.behavior.show(T,resposne,'var1',{val1},'var2',{val2},...);
 %
 % Inputs
 %  T        - 'trials' type Rate Table
-%  varargin - 
+%  response - Name of "response" variable from data table
+%  varargin - Optional 'Name',value filters to add to restrict what is
+%              plotted, consisting of Variable names and viable values.
 %
 % Output
 %  fig      - Figure handle
 %
-% See also: analyze.stat
+% See also: analyze.stat, analyze.behavior, 
+%           analyze.behavior.outcomes, analyze.behavior.durations,
+%           behavior_timing.mlx
 
-[~,iUniqueTrial] = unique(T.Trial_ID);
-T = T(iUniqueTrial,:);
+if ismember('Trial_ID',T.Properties.VariableNames)
+   [~,iUniqueTrial] = unique(T.Trial_ID);
+   T = T(iUniqueTrial,:);
+end
 
 fig = figure(...
       'Name','Trial Duration by Day',...
@@ -32,6 +38,16 @@ nTotal = size(TID,1);
 nRow = floor(sqrt(nTotal));
 nCol = ceil(nTotal/nRow);
 
+iResponse = find(strcmpi(T.Properties.VariableNames,response),1,'first');
+response = T.Properties.VariableNames{iResponse};
+
+if isempty(T.Properties.VariableUnits{iResponse})
+   yLab = strrep(response,'_',' ');
+else
+   yLab = sprintf('%s (%s)',strrep(response,'_',' '),...
+      T.Properties.VariableUnits{iResponse});
+end
+
 for ii = 1:nTotal
    ax = subplot(nRow,nCol,ii);
    tThis = tsub(G==ii,:);
@@ -41,17 +57,17 @@ for ii = 1:nTotal
       'XLim',[2 30],'YLim',[0 1.5],'XTick',7:7:28,...
       'XColor','k','YColor','k','LineWidth',1.5,'FontName','Arial');
    splitapply(...
-      @(poDay,duration,name)analyze.stat.addJitteredScatter(...
-      ax,poDay,duration,name,col(ii,:)),...
-      tThis.PostOpDay,tThis.Duration,tThis.AnimalID,gnames);
+      @(poDay,y,name)analyze.stat.addJitteredScatter(...
+      ax,poDay,y,name,col(ii,:)),...
+      tThis.PostOpDay,tThis.(response),tThis.AnimalID,gnames);
 
    analyze.stat.addLogisticRegression(ax,...
       tThis.PostOpDay+randn(size(tThis.PostOpDay)).*0.2,...
-      tThis.Duration,[0 0 0],X,...
+      tThis.(response),[0 0 0],X,...
       'Color','k','LineWidth',1.5,'LineStyle','-','TX',30.5,...
       'addlabel',false);
    title(ax,string(TID.Group(ii)),'FontName','Arial','Color','k');
-   ylabel(ax,'Trial Duration (sec)','FontName','Arial','Color','k');
+   ylabel(ax,yLab,'FontName','Arial','Color','k');
    xlabel(ax,'Post-Op Day','FontName','Arial','Color','k');
 end
 

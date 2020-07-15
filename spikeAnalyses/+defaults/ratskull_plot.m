@@ -41,9 +41,9 @@ p.Bregma.R = 0.20;
 p.Bregma.Xt = 0.25;        % Text x-coordinate (mm)
 p.Bregma.X  = cos(p.Bregma.Theta) * p.Bregma.R + 0.5; % Marker outline x (mm)
 p.Bregma.Y = sin(p.Bregma.Theta)  * p.Bregma.R; % Marker outline y (mm)
-p.Bregma.Yt = 0.15;        % Text y-coordinate (mm)
-p.Bregma.C = 'm';          % Bregma marker color
-p.Bregma.Text = 'Bregma';  % Text label for marker
+p.Bregma.Yt = 0.15;          % Text y-coordinate (mm)
+p.Bregma.C = [0.1 0.1 0.1];  % Bregma marker color
+p.Bregma.Text = 'Bregma';    % Text label for marker
 
 % % Figure-property related % %
 p.Fig.Name = 'Rat Skull Plot';

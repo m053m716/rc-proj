@@ -302,14 +302,28 @@ classdef group < matlab.mixin.Copyable
             return;
          end
          
-         propValArray = [];
+         tmp = cell(size(obj.Children));
          for i = 1:numel(obj.Children)
-            propValArray = [propValArray; getNumProp(obj.Children(i).Children,propName,byChannel)];
+            tmp{i} = getNumProp(obj.Children(i).Children,propName,byChannel);
          end
+         propValArray = vertcat(tmp{:});
       end
       
       % Return summary of BLOCK objects in record
       function S = getBlockSummary(obj,output_score)
+         %GETBLOCKSUMMARY Return summary of BLOCK objects in record
+         %
+         %  S = getBlockSummary(obj);
+         %  S = getBlockSummary(obj,output_score);
+         %
+         % Inputs
+         %  obj            - Scalar or array of `group` objects
+         %  output_score   - (Optional) char array indicating scoring
+         %                    'NeurophysScore' (def) | 'BehaviorScore'
+         %
+         % Output
+         %  S              - Summary table
+         
          if nargin < 2
             output_score = defaults.group('output_score');
          end
@@ -327,6 +341,7 @@ classdef group < matlab.mixin.Copyable
          Rat = cellfun(@(x){x(1:5)},Name,'UniformOutput',true);
          Group = repmat(categorical({obj.Name}),numel(Rat),1);
          Score = getBlockNumProp(obj,output_score);
+         N = getBlockNumProp(obj,'N');
          PostOpDay = getBlockNumProp(obj,'PostOpDay');
          
          ReachToGrasp_All = getOffsetLatency(obj,'Grasp','Reach',[0,1],1);
@@ -339,7 +354,7 @@ classdef group < matlab.mixin.Copyable
          GraspToComplete_Successful = getOffsetLatency(obj,'Complete','Grasp',1,1);
          GraspToSupport_Successful = getOffsetLatency(obj,'Support','Grasp',1,1);
          
-         S = table(Rat,Group,Name,PostOpDay,Score,...
+         S = table(Rat,Group,Name,PostOpDay,Score,N,...
             ReachToGrasp_All,ReachToComplete_All,GraspToComplete_All,GraspToSupport_All,...
             ReachToGrasp_Successful,ReachToComplete_Successful,GraspToComplete_Successful,GraspToSupport_Successful);
          
@@ -351,6 +366,7 @@ classdef group < matlab.mixin.Copyable
             'Name of Recording Block',...
             'Day relative to implant/injection surgery date',...
             sprintf('%s - retrieval success rate',output_score),...
+            'Total number of trials on that day',...
             'Time from reach onset to digit flexion (All trials with pellet present)',...
             'Time from reach onset to trial completion (All trials with pellet present)',...
             'Time from digit flexion to trial completion (All trials with pellet present)',...
@@ -365,6 +381,7 @@ classdef group < matlab.mixin.Copyable
             '',...
             'days',...
             'nSuccessful/nAttempt',...
+            'trials',...
             'milliseconds',...
             'milliseconds',...
             'milliseconds',...

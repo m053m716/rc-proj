@@ -53,29 +53,7 @@ if isempty(p.Group)
    p.Group = hggroup(p.Axes,'DisplayName','Trajectories');
 end
 
-% % Convert to old variable names % %
-xRange = range(p.XLim);
-yRange = range(p.YLim);
-roughScale = p.RoughScale;  
-xVals = p.XVals;
-yVals = p.YVals;
-
-% % Scale the coordinates forming the arrow shape % % 
-mxX = max(xVals);
-xVals = roughScale*p.Size * xVals/mxX * xRange;
-yVals = roughScale*p.Size * yVals/mxX * yRange;
-
-% % Rotate the arrow coordinates to point in direction of trajectory % %
-vector = nextPoint - prevPoint;
-theta = atan2(vector(2),vector(1));
-% Standard rotation matrix, based on estimated theta %
-rotM = [cos(theta) -sin(theta); sin(theta), cos(theta)];    
-newVals = rotM*[xVals; yVals];
-xVals = newVals(1,:);
-yVals = newVals(2,:);
-% Add position to rotated coordinates (last step) %
-xVals = xVals + point(1);
-yVals = yVals + point(2);
+[xVals,yVals] = analyze.jPCA.getArrowXY(prevPoint,point,nextPoint,p);
 
 % % Create graphics object % %
 h = fill(p.Group,...

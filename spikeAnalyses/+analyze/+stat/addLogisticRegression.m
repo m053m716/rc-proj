@@ -23,7 +23,7 @@ function [Y,stat] = addLogisticRegression(ax,x,y,c,X,varargin)
 if nargin < 5
    X  = 3:30; % Plot line using prediction at these points
 end
-if nargin >= 6
+if numel(varargin) >= 2
    ipar = strcmpi(varargin(1:2:end),'TX');
    if any(ipar)
       ipar = 2*(find(ipar,1,'first')-1)+1;
@@ -48,39 +48,44 @@ end
 if (numel(unique(x)) < 2) || (numel(unique(y)) < 2)
    Y  = {nan(size(X))};
    stat = {struct('R2',nan,'RSS',nan,'TSS',nan,'x',[],'y',[],...
-      'yhat',[],'z',[],'zhat',[],'pts',struct,'f',@(x)x,'g',@(x)x)};
+      'yhat',[],'z',[],'zhat',[],'pts',struct,'f',@(x)x,'g',@(x)x,...
+      'weights',[])};
    return;
 end
 
-% Get link function and inverse link function
-[yn,o,s] = analyze.stat.scaleResponse(x,y);
-z = real(log(yn) - log(1-yn));
+% Get weights
+if numel(varargin) >= 2
+   ipar = strcmpi(varargin(1:2:end),'weights');
+   if any(ipar)
+      ipar = 2*(find(ipar,1,'first')-1)+1;
+      weights = varargin{ipar+1};
+      varargin([ipar,ipar+1]) = [];
+   else
+      weights = nan;
+   end
+else
+   weights = nan;
+end
 
-% Get differences and median slope, intercept
-dZ = pdist(z,@(z1,z2)minus(z1,z2));
-dX = pdist(x,@(x1,x2)minus(x1,x2));
-iBad = isinf(dZ) | isinf(dX) | isnan(dZ) | isnan(dX);
-if ~any(~iBad)
+[Beta,Beta0,z,o,s] = analyze.stat.recover_line(x,y,...
+   'ResponseFunction',@(yn)real(log(yn) - log(1-yn)),...
+   'UseScaling',true,...
+   'Weights',weights);
+if isempty(Beta)
    Y = {nan(size(X))};
    stat = {struct('R2',nan,'RSS',nan,'TSS',nan,'x',[],'y',[],...
-      'yhat',[],'z',[],'zhat',[],'pts',struct,'f',@(x)x,'g',@(x)x)};
+      'yhat',[],'z',[],'zhat',[],'pts',struct,'f',@(x)x,'g',@(x)x,...
+      'weights',[])};
    return;
 end
-Beta  = median(dZ(~iBad) ./ dX(~iBad));
-Beta0 = median(z);
-x0 = median(x);
 
-% Beta = (dZ(~iBad)') \ (dX(~iBad)');
-% Beta0 = mean(z);
-% x0 = mean(x);
-
-f   = @(x)reshape(Beta0 + Beta.*(x - x0),numel(x),1);
+f   = @(x)reshape(Beta0 + Beta.*x,numel(x),1);
 g   = @(x)reshape(s./(1 + exp(-f(x))),numel(x),1)+o;
 
 % Plot
 Y = g(X);
 stat = struct;
-[stat.R2,stat.RSS,stat.TSS] = analyze.stat.getR2(y,g(x));
+[stat.R2,stat.RSS,stat.TSS] = analyze.stat.getR2(y,g(x),weights);
 stat.x = x;
 stat.y = y;
 stat.yhat = g(x);
@@ -89,8 +94,9 @@ stat.zhat = f(x);
 stat.pts = struct('X',X,'Y',Y);
 stat.f = f;
 stat.g = g;
+stat.weights = weights;
 
-if numel(varargin)>0
+if numel(varargin)>=2
    ipar = strcmpi(varargin(1:2:end),'addlabel');
    if any(ipar)
       ipar = 2*(find(ipar,1,'first')-1)+1;
@@ -114,7 +120,7 @@ else
    tag = "";
 end
 
-if numel(varargin)>0
+if numel(varargin)>=2
    ipar = strcmpi(varargin(1:2:end),'plotline');
    if any(ipar)
       ipar = 2*(find(ipar,1,'first')-1)+1;
@@ -142,13 +148,19 @@ if plotline
 end
 
 if addlabel
+   expr = '%sR^2 = %4.2f';
+   if ~isnan(weights(1))
+      if any(weights~=1)
+         expr = '%sR^2_{adj} = %4.2f';
+      end
+   end
    if TX < 15
-      text(ax,TX,Y(1),sprintf('%sR^2 = %4.2f',tag,stat.R2),...
-         'FontName','Arial',...
+      text(ax,TX,Y(1),sprintf(expr,tag,stat.R2),...
+         'FontName','Arial','BackgroundColor','w',...
          'Color',c,'FontSize',12,'FontWeight','bold');
    else
-      text(ax,TX,Y(end),sprintf('%sR^2 = %4.2f',tag,stat.R2),...
-         'FontName','Arial',...
+      text(ax,TX,Y(end),sprintf(expr,tag,stat.R2),...
+         'FontName','Arial','BackgroundColor','w',...
          'Color',c,'FontSize',12,'FontWeight','bold');
    end
 end

@@ -54,6 +54,7 @@ p.all_alignments = {'Successful',1;...
                     'All',[0,1]};
 p.all_outcomes = {'Successful','Unsuccessful','All'};
 
+
 % For spike rate figure axes
 p.x_lim = [-1250 750];
 p.y_lim = [-5.0 5.0];

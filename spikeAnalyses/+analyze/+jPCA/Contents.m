@@ -27,6 +27,7 @@
 %   ---------------------------------------------------------------------
 %
 % Math Helper Functions
+%   addMiscToProjStruct             - Add `misc` field to the main output data struct array
 %   averageDotProduct               - Get the average dot product with a comparison angle
 %   convert_Mskew_to_jPCs           - Convert projection matrix to jPC vector pairs
 %   getPhase                        - Get the phase for a given plane over its timecourse
@@ -38,6 +39,7 @@
 %   recover_align_index             - Get indices of alignment for individual trials
 %   recover_channel_weights         - Recover weightings for individual channels jPCs
 %   recover_explained_variance      - Return struct with % explained var, etc.
+%   recover_residuals               - Add struct array field '[type]_proj_resid'
 %   reshapeSkew                     - Reindexes a vector to a matrix or vice versa
 %   skewSymLSeval                   - Evaluates distance & derivative, imposing skew symmetry on M
 %   skewSymRegress                  - Apply least-squares regression to recover skew-symmetric M
@@ -48,6 +50,7 @@
 %   format                          - Convert data to format used by <a href="matlab:help analyze.jPCA.jPCA">jPCA</a> (specific to Cortical Plasticity Lab; moved to `deprecated` but still works for some formats)
 %   formatWarped                    - Convert "warped" rate data <strong>deprecated</strong>
 %   export_jPCA_movie               - Export movie created by <a href="matlab:help analyze.jPCA.phaseMovie">phaseMovie</a> <strong>deprecated</strong>
+%   phaseSpace                      - For making publication quality rosette plots
 %   reshapeSkew_orth                - Reshape matrix for minimization with increased constraints <strong>deprecated</strong>
 %   rotate2jPCA                     - Rotate a trajectory to the corresponding jPCA projection
 %   rotationMovie                   - This is a hastily written and not well commented function.
@@ -59,6 +62,7 @@
 %   AxisMMC                         - plots an axis / calibration
 %   blankFigure                     - produces a blank figure with everything turned off
 %   circle                          - Return a circle or ellipse object
+%   getArrowXY                      - Get X and Y coordinate pairs for arrow graphic
 %   plotMultiRosette                - Plot multiple rosettes
 %   printFigs                       - Export vectorized figures for insertion to other documents etc
 %   RC_cmap                         - Returns specific color map for RC project success vs fail trials
@@ -77,6 +81,6 @@
 %
 % <strong>Main Visualization Tools</strong>
 %   phaseMovie                      - For making rosette movies for the paper
-%   phaseSpace                      - For making publication quality rosette plots
+%   phaseSpace_min                  - "Minimized" version of analyze.jPCA.phaseSpace
 %   plotPhaseDiff                   - Plots histogram of angle between dx(t)/dt and x(t) 
 %   plotRosette                     - Plot the rosette (lines with arrows) itself

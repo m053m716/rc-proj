@@ -63,8 +63,7 @@ p.outcome = 'Successful';  % 'Successful' or 'Unsuccessful' or 'All'
 % Options for behavioral scoring output are: 
 %  * 'BehaviorScore'    (from Andrea video scoring; original) 
 %  * 'NeurophysScore'   (based on tagged metadata; updated)
-%  * 'TrueScore'        (based on only trials WITH pellets; revised)
-p.output_score = 'TrueScore';
+p.output_score = 'NeurophysScore';
 
 % Marker for each rat name
 p.marker = struct(...

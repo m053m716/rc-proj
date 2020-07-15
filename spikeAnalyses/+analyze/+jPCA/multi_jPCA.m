@@ -59,12 +59,7 @@ switch nargin
    case 1
       min_n_trials = 5;
       params = defaults.jPCA('jpca_params');
-      params.suppressPCstem = true;
-      params.suppressRosettes = true;
-      params.suppressHistograms = true;
-      params.suppressText = false;
-      params.markEachMetaEvent = false;
-      params.threshPC = nan;
+      params = modifyMultiParams(params);
    case 2
       if isstruct(min_n_trials)
          params = min_n_trials;
@@ -73,12 +68,7 @@ switch nargin
          params = defaults.jPCA('jpca_params');
       end
       % Note: setting `batchExportFigs` to true overrides this behavior
-      params.suppressPCstem = true;
-      params.suppressRosettes = true;
-      params.suppressHistograms = true;
-      params.suppressText = false;
-      params.markEachMetaEvent = false;
-      params.threshPC = nan;
+      params = modifyMultiParams(params);
    otherwise
       if isstruct(varargin{1})
          params = varargin{1};
@@ -89,12 +79,7 @@ switch nargin
       else
          params = defaults.jPCA('jpca_params');
          % Note: setting `batchExportFigs` to true overrides this behavior
-         params.suppressPCstem = true;
-         params.suppressRosettes = true;
-         params.suppressHistograms = true;
-         params.suppressText = false;
-         params.markEachMetaEvent = false;
-         params.threshPC = nan;
+         params = modifyMultiParams(params);
       end
       fn = fieldnames(params);
       for iV = 1:2:numel(varargin)
@@ -110,19 +95,13 @@ switch nargin
       end
 end
 % % % % % % % End Argument Parsing % % % %
-
 Areas = "All";
 nArea = numel(Areas);
-
-% % Collect other `default` parameters % %
-[t_lims,dt,ord,wlen] = defaults.jPCA(...
-   't_lims_short','dt_short',...
-   'sg_ord_short','sg_wlen_short');
 
 % Get restricted table based on minimum # trials
 S = utils.filterByNTrials(S,min_n_trials);
 
-% % Parse and do some filtering on input Table % %
+% % Parse days and animals from input Table % %
 [uDays,nDay,uAlignment,nAlignment,nAnimal] = parseFromInputTable(S);
 
 % Get names of "plan event," which is used in each alignment case to rotate
@@ -135,7 +114,6 @@ end
 
 % Initialize output table
 D = analyze.jPCA.gross_output_table(nAlignment*nDay*nArea*nAnimal);
-params.warningState = 'off'; % Turn off warnings
 
 % % Iterate on each alignment, for each day % %
 iRow = 0;
@@ -155,13 +133,13 @@ for iDay = 1:nDay
                continue;
             end
 
-            [data,~,TID,CID] = analyze.jPCA.convert_table(...
+            [data,~,~,CID] = analyze.jPCA.convert_table(...
                sThisAnimal,string(uAlignment(iAlign)),Areas(iArea), ...
                   'PostOpDay',uDays(iDay),'Outcome','Successful',...
-                  't_lims',t_lims, ...
-                  'dt',dt, ...
-                  'sg_ord',ord, ...
-                  'sg_wlen',wlen ...
+                  't_lims',params.t_lims, ...
+                  'dt',params.dt, ...
+                  'sg_ord',params.ord, ...
+                  'sg_wlen',params.wlen ...
                );
             p.numPCs = p.numPCByArea.(Areas(iArea));
             if (size(data(1).A,2) < p.numPCs) || isempty(data)
@@ -186,6 +164,34 @@ end
 D(cellfun(@isempty,D.Projection),:) = [];
 D.Properties.UserData = struct('type','MultiJPCA');
 
+   % Update default `jpca_params` struct for batch compatibility
+   function params = modifyMultiParams(params)
+      %MODIFYMULTIPARAMS Helper function to modify `jPCA_params` for `multi_jPCA`
+      %
+      %  params = modifyMultiParams(params);
+      %
+      % Inputs
+      %  params - `params` struct from `defaults.jPCA('jpca_params');`
+      %
+      % Output
+      %  params - Struct with modified fields
+      
+      params.suppressPCstem = true;
+      params.suppressRosettes = true;
+      params.suppressHistograms = true;
+      params.suppressText = false;
+      params.markEachMetaEvent = false;
+      params.warningState = 'off'; % Turn off warnings
+      params.threshPC = nan;
+      
+      % % Collect other `default` parameters % %
+      [params.t_lims,params.dt,params.ord,params.wlen] = ...
+         defaults.jPCA(...
+            't_lims_short','dt_short',...
+            'sg_ord_short','sg_wlen_short');
+   end
+
+   % Get unique days and animals from input table
    function [ud,nDay,uAlign,nAlignment,nAnimal] = parseFromInputTable(S)
       %PARSEFROMINPUTTABLE Parse unique days & alignments (depends input)
       %

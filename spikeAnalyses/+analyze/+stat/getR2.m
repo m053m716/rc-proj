@@ -1,4 +1,4 @@
-function [R2,RSS,TSS] = getR2(g,x,y)
+function [R2,RSS,TSS] = getR2(g,x,y,w)
 %GETR2 Return R2 for observations & model
 %
 %  [R2,RSS,TSS] = analyze.stat.getR2(g,x,y);
@@ -21,15 +21,42 @@ function [R2,RSS,TSS] = getR2(g,x,y)
 
 if isnumeric(g)
    y_hat = x;
+   if nargin > 2
+      w = y;
+   else
+      w = nan;
+   end
    y = g;
+   
 else
    y_hat = g(x);
+   if nargin < 3
+      w = nan;      
+   end
 end
    
 mu = nanmedian(y);
 mu_hat = nanmedian(y_hat);
-TSS = nansum((y - mu).^2);
-RSS = nansum(((y_hat - mu_hat) - (y - mu)).^2);
+if isnan(w(1))
+   w = ones(size(mu));
+elseif numel(w)==numel(y)
+   if isrow(y)
+      if ~isrow(w)
+         w = w.';
+      end
+   else
+      if ~iscolumn(w)
+         w = w.';
+      end
+   end
+else
+   error(['RC:' mfilename ':BadInputSize'],...
+      ['\n\t->\t<strong>[STAT.GETR2]:</strong> ' ...
+       'Number of elements of `w` (%d) should match `y` (%d)\n'],...
+       numel(w),numel(y));
+end
+TSS = nansum(((y - mu).^2).*w);
+RSS = nansum((((y_hat - mu_hat) - (y - mu)).^2).*w);
 % Since we used medians, RSS could be greater than TSS; for example, if
 % there is a large outlier or something like that, the square of that
 % outlier will not be captured as well by the model we've fit, so that will

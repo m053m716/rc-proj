@@ -24,8 +24,8 @@ end
 
 if nargin < 6
    pars = struct;
-   pars.AddLabel = true;
-   pars.Jitter = 0.05;
+   pars.AddLabel = false;
+   pars.Jitter = 0.25;
    pars.MarkerEdgeAlpha = 0.25;
    pars.MarkerFaceAlpha = 0.25;
    pars.MarkerSize = 12;

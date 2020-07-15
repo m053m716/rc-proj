@@ -43,6 +43,12 @@ classdef ratskull_plot < handle
             obj.Parent = gca;
          elseif isa(ax,'matlab.ui.Figure')
             obj.Parent = axes(ax);
+         elseif isnumeric(ax)
+            if isscalar(ax)
+               ax = [ax,1];
+            end
+            obj = repmat(obj,ax);
+            return;
          else
             obj.Parent = ax;
          end

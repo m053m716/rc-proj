@@ -77,12 +77,12 @@ for iV = 1:2:numel(varargin)
 end
 
 numTrials = numel(Projection);
-if ~strcmp(params.trials2plot,'all')
-   trials2plot = params.trials2plot;
-   numTrials = numel(trials2plot);
-else
-   trials2plot = 1:numTrials;
-end
+% if ~strcmp(params.trials2plot,'all')
+%    trials2plot = params.trials2plot;
+%    numTrials = numel(trials2plot);
+% else
+%    trials2plot = 1:numTrials;
+% end
 
 % % If asked, substitue the raw PC projections.
 % if params.substRawPCs 
@@ -109,21 +109,33 @@ if (numTrials < params.min_trials)
    return;
 end
 
-lineColor = cell(numTrials,1);
-arrowFaceColor = cell(numTrials,1);
-planMarkerColor = cell(numTrials,1);
-colorStruct = cell(1,numel(params.plane2plot));
+% lineColor = cell(numTrials,1);
+% arrowFaceColor = cell(numTrials,1);
+% planMarkerColor = cell(numTrials,1);
+% colorStruct = cell(1,numel(params.plane2plot));
 
-if isempty(params.haxP)
-   params.haxP = cell(1,numel(params.plane2plot));
-end
-if isempty(params.vaxP)
-   params.vaxP = cell(1,numel(params.plane2plot));
-end
-axisParams = defaults.jPCA('axes_params');
+% if isempty(params.haxP)
+%    params.haxP = cell(1,numel(params.plane2plot));
+% end
+% if isempty(params.vaxP)
+%    params.vaxP = cell(1,numel(params.plane2plot));
+% end
+% axisParams = defaults.jPCA('axes_params');
 
 for pindex = 1:numel(planeRankings)
-   colorStruct{pindex} = struct('color',lineColor);
+   if isempty(params.Figure) 
+      if isempty(params.Axes)
+         [params.Figure,params.Axes] = ...
+            analyze.jPCA.blankFigure(...
+               params.axLim,...
+               'Units','Pixels',...
+               'Position',params.pixelSize);
+      else
+         params.Figure = get(params.Axes,'Parent');
+      end
+   end
+   
+%    colorStruct{pindex} = struct('color',lineColor);
    % get some useful indices
    plane = planeRankings(pindex);  % which plane to plot
    d2 = 2*plane;  % indices into the dimensions
@@ -131,19 +143,19 @@ for pindex = 1:numel(planeRankings)
    fcn = @(Proj)recover_traj_segment(Proj,d1,d2,params.times,params.useRot);
    
    % set the limits of the figure
-   planData = arrayfun(@(Proj)recover_traj_state(Proj,d1,d2,1,params.useRot),...
-      Projection(trials2plot)');
-   planData = cell2mat(planData);
+%    planData = arrayfun(@(Proj)recover_traj_state(Proj,d1,d2,1,params.useRot),...
+%       Projection(trials2plot)');
+%    planData = cell2mat(planData);
    
    % need this for ellipse plotting
-   ellipseRadii = std(planData,[],1);  % we may plot an ellipse for the plan activity
-   mu = nanmean(planData,1);
+%    ellipseRadii = std(planData,[],1);  % we may plot an ellipse for the plan activity
+%    mu = nanmean(planData,1);
 %    R = nancov(planData);
 %    theta_rot = atan2(sqrt(sum(R(:,2).^2)),sqrt(sum(R(:,1).^2)));
    
-   % these will be altered further below based on how far the data extends left and down
-   farthestLeft = mu(1)-ellipseRadii(1)*5;  % used figure out how far the axes need to be offset
-   farthestDown = mu(2)-ellipseRadii(2)*5;  % used figure out how far the axes need to be offset
+%    % these will be altered further below based on how far the data extends left and down
+%    farthestLeft = mu(1)-ellipseRadii(1)*5;  % used figure out how far the axes need to be offset
+%    farthestDown = mu(2)-ellipseRadii(2)*5;  % used figure out how far the axes need to be offset
    
    
    % deal with the color scheme
@@ -152,86 +164,76 @@ for pindex = 1:numel(planeRankings)
    % These do NOT depend on which times you choose to plot (only on which time is first in Projection.proj).
    
 
-   if numel(unique([Projection.Condition])) > 2
-      [u,~,iC] = unique([Projection.Condition]);
-      htmp = redbluecmap(numel(u), 'interpolation', 'sigmoid');
-      htmpIdx = fliplr(round(linspace(1,size(htmp,1),numel(u))));
-      htmp = htmp(htmpIdx,:);
-   else
-      iC = rem([Projection.Condition],2)+1;
-      htmp = [1 0 0;   % 1: Unsuccessful -- Blue
-              0 0 1];  % 2: Successful   -- Red
+%    if numel(unique([Projection.Condition])) > 2
+%       [u,~,iC] = unique([Projection.Condition]);
+%       htmp = redbluecmap(numel(u), 'interpolation', 'sigmoid');
+%       htmpIdx = fliplr(round(linspace(1,size(htmp,1),numel(u))));
+%       htmp = htmp(htmpIdx,:);
+%    else
+%       iC = rem([Projection.Condition],2)+1;
+%       htmp = [1 0 0;   % 1: Unsuccessful -- Blue
+%               0 0 1];  % 2: Successful   -- Red
+% 
+%    end
 
-   end
+%    for c = 1:numTrials  % cycle through conditions, and assign that condition's color
+%       lineColor{c} = htmp(iC(c),:);
+%       arrowFaceColor{c} = htmp(iC(c),:);
+%       planMarkerColor{c} = htmp(iC(c),:);
+%    end
 
-   for c = 1:numTrials  % cycle through conditions, and assign that condition's color
-      lineColor{c} = htmp(iC(c),:);
-      arrowFaceColor{c} = htmp(iC(c),:);
-      planMarkerColor{c} = htmp(iC(c),:);
-   end
-
-   % override colors if asked
-   if isfield(params,'colors')
-      lineColor = params.colors;
-      arrowFaceColor = params.colors;
-      planMarkerColor = params.colors;
-   end
+%    % override colors if asked
+%    if isfield(params,'colors')
+%       lineColor = params.colors;
+%       arrowFaceColor = params.colors;
+%       planMarkerColor = params.colors;
+%    end
    
-   colorStruct{pindex} = struct(...
-      'color',lineColor,...
-      'arrowFaceColor',arrowFaceColor,...
-      'planMarkerColor',planMarkerColor ...
-      );
+%    colorStruct{pindex} = struct(...
+%       'color',lineColor,...
+%       'arrowFaceColor',arrowFaceColor,...
+%       'planMarkerColor',planMarkerColor ...
+%       );
    
-   % Generate some custom axes things
-   if isempty(params.haxP{pindex}) || isempty(params.vaxP{pindex})
-      if isempty(params.Figure) 
-         if isempty(params.Axes)
-            [params.Figure,params.Axes] = ...
-               analyze.jPCA.blankFigure(...
-                  params.axLim,...
-                  'Units','Pixels',...
-                  'Position',params.pixelSize);
-         else
-            params.Figure = get(params.Axes,'Parent');
-         end
-      end
-      axisParams.curAxes = params.Axes;
-      extraSeparation = ...
-         params.axisSeparation*(min(farthestDown,farthestLeft));
-      
-      % general axis parameters
-      axisParams.tickLocations = ...
-         [-params.axLim(1), 0, params.axLim(2)];
-      axisParams.longTicks = 0;
-      axisParams.fontSize = 10.5;
-      
-      % horizontal axis
-      axisParams.axisOffset = farthestDown + extraSeparation;
-      axisParams.axisLabel = 'jPC_1';
-      axisParams.axisOrientation = 'h';
-      
-      params.haxP{pindex} = analyze.jPCA.AxisMMC(...
-         params.axLim(1),params.axLim(2),axisParams,...
-         'color',[1 1 1],'borderColor',[1 1 1]);
-      
-      % vertical axis
-      axisParams.axisOffset = farthestLeft + extraSeparation;
-      axisParams.tickLocations = ...
-         [-params.axLim(3), 0, params.axLim(4)];
-      axisParams.axisLabel = 'jPC_2';
-      axisParams.axisOrientation = 'v';
-      axisParams.axisLabelOffset = 1.9*params.haxP{pindex}.axisLabelOffset;
-      params.vaxP{pindex} = analyze.jPCA.AxisMMC(params.axLim(3),...
-         params.axLim(4),axisParams,...
-         'color',[1 1 1],'borderColor',[1 1 1]);
-   else
-      axisParams.curAxes = params.Axes;
-      allTraj = findobj(params.Axes,'Tag','Trajectory');
-      allMarker = findobj(params.Axes,'Tag','Marker');
-      delete(allTraj);
-      delete(allMarker);
-   end
+%    % Generate some custom axes things
+%    if isempty(params.haxP{pindex}) || isempty(params.vaxP{pindex})
+
+%       axisParams.curAxes = params.Axes;
+%       extraSeparation = ...
+%          params.axisSeparation*(min(farthestDown,farthestLeft));
+%       
+%       % general axis parameters
+%       axisParams.tickLocations = ...
+%          [-params.axLim(1), 0, params.axLim(2)];
+%       axisParams.longTicks = 0;
+%       axisParams.fontSize = 10.5;
+%       
+%       % horizontal axis
+%       axisParams.axisOffset = farthestDown + extraSeparation;
+%       axisParams.axisLabel = 'jPC_1';
+%       axisParams.axisOrientation = 'h';
+%       
+%       params.haxP{pindex} = analyze.jPCA.AxisMMC(...
+%          params.axLim(1),params.axLim(2),axisParams,...
+%          'color',[1 1 1],'borderColor',[1 1 1]);
+%       
+%       % vertical axis
+%       axisParams.axisOffset = farthestLeft + extraSeparation;
+%       axisParams.tickLocations = ...
+%          [-params.axLim(3), 0, params.axLim(4)];
+%       axisParams.axisLabel = 'jPC_2';
+%       axisParams.axisOrientation = 'v';
+%       axisParams.axisLabelOffset = 1.9*params.haxP{pindex}.axisLabelOffset;
+%       params.vaxP{pindex} = analyze.jPCA.AxisMMC(params.axLim(3),...
+%          params.axLim(4),axisParams,...
+%          'color',[1 1 1],'borderColor',[1 1 1]);
+%    else
+%    axisParams.curAxes = params.Axes;
+   allTraj = findobj(params.Axes,'Tag','Trajectory');
+   allMarker = findobj(params.Axes,'Tag','Marker');
+   delete(allTraj);
+   delete(allMarker);
+%    end
    
 %    % first deal with the ellipse for the plan variance (we want this under the rest of the data)
 %    if params.plotPlanEllipse
@@ -253,26 +255,28 @@ for pindex = 1:numel(planeRankings)
       C = C + offset;
    end
    
-   if params.plotIndividualTrajs
-      patch(params.Axes,X,Y,C,...
-         'FaceColor','interp',...
-         'FaceAlpha',params.tailAlpha*0.8,...
-         'EdgeColor','interp',...
-         'EdgeAlpha',params.tailAlpha,...
-         'LineStyle','-',...
-         'LineWidth',params.lineWidth,...
-         'Tag','Trajectory');
-   end
+   patch(params.Axes,X,Y,C,...
+      'FaceColor','interp',...
+      'FaceAlpha',params.tailAlpha*0.8,...
+      'EdgeColor','interp',...
+      'EdgeAlpha',params.tailAlpha,...
+      'LineStyle','-',...
+      'LineWidth',0.5,...
+      'Tag','Trajectory');
+   
+%    if params.plotIndividualTrajs
+%       patch(params.Axes,X,Y,C,...
+%          'FaceColor','interp',...
+%          'FaceAlpha',params.tailAlpha*0.8,...
+%          'EdgeColor','interp',...
+%          'EdgeAlpha',params.tailAlpha,...
+%          'LineStyle','-',...
+%          'LineWidth',params.lineWidth,...
+%          'Tag','Trajectory');
+%    end
    
    % % % % % % % END INDIVIDUAL TRAJECTORIES % % % % % % %
-   xC = [0;0.25;0;0   ;0;-0.25;0;0    ;0];
-   yC = [0;   0;0;0.25;0;    0;0;-0.25;0];
-   cC = [-40;0;40;0;-40;0;40;0;-40];
-   patch(params.Axes,xC,yC,cC,...
-      'EdgeColor','interp',...
-      'LineWidth',1.5,...
-      'FaceColor','interp',...
-      'Tag','Marker');  % plot a central cross
+   addCentralCross(params.Axes);
 
 %    % if asked we will also plot the cross condition mean
 %    if params.plotMeanTrajs && (size(Summary.crossCondMean,1) > 1)
@@ -301,8 +305,8 @@ for pindex = 1:numel(planeRankings)
 % 
 %          % for arrow, figure out last two points, and (if asked) supress 
 %          % the arrow if velocity is below a threshold.
-%          penultimatePoint = [P1(end-1), P2(end-1)];
-%          lastPoint = [P1(end), P2(end)];
+%          penultimatePoint = [X(end-1), Y(end-1)];
+%          lastPoint = [X(end), Y(end)];
 %          vel = norm(lastPoint - penultimatePoint);
 % 
 %          % if asked (e.g. for movies) arrow size may grow with vel
@@ -341,7 +345,29 @@ for pindex = 1:numel(planeRankings)
          'FontName',params.fontName);
    end
 end  % done looping through planes
-params.colorStruct = colorStruct;
+% params.colorStruct = colorStruct;
+
+% Helper functions
+   function addCentralCross(ax)
+      %ADDCENTRALCROSS Add central "cross" indicator to axes
+      %
+      %  addCentralCross(ax);
+      %
+      % Inputs
+      %  ax - Axes to add the "cross" indicator to
+      %
+      % Output
+      %  -- none -- Just adds the indicator "cross" to the axes.
+      
+      xC = [0;0.25;0;0   ;0;-0.25;0;0    ;0];
+      yC = [0;   0;0;0.25;0;    0;0;-0.25;0];
+      cC = [-40;0;40;0;-40;0;40;0;-40];
+      patch(ax,xC,yC,cC,...
+         'EdgeColor','interp',...
+         'LineWidth',1.5,...
+         'FaceColor','interp',...
+         'Tag','Marker');  % plot a central cross
+   end
 
 %    function alpha = compute_tail_alpha(cl,c)
 %       %COMPUTE_TAIL_ALPHA Return tail-alpha based on condition/index
@@ -375,7 +401,7 @@ params.colorStruct = colorStruct;
       %  Y         - Cell containing column vector of Y-coordinates to plot
       %  C         - Cell containing time vector for shading from colormap
       
-      o = 0.04;
+      o = 0.035;
       
       iKeep = ismember(Proj.times,keepTimes);
       if use_rot
@@ -387,36 +413,44 @@ params.colorStruct = colorStruct;
       end
       cdata = (1:sum(iKeep));
       cdata = (cdata .* (Proj.Outcome-1.5) .* 2).';
-      vX = (x(end)-x(end-1))/2;
-      X = {[x+o; x(end)+vX; flipud(x-o)]};
-      vY = (y(end)-y(end-1))/2;
-      Y = {[y; y(end)+vY; flipud(y)]};
-      C = {[cdata; cdata(end)*1.1; flipud(cdata)]};
+      
+      penultimatePoint = [x(end-1), y(end-1)];
+      lastPoint = [x(end), y(end)];
+      [xA,yA] = analyze.jPCA.getArrowXY(penultimatePoint,lastPoint,[]);
+      X = {[x+o; xA; flipud(x-o)]};
+      Y = {[y; yA; flipud(y)]};
+      C = {[cdata; ones(numel(xA),1).*cdata(end).*1.1; flipud(cdata)]};
+      
+%       vX = (x(end)-x(end-1))/2;
+%       X = {[x+o; x(end)+vX; flipud(x-o)]};
+%       vY = (y(end)-y(end-1))/2;
+%       Y = {[y; y(end)+vY; flipud(y)]};
+%       C = {[cdata; cdata(end)*1.1; flipud(cdata)]};
    end
 
-   function state = recover_traj_state(Proj,xDim,yDim,iKeep,use_rot)
-      %RECOVER_TRAJ_STATE Return trajectory state from struct array
-      %
-      % state = recover_traj_state(Proj,xDim,yDim,iKeep);
-      %
-      % Inputs
-      %  Proj      - Element of struct array that is main input to 
-      %                 `phaseSpace` with fields `.proj` and `.times`
-      %  xDim      - Index of "X" trajectory dimension
-      %  yDim      - Index of "Y" trajectory dimension
-      %  iKeep     - Specific index (row) to keep
-      %
-      % Output
-      %  X         - Cell containing column vector of X-coordinates to plot
-      %  Y         - Cell containing column vector of Y-coordinates to plot
-      %  C         - Cell containing time vector for shading from colormap
-      
-      if use_rot
-         state = {Proj.proj_rot(iKeep,[xDim,yDim])};
-      else
-         state = {Proj.proj(iKeep,[xDim,yDim])};
-      end
-   end
+%    function state = recover_traj_state(Proj,xDim,yDim,iKeep,use_rot)
+%       %RECOVER_TRAJ_STATE Return trajectory state from struct array
+%       %
+%       % state = recover_traj_state(Proj,xDim,yDim,iKeep);
+%       %
+%       % Inputs
+%       %  Proj      - Element of struct array that is main input to 
+%       %                 `phaseSpace` with fields `.proj` and `.times`
+%       %  xDim      - Index of "X" trajectory dimension
+%       %  yDim      - Index of "Y" trajectory dimension
+%       %  iKeep     - Specific index (row) to keep
+%       %
+%       % Output
+%       %  X         - Cell containing column vector of X-coordinates to plot
+%       %  Y         - Cell containing column vector of Y-coordinates to plot
+%       %  C         - Cell containing time vector for shading from colormap
+%       
+%       if use_rot
+%          state = {Proj.proj_rot(iKeep,[xDim,yDim])};
+%       else
+%          state = {Proj.proj(iKeep,[xDim,yDim])};
+%       end
+%    end
 
 end  % end of the main function
 

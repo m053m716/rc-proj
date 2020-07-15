@@ -48,34 +48,46 @@ end
 if (numel(unique(x)) < 2) || (numel(unique(y)) < 2)
    Y  = {nan(size(X))};
    stat = {struct('R2',nan,'RSS',nan,'TSS',nan,'x',[],'y',[],...
-      'yhat',[],'pts',struct,'f',@(x)x)};
+      'yhat',[],'pts',struct,'f',@(x)x,'weights',[])};
    return;
 end
 
+% Get weights
+if nargin >= 6
+   ipar = strcmpi(varargin(1:2:end),'weights');
+   if any(ipar)
+      ipar = 2*(find(ipar,1,'first')-1)+1;
+      weights = varargin{ipar+1};
+      varargin([ipar,ipar+1]) = [];
+   else
+      weights = nan;
+   end
+else
+   weights = nan;
+end
+
 % Get differences and median slope, intercept
-dY = pdist(y,@(y1,y2)minus(y1,y2));
-dX = pdist(x,@(x1,x2)minus(x1,x2));
-iBad = isinf(dY) | isinf(dX) | isnan(dY) | isnan(dX);
-if ~any(~iBad)
+[Beta,Beta0] = analyze.stat.recover_line(x,y,...
+   'UseScaling',false,...
+   'Weights',weights);
+if isempty(Beta)
    Y = {nan(size(X))};
    stat = {struct('R2',nan,'RSS',nan,'TSS',nan,'x',[],'y',[],...
-      'yhat',[],'pts',struct,'f',@(x)x)};
+      'yhat',[],'pts',struct,'f',@(x)x,'weights',[])};
    return;
 end
-Beta  = median(dY(~iBad) ./ dX(~iBad));
-Beta0 = median(y);
-x0 = median(x);
-f   = @(x)reshape(Beta0 + Beta.*(x - x0),numel(x),1);
+f   = @(x)reshape(Beta0 + Beta.*x,numel(x),1);
 
 % Plot
 Y = f(X);
 stat = struct;
-[stat.R2,stat.RSS,stat.TSS] = analyze.stat.getR2(f,x,y);
+[stat.R2,stat.RSS,stat.TSS] = analyze.stat.getR2(y,f(x),weights);
 stat.x = x;
 stat.y = y;
 stat.yhat = f(x);
 stat.pts = struct('X',X,'Y',Y);
 stat.f = f;
+stat.weights = weights;
 
 if numel(varargin)>0
    ipar = strcmpi(varargin(1:2:end),'addlabel');
@@ -130,13 +142,19 @@ if plotline
 end
 
 if addlabel
+   expr = '%sR^2 = %4.2f';
+   if ~isnan(weights(1))
+      if any(weights~=1)
+         expr = '%sR^2_{adj} = %4.2f';
+      end
+   end
    if TX < 15
       text(ax,TX,Y(1),sprintf('%sR^2 = %4.2f',tag,stat.R2),...
-         'FontName','Arial',...
+         'FontName','Arial','BackgroundColor','w',...
          'Color',c,'FontSize',12,'FontWeight','bold');
    else
       text(ax,TX,Y(end),sprintf('%sR^2 = %4.2f',tag,stat.R2),...
-         'FontName','Arial',...
+         'FontName','Arial','BackgroundColor','w',...
          'Color',c,'FontSize',12,'FontWeight','bold');
    end
 end

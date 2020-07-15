@@ -1,5 +1,9 @@
-classdef block < handle
+classdef block < matlab.mixin.SetGetExactNames
    %BLOCK organizes all data from a single recording in RC project
+   
+   properties (Dependent,Access=public)
+      N  % Total number of trials
+   end
    
    properties (GetAccess = public, SetAccess = private)
       Name           % Name of block folder
@@ -44,6 +48,18 @@ classdef block < handle
       tSnap                % Time relative to behavior to "snap" a video frame, for each trial
       chMod                % Struct with 'RFA' and 'CFA' fields that update channel modulations for those channel subsets
       nTrialRecent         % Struct with number of trials for most-recent alignment rate export
+   end
+   
+   % Dependent property set/get methods
+   methods
+      % Get/set for .N property (number of trials)
+      function val = get.N(obj)
+         %GET.N Returns number of trials in that Block
+         val = numel(obj.Data.Outcome);
+      end
+      function set.N(obj,val)
+         error('N is a read-only property.');
+      end
    end
    
    % Data-handling methods, including BLOCK class constructor
@@ -780,13 +796,13 @@ classdef block < handle
             obj.BehaviorScore = nan;
          end
          
-         align = defaults.jPCA('jpca_align');
+         [align,spike_bin_w] = defaults.experiment('alignment','spike_bin_w');
          
-         spike_analyses_folder = defaults.block('spike_analyses_folder');
-         spike_rate_smoother = defaults.block('spike_rate_smoother');
-         fname_success = fullfile(obj.Folder,obj.Name,...
-            [obj.Name spike_analyses_folder],...
-            [obj.Name spike_rate_smoother align '_Successful.mat']);
+         [spike_analyses_folder,binned_spike_expr] = defaults.block(...
+            'spike_analyses_folder','fname_binned_spikes');
+         fname_success = fullfile(...
+            obj.Folder,obj.Name,[obj.Name spike_analyses_folder],...
+            sprintf(binned_spike_expr,obj.Name,spike_bin_w,align,'Successful'));
          if exist(fname_success,'file')==0
             nSuccess = 0;
          else
@@ -797,7 +813,7 @@ classdef block < handle
 
          fname_fail = fullfile(obj.Folder,obj.Name,...
             [obj.Name spike_analyses_folder],...
-            [obj.Name spike_rate_smoother align '_Unsuccessful.mat']);
+            sprintf(binned_spike_expr,obj.Name,spike_bin_w,align,'Unsuccessful'));
 
          if exist(fname_fail,'file')==0
             nFail = 0;
@@ -1882,6 +1898,24 @@ classdef block < handle
       
       % Get numeric property value (and check that it is numeric & scalar)
       function out = getNumProp(obj,propName,byChannel)
+         %GETNUMPROP Get numeric property value (and check)
+         %
+         %  out = getNumProp(obj);
+         %  out = getNumProp(obj,propName);
+         %  out = getNumProp(obj,propName,byChannel);
+         %
+         % Inputs
+         %  obj       - Scalar or array of block objects
+         %  propName  - (Optional) Name of numeric property
+         %  byChannel - (Optional) default is false; set true if property
+         %                          should be returned "by channel"
+         %
+         % Output
+         %  out       - Property corresponding to each element of obj.
+         %              -> If obj is array, then this is concatenated along
+         %              the first dimension (so, if it's a scalar, then it
+         %              becomes a column vector).
+         
          if nargin < 2
             error('Must specify property name as second input argument.');
          end
@@ -1891,10 +1925,11 @@ classdef block < handle
          end
          
          if numel(obj) > 1
-            out = [];
+            tmp = cell(size(obj));
             for ii = 1:numel(obj)
-               out = [out; getNumProp(obj(ii),propName,byChannel)]; %#ok<AGROW>
+               tmp{ii} = getNumProp(obj(ii),propName,byChannel); 
             end
+            out = vertcat(tmp{:});
             return;
          end
          out = nan;
@@ -1906,10 +1941,6 @@ classdef block < handle
             return;
          elseif ~isnumeric(obj.(propName))
             fprintf(1,'Property ''%s'' of %s is not numeric.\n',...
-               propName,obj.Name);
-            return;
-         elseif ~isscalar(obj.(propName))
-            fprintf(1,'Property ''%s'' of %s is not a scalar.\n',...
                propName,obj.Name);
             return;
          end
