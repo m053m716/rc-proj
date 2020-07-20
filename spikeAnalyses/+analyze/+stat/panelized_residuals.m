@@ -50,5 +50,7 @@ else
 end
 
 suptitle(str);
+disp('<strong>R-squared</strong>');
+disp(glme.Rsquared);
 
 end

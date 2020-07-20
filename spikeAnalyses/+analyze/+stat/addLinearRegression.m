@@ -1,7 +1,7 @@
-function [Y,stat] = addLinearRegression(ax,x,y,c,X,varargin)
+function [Y,stat,hReg] = addLinearRegression(ax,x,y,c,X,varargin)
 %ADDLINEARREGRESSION Helper for splitapply to add lines for animals
 %
-%  [Y,stat] = addLinearRegression(ax,x,y,c,X);
+%  [Y,stat,hReg] = addLinearRegression(ax,x,y,c,X);
 %
 %  Uses median of dependent variable for offset and median of all
 %  pairs of distances of dependent variable for slope estimate.
@@ -16,6 +16,7 @@ function [Y,stat] = addLinearRegression(ax,x,y,c,X,varargin)
 % Output
 %  Y     - Model output for each day
 %  stat  - Statistics for model fit
+%  hReg  - Cell containing regression line object (or empty cell)
 %
 %  Adds line to `axObj` object
 
@@ -49,6 +50,7 @@ if (numel(unique(x)) < 2) || (numel(unique(y)) < 2)
    Y  = {nan(size(X))};
    stat = {struct('R2',nan,'RSS',nan,'TSS',nan,'x',[],'y',[],...
       'yhat',[],'pts',struct,'f',@(x)x,'weights',[])};
+   hReg = {[]};
    return;
 end
 
@@ -74,6 +76,7 @@ if isempty(Beta)
    Y = {nan(size(X))};
    stat = {struct('R2',nan,'RSS',nan,'TSS',nan,'x',[],'y',[],...
       'yhat',[],'pts',struct,'f',@(x)x,'weights',[])};
+   hReg = {[]};
    return;
 end
 f   = @(x)reshape(Beta0 + Beta.*x,numel(x),1);
@@ -127,8 +130,10 @@ else
 end
 
 if plotline
+%    c = c .* ((rand(1,3)+1)/2);
+   lw = max(1.25,min(2.5,2+randn*0.35));
    hReg = line(ax,X,Y,'Color',c,'LineStyle','--',...
-      'LineWidth',1.25,'Tag','Median Regression',varargin{:});
+      'LineWidth',lw,'Tag','Median Regression',varargin{:});
    hReg.Annotation.LegendInformation.IconDisplayStyle = 'off';
    if numel(varargin)>0
       if any(strcmpi(varargin(1:2:end),'DisplayName')) && ~addlabel
@@ -139,6 +144,9 @@ if plotline
    else
       hReg.Annotation.LegendInformation.IconDisplayStyle = 'off';
    end
+   hReg = {hReg};
+else
+   hReg = {[]};
 end
 
 if addlabel

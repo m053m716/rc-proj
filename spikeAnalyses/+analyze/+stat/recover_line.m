@@ -23,6 +23,7 @@ function [Beta,Beta0,Z,o,s] = recover_line(X,Y,varargin)
 
 pars = struct;
 pars.DistanceFunction = @(a,b)minus(a,b);
+pars.WeightsDistanceFunction = @(a,b)plus(a,b);
 pars.ResponseFunction = @(y)y;
 pars.Method = 'median';
 pars.UseScaling = true;
@@ -72,9 +73,11 @@ switch lower(pars.Method)
          else
             w = round(pars.Weights);
          end
-         w(iBad) = [];
-         dZ = repelem(dZ,w);
-         dX = repelem(dX,w);
+         dW = pdist(w,pars.WeightsDistanceFunction);
+         dW(iBad) = [];
+         dZ = repelem(dZ,dW);
+         dX = repelem(dX,dW);
+
       end
       Beta  = nanmedian(dZ ./ dX);
       z0 = nanmedian(Z);
