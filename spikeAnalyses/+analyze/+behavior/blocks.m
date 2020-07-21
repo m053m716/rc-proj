@@ -32,9 +32,22 @@ pars.FigParams = {...
 pars.FigPosition = [0.43 0.48 0.43 0.37];
 pars.FontParams = {'FontName','Arial','Color','k'};
 pars.RegressionParams = {...
-   'Color','k','LineWidth',1.5,...
-   'LineStyle','-','TX',30.5,...
+   'Color','k',...
+   'LineWidth',1.5,...
+   'TX',30.5,...
    'addlabel',false};
+pars.ScatterPars = struct;
+   pars.ScatterPars.AddLabel = false;
+   pars.ScatterPars.Annotation = 'off';
+   pars.ScatterPars.Jitter = 0.25;
+   pars.ScatterPars.MarkerEdgeAlpha = 0.25;
+   pars.ScatterPars.MarkerFaceAlpha = 0.25;
+   pars.ScatterPars.MarkerSize = 12;
+   pars.ScatterPars.RegressionType = 'logistic';
+   pars.ScatterPars.ScatterParams = {};
+   pars.ScatterPars.ShowAnimals = true;
+   pars.ScatterPars.TX = 30.5;
+   pars.ScatterPars.XPlot = linspace(3,30,100);
 pars.SliceParams = {}; % "Filter" slice
 pars.Title = '';
 pars.XPlot = linspace(2.5,31,250);
@@ -55,6 +68,7 @@ for iV = 1:2:numel(varargin)
       pars.(fn{idx}) = varargin{iV+1};
    end
 end
+pars.ScatterPars.RegressionParams = pars.RegressionParams;
 
 if ~isempty(pars.YLim)
    pars.AxesParams = [pars.AxesParams, ...
@@ -84,18 +98,26 @@ else
       S.Properties.VariableUnits{iResponse});
 end
 
+ls = ["-","--","-.",":"];
+rat_col = defaults.experiment('rat_color');
+
 for ii = 1:nTotal
    col = pars.Colors(ii,:);
    ax = subplot(nRow,nCol,ii);
    S_group = S_sub(G==ii,:);
    gnames = findgroups(S_group(:,'AnimalID'));
-   
+   C = rat_col.(string(TID.Group(ii)));
    set(ax,'Parent',fig,pars.AxesParams{:});
-   splitapply(...
+   [~,hReg] = splitapply(...
       @(poDay,y,name)analyze.stat.addJitteredScatter(...
-      ax,poDay,y,name,col),...
+      ax,poDay,y,name,col,pars.ScatterPars),...
       S_group.PostOpDay,S_group.(response),S_group.AnimalID,gnames);
-
+   
+   hReg = vertcat(hReg{:});
+   for iReg = 1:numel(hReg)
+      idx = mod(iReg-1,4)+1;
+      set(hReg(iReg),'LineStyle',ls(idx),'Color',C(iReg,:));
+   end
    analyze.stat.addLogisticRegression(ax,...
       S_group.PostOpDay+randn(size(S_group.PostOpDay)).*0.2,...
       S_group.(response),[0 0 0],pars.XPlot,...
@@ -103,12 +125,15 @@ for ii = 1:nTotal
    title(ax,string(TID.Group(ii)),pars.FontParams{:});
    ylabel(ax,yLab,pars.FontParams{:});
    xlabel(ax,'Post-Op Day',pars.FontParams{:});
-   legend(ax,'Location','northeast',...
+   legend(ax,...
+      'Location','northeast',...
       'TextColor','black',...
       'Box','off',...
       'Color','none',...
-      'FontName','Arial');
+      'FontName','Arial',...
+      'NumColumns',2);
 end
 suptitle(pars.Title);    
+
 
 end

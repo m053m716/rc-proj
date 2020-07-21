@@ -1,7 +1,7 @@
-function h = addJitteredScatter(ax,x,y,animal_id,color,pars)
+function [h,hReg] = addJitteredScatter(ax,x,y,animal_id,color,pars)
 %ADDJITTEREDSCATTER Adds jittered scatter plot to current axes
 %
-%  h = analyze.stat.addJitteredScatter(ax,x,y,animal_id,color,pars);
+%  [h,hReg] = analyze.stat.addJitteredScatter(ax,x,y,animal_id,color,pars);
 %
 % Inputs
 %  ax        - Axes handle
@@ -13,6 +13,7 @@ function h = addJitteredScatter(ax,x,y,animal_id,color,pars)
 %
 % Output
 %  h         - Handle to scatter graphics object
+%  hReg      - Handle to regression graphics object
 %
 % For use with `splitapply` workflow.
 %
@@ -25,6 +26,7 @@ end
 if nargin < 6
    pars = struct;
    pars.AddLabel = false;
+   pars.Annotation = 'on';
    pars.Jitter = 0.25;
    pars.MarkerEdgeAlpha = 0.25;
    pars.MarkerFaceAlpha = 0.25;
@@ -60,16 +62,19 @@ h = scatter(ax,xj,y,'filled',...
    pars.ScatterParams{:},...
    'MarkerEdgeColor',color,...
    'MarkerFaceColor',color,...
-   'DisplayName',ID); 
+   'DisplayName',strcat(ID,"_{trials}")); 
+h.Annotation.LegendInformation.IconDisplayStyle = pars.Annotation;
 
 if pars.ShowAnimals
    switch lower(pars.RegressionType)
       case 'linear'
-         analyze.stat.addLinearRegression(ax,xj,y,color,...
-            pars.XPlot,pars.RegressionParams{:});
+         [~,~,hReg] = analyze.stat.addLinearRegression(ax,xj,y,color,...
+            pars.XPlot,pars.RegressionParams{:},...
+            'Displayname',ID);
       case 'logistic'
-         analyze.stat.addLogisticRegression(ax,xj,y,color,...
-            pars.XPlot,pars.RegressionParams{:});
+         [~,~,hReg] = analyze.stat.addLogisticRegression(ax,xj,y,color,...
+            pars.XPlot,pars.RegressionParams{:},...
+            'DisplayName',ID);
    end
 end
 

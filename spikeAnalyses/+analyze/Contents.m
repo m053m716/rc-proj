@@ -28,12 +28,8 @@
 %
 % <strong>Sub-Packages</strong> (Track different analytical flows)
 %   behavior     - Behaviorally-related analyses (e.g. duration of trials etc)
-%   complete     - Analyses related to completed trials only
-%   fails        - Analyses related to failed trials only
 %   jPCA         - Code from 2006 jPCA Nature paper (credit: Mark Churchland & John P Cunningham)
 %   marg         - Package containing functions corresponding to `marg.mlx`
-%   nnm          - Package for non-negative matrix factorization analyses
-%   nullspace    - Package for relating nullspace activity at different task-relevant epochs
 %   pc           - Package for principal components-related analyses and reconstructions
 %   rec          - Package for all code applied to data at single-recording level
 %   stat         - Package for running Matlab statistical models

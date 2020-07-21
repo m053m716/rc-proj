@@ -38,7 +38,8 @@ end
 
 inputField = sprintf('M%s',lower(type));
 outputField = sprintf('%s_proj_resid',lower(type));
-matField = sprintf('M%s_res',lower(type));
+matField_best = sprintf('M%s_res_best',lower(type));
+matField_skew = sprintf('M%s_res_skew',lower(type));
 
 M = P(1).misc.(inputField);
 fProj = @(s)s.dZ - (s.Z * M);
@@ -61,10 +62,12 @@ t = arrayfun(@(s)fTime(s),P,'UniformOutput',false);
 [P.t_err] = deal(t{:});
 
 % Recover linearized error dynamics using least-squares regression.
-% Mres = (vertcat(rec{:})' / vertcat(P.Z)')';
-Mres = analyze.jPCA.skewSymRegress(vertcat(rec{:}),vertcat(P.Z),eps)';  
+Mres_best = (vertcat(rec{:})' / vertcat(P.Z)')';
+Mres_skew = analyze.jPCA.skewSymRegress(vertcat(rec{:}),vertcat(P.Z),eps)'; 
+
 for ii = 1:numel(P)
-   P(ii).misc.(matField) = Mres;
+   P(ii).misc.(matField_best) = Mres_best;
+   P(ii).misc.(matField_skew) = Mres_skew;
 end
 
 end
