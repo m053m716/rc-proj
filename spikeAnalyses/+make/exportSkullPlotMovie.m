@@ -117,7 +117,7 @@ Y(CID.Area=="CFA") =  abs(Y(CID.Area=="CFA")); % Put CFA always on top
 
 % % Get relevant data from array struct % %
 switch lower(pars.ProjType)
-   case 'jpc'
+   case {'jpc','skew'}
       projSS = 'skew';
       wField = 'W';
    otherwise
@@ -125,7 +125,7 @@ switch lower(pars.ProjType)
       wField = 'W_best';
 end
 sortBy = lower(pars.SortBy);
-errField = sprintf('W_%s_res',projSS);
+errField = sprintf('W_%s_res_%s',projSS,pars.ErrType);
 pIdx = p.misc.(projSS).explained.sort.vec.(sortBy)([2*(pars.plane-1)+1, 2*pars.plane]);
 
 % % If trial is NaN, then just show the cross-condition mean % %
@@ -143,11 +143,11 @@ if useXCmean
          'subtract_mean',false,...
          'subtract_xc_mean',pars.subtract_xc_mean);
    end
-   W = abs(Proj.(wField)(:,pIdx,:)) + imag(p.(wField)(:,pIdx,:));
+   W = Proj.(wField)(:,pIdx,:);
    ERR = Proj.(errField);
 else
    Proj = P;
-   W = abs(p.(wField)(:,pIdx,:)) + imag(p.(wField)(:,pIdx,:));
+   W = p.(wField)(:,pIdx,:);
    ERR = p.(errField);
 end
 

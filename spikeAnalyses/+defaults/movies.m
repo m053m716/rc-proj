@@ -42,6 +42,7 @@ p.single_skull.tag = '';
 p.single_skull.profile = 'MPEG-4'; % 'Motion JPEG AVI' (default) | 'MPEG-4' | 'Grayscale AVI'
 
 p.single_skull.ColorMap = 'cool';
+p.single_skull.ErrType = 'best';
 p.single_skull.EventPauseDuration = 1.5; % (seconds); how long to "pause" on events
 p.single_skull.FontParams = ...
    {'FontName','Arial','FontWeight','bold','Color','w'};
