@@ -28,6 +28,7 @@
 %
 % <strong>Sub-Packages</strong> (Track different analytical flows)
 %   behavior     - Behaviorally-related analyses (e.g. duration of trials etc)
+%   dynamics     - Analyses of static linearized dynamics during behavior
 %   jPCA         - Code from 2006 jPCA Nature paper (credit: Mark Churchland & John P Cunningham)
 %   marg         - Package containing functions corresponding to `marg.mlx`
 %   pc           - Package for principal components-related analyses and reconstructions

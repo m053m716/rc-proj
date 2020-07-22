@@ -134,7 +134,7 @@ if istable(D)
    CID = D.CID{1};
    S = D.Summary{1};
    P = D.Projection{1};
-   m = S.(matField);
+   m = P(1).misc.(matField);
    C = S.PCA.vectors_all; 
    if strcmpi(pars.rankType,'eig')
       [~,dEig] = eig(m);
@@ -155,7 +155,12 @@ else
    P = D;
 end
 
-M = analyze.jPCA.convert_Mskew_to_jPCs(m); % sort by eig:
+if ismember(matField,{'Mskew','Mbest_res_skew','Mskew_res_skew'})
+   M = analyze.jPCA.convert_Mskew_to_jPCs(m); % sort by eig:
+else
+   M = m;
+end
+
 M = M(:,sortIndices);
 
 if ischar(pars.groupings) || isstring(pars.groupings) || iscell(pars.groupings)   

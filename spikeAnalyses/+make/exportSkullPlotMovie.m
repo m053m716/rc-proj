@@ -143,11 +143,11 @@ if useXCmean
          'subtract_mean',false,...
          'subtract_xc_mean',pars.subtract_xc_mean);
    end
-   W = real(Proj.(wField)(:,pIdx,:)) + imag(p.(wField)(:,pIdx,:));
+   W = abs(Proj.(wField)(:,pIdx,:)) + imag(p.(wField)(:,pIdx,:));
    ERR = Proj.(errField);
 else
    Proj = P;
-   W = real(p.(wField)(:,pIdx,:)) + imag(p.(wField)(:,pIdx,:));
+   W = abs(p.(wField)(:,pIdx,:)) + imag(p.(wField)(:,pIdx,:));
    ERR = p.(errField);
 end
 

@@ -368,18 +368,26 @@ jPCs = analyze.jPCA.convert_Mskew_to_jPCs(Mskew);
 
 % % Reproject data using recovered jPCs % %
 proj = scores * jPCs; % Constrained skew-symmetric PCs
+proj_res  = ((proj(maskT2,:) + proj(maskT1,:))./2) - ...
+   (scores(maskT2,:) - scores(maskT1,:));
 best_proj = scores * M; % "Best" regression matrix
+best_res  = ((best_proj(maskT2,:) + best_proj(maskT1,:))./2) - ...
+   (scores(maskT2,:) - scores(maskT1,:));
 crossCondMeanAllTimes = meanAred * jPCs; % Offsets to recover original using jPCs
 
 % Do some annoying output formatting.
 % Put things back so we have one entry per condition
 index1 = 1;
+index2 = 1;
 P = initProjStruct(Data);
 
 for c = 1:numTrials
    index1b = index1 + nSamples-1;  % we will go from index1 to this point
+   index2b = index2 + nSamples-2;
    P(c).proj = proj(index1:index1b,:); %#ok<*AGROW>
+   P(c).proj_res = proj_res(index2:index2b,:);
    P(c).best_proj = best_proj(index1:index1b,:);
+   P(c).best_proj_res = best_res(index2:index2b,:);
    P(c).state = scores(index1:index1b,:);
    P(c).data = smallA(index1:index1b,:);
    P(c).times = tt(analyzeIndices);
@@ -393,6 +401,7 @@ for c = 1:numTrials
    
    % Increment by number of samples per trial
    index1 = index1+nSamples; 
+   index2 = index2+(nSamples-1);
 end
 
 % This was added afterwards, so that if it has to be re-run it will still
@@ -595,7 +604,9 @@ warning('on');
          'supportIndex',iVal,...
          'times',iVal,...
          'proj',iVal,...
+         'proj_res',iVal,...
          'best_proj',iVal,...
+         'best_proj_res',iVal,...
          'state',iVal,...
          'data',iVal,...
          'Z',iVal,...
