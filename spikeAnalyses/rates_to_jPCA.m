@@ -20,7 +20,12 @@ M = utils.filterByNTrials(M,5,'Successful'); % This should take us from roughly 
 % D = analyze.jPCA.multi_jPCA(M,5); % Use default parameters (short timescale, etc.)
 D = analyze.jPCA.multi_jPCA(M,5,'t_lims',[-650 350],'dt',2.5,'ord',3,'wlen',9);
 D = sortrows(D,'AnimalID','ascend');
-D = analyze.dynamics.primary_regression_space(D);
-D.Projection = analyze.jPCA.recover_channel_weights(D,'groupings','Area','subtract_xc_mean',false,'subtract_mean',false);
 D.Projection = analyze.jPCA.recover_residuals(D.Projection);
+D.Projection = analyze.jPCA.recover_channel_weights(D.Projection,'groupings','Area','subtract_xc_mean',false,'subtract_mean',false,'matType','skew');
+D.Projection = analyze.jPCA.recover_channel_weights(D.Projection,'groupings','Area','subtract_xc_mean',false,'subtract_mean',false,'matType','best');
+D.Projection = analyze.jPCA.recover_channel_weights(D.Projection,'groupings','Area','subtract_xc_mean',false,'subtract_mean',false,'matType','best_res_best');
+D.Projection = analyze.jPCA.recover_channel_weights(D.Projection,'groupings','Area','subtract_xc_mean',false,'subtract_mean',false,'matType','best_res_skew');
+D.Projection = analyze.jPCA.recover_channel_weights(D.Projection,'groupings','Area','subtract_xc_mean',false,'subtract_mean',false,'matType','skew_res_skew');
+D = analyze.dynamics.primaryPCDynamicsByArea(D);
+D = analyze.dynamics.primary_regression_space(D);
 save(defaults.files('multi_jpca_long_timescale_matfile'),'D','-v7.3'); % Was not used in stats.mlx, this is the long timescale version

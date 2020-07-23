@@ -137,6 +137,9 @@ p.complete_jmp = 'RC-JMP_Complete-PCs.xlsx';
 p.rec_analyses_dir = fullfile(pname,'2020_BY-BLOCK');
 p.rec_analyses_fig_dir = fullfile(pname,'scratchwork','BY-BLOCK');
 
+% From +analyze/+dynamics
+p.area_dynamics_fig_dir = fullfile(pname,'2020_AREA-DYNAMICS');
+
 % Parse output
 if nargin < 1
    varargout = {p};   

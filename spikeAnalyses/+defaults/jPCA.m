@@ -149,6 +149,7 @@ movie_params.tail = 50; % ms
 movie_params.time_match_tol = 0.025; % See `ismembertol` for details
 movie_params.times = []; % Force to use Projection(1).times
 movie_params.timeIndicator    = []; % Holds text object showing current time
+movie_params.timeField        = 'times'; % Default field for .times
 movie_params.titleText_plane  = []; % Holds text object indicating jPC plane
 movie_params.titleText_var    = []; % Holds text object indicating % varcapt
 movie_params.titleText_score  = []; % Holds text object indicating score

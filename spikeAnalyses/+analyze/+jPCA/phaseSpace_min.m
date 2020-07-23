@@ -249,7 +249,7 @@ params = addLabels(params);
       %  Y         - Cell containing column vector of Y-coordinates to plot
       %  C         - Cell containing time vector for shading from colormap
       
-      iKeep = ismember(Proj.times,pars.ts);
+      iKeep = ismember(Proj.(pars.tField),pars.ts);
 
       x = Proj.(pars.pField)(iKeep,pars.d1);
       y = Proj.(pars.pField)(iKeep,pars.d2);
@@ -279,8 +279,13 @@ params = addLabels(params);
       % Output
       %  pars   - Reduced parameters struct for arrayfun function
       
-      pIdx = p.misc.(params.projType).explained.sort.plane.(lower(params.rankType))(params.plane2plot);
+      if ~isfield(params,'pIdx')
+         pIdx = p.misc.(params.projType).explained.sort.plane.(lower(params.rankType))(params.plane2plot);
+      else
+         pIdx = params.pIdx;
+      end
       pars = struct('ts',params.times,...
+              'tField',params.timeField,...
               'pField',params.projField,...
               'd1',2*(pIdx-1)+1,... % jPC-1
               'd2',2*pIdx,...       % jPC-2
