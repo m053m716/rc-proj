@@ -161,6 +161,7 @@ T.Outcome = categorical(T.Outcome,...
 % Update description and names of rows
 T.Properties.Description = ...
    'Table of normalized rate time-series for each trial';
+utils.mtb(T);
 T.Properties.RowNames = tag__.makeKey(size(T,1),'unique','ROWID_');
 
 % Associate properties for Transformed rate etc. on UserData

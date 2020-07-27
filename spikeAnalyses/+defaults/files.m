@@ -20,7 +20,8 @@ p.remote_tank = tank;
 [tmp,~,~] = fileparts(tmp);
 [p.local_repo_name,~,~] = fileparts(tmp);
 % p.group_data_name = fullfile(pname,'gData.mat');
-p.group_data_file = '2020_gData.mat';
+p.group_data_file = '2020_gData.mat'; % This was used in most analyses, it has normalized rates in .Data instead of binned spike counts.
+p.group_data_file_raw_binned_version = '2020_gData-60_ms_binnned_data.mat'; % This version has binned spike counts in .Data instead of normalized rates
 p.group_data_name = fullfile(pname,p.group_data_file);
 p.icms_data_file = 'icms_data.xlsx';
 p.icms_data_name = fullfile(pname,p.icms_data_file);
@@ -34,6 +35,7 @@ p.rate_csv = fullfile(pname,'rate_data.csv');
 p.rate_table_base_matfile = fullfile(pname,'T.mat');
 p.rate_table_default_matfile = fullfile(pname,'T_default.mat');
 p.rate_unique_trials_matfile = fullfile(pname,'T_unique_trials.mat');
+p.raw_rates_table_file = fullfile(pname,'R_raw-rates.mat');
 
 % Population Dynamics ('multi_jPCA.m' exported table)
 p.multi_jpca_default_matfile = fullfile(pname,'Multi_jPCA_Table.mat'); % Original "multi-jPCA" table

@@ -993,70 +993,7 @@ classdef block < matlab.mixin.SetGetExactNames
          end
       end
       
-      % Update Spike Rate data
-      function flag = updateSpikeRateData(obj,align,outcome)
-         %UPDATESPIKERATEDATA  Updates Block spike rate data
-         %
-         %  flag = updateSpikeRateData(obj,align,outcome);
-         %
-         %  -- Inputs --
-         %  obj : `block` object
-         %  align : `'Grasp'` or `'Reach'`
-         %  outcome : `'Successful'` or `'Unsuccessful'` or `'All'`
-         
-         flag = false;
-         if nargin < 2
-            align = defaults.block('alignment');
-         end
-         if nargin < 3
-            outcome = defaults.block('outcome');
-         end
-         
-         if numel(obj) > 1
-            flag = false(size(obj));
-            for ii = 1:numel(obj)
-               flag(ii) = updateSpikeRateData(obj(ii),align,outcome);
-            end
-            return;
-         end
-         
-         [input_expr,w] = defaults.block('fname_norm_rate','spike_bin_w');         
-         str = sprintf(input_expr,obj.Name,w,align,outcome);
-         ioPath = obj.getPathTo('rate');
-         fname = fullfile(ioPath,str);
-         if (exist(fname,'file')==0) && (~obj.HasData)
-            fprintf(1,'No such file: %s\n',str);
-            obj.Data.(align).(outcome).rate = [];
-            return;
-         elseif exist(fname,'file')==0
-            fprintf(1,'No such file: %s\n',str);
-            obj.Data.(align).(outcome).rate = [];
-            return;
-         else
-            fprintf('Updating %s-%s rate data for %s...\n',outcome,align,obj.Name);
-            in = load(fname,'data','t');
-            if nargin == 3
-%                obj.Data.(align) = struct; % In case it needs to be overwritten
-%                obj.Data.(align).(outcome) = struct;
-               obj.Data.(align).(outcome).rate = in.data;
-               if isfield(in,'t')
-                  obj.Data.(align).(outcome).t = in.t;
-               else
-                  obj.Data.(align).(outcome).t = defaults.experiment('t_ms');
-               end
-            else % For old versions
-               obj.Data.rate = in.data;
-               if isfield(in,'t')
-                  obj.Data.t = in.t;
-               else
-                  obj.Data.t = linspace(min(obj.T),max(obj.T),size(in.data,2));
-               end
-            end
-            obj.HasData = true;
-            flag = true;
-         end
-         
-      end
+      flag = updateSpikeRateData(obj,align,outcome,varargin) % Update Spike Rate data
    end
    
    % "GET" BLOCK methods
@@ -2186,7 +2123,7 @@ classdef block < matlab.mixin.SetGetExactNames
       %                 iS.Exclude = {'Complete','Support'};
       %                 rate = getRate(obj,'Reach','All','Full',iS);
       %
-      %           Rate: nTrials x nTimesteps x nChannels tensor
+      %           rate: nTrials x nTimesteps x nChannels tensor
       %
       function [rate,flag_exists,flag_isempty,t,labels,b,channelInfo] = getRate(obj,align,outcome,area,includeStruct,updateAreaModulations)         
          % GETRATE  Returns rate for a given field configuration
@@ -2204,11 +2141,11 @@ classdef block < matlab.mixin.SetGetExactNames
          %                 iS.Exclude = {'Complete','Support'};
          %                 rate = getRate(obj,'Reach','All','Full',iS);
          %
-         %           Rate: nTrials x nTimesteps x nChannels tensor
+         %           rate: nTrials x nTimesteps x nChannels tensor
          %              --> `Rate` is the corresponding downsampled,
          %                    normalized rate data.
          %              --> Must be assigned to the rate `.Data` struct
-         %                  property field using `updateSpikeRateData`
+         %                    property field using `updateSpikeRateData`
          %              --> Rate has the BLOCK channel mask applied. Any
          %                    other returned "channels" info (e.g.
          %                    `channelInfo` struct array) also has the
