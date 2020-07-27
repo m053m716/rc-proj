@@ -48,7 +48,7 @@ end
 if numel(obj) > 1
    flag = false(size(obj));
    for ii = 1:numel(obj)
-      flag(ii) = updateSpikeRateData(obj(ii),align,outcome);
+      flag(ii) = updateSpikeRateData(obj(ii),align,outcome,pars);
    end
    return;
 end
@@ -67,7 +67,7 @@ elseif exist(fname,'file')==0
 else
    fprintf('Updating %s-%s rate data for %s...\n',outcome,align,obj.Name);
    in = load(fname,'data','t');
-   if nargin == 3
+   if nargin >= 3
       obj.Data.(align).(outcome).rate = in.data;
       if isfield(in,'t')
          obj.Data.(align).(outcome).t = in.t;
