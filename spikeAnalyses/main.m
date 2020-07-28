@@ -1,13 +1,23 @@
 %% MAIN Analysis outline; use `help spikeAnalyses;` for details
 %
 %  Serves as an outline/notes for processing/analysis done in `rc-proj`
+%  -> This is meant to be run one section at a time, and really shouldn't
+%     be run all at once. Rather, note the .mlx files the relevant section
+%     points to and load or generate the relevant tables to be able to
+%     execute those files.
 %
-%  Note: if matfile containing `gData` variable (`group` class object)
-%        already exists, then a standard workflow consists of:
+%  -- CAUTION : RUNNING THIS SCRIPT WILL USE A LOT OF MEMORY AND    --
+%  --           TAKE FOREVER! "RUN ALL" AT YOUR OWN RISK!           --
+%  --           IT WILL ALSO SAVE SOME LARGE-ISH TABLES LOCALLY     --
+%  --           SO CHECK WHAT YOU WANT TO DO BEFORE CLICKING RUN!   --
+%
+%  General workflow, if `gData` has been generated:
 %        ```
 %           gData = group.loadGroupData;
 %           T = getRateTable(gData); % Can specify other args
 %        ```
+%  Or, just load the saved rate table from matfile.
+%
 %        Once in the "table" format (`T`) many of the ensuing analyses take
 %        just that table as the argument, for example:
 %        ```
@@ -36,75 +46,67 @@ clear; clc;
 
 %% Create the group data array (takes forever if rates must be extracted)
 % Alternative: gData = group.loadGroupData(); --> Takes ~3.5 minutes
-[gData,ticTimes] = construct_gData_array(rat,skip_save);
+[gData,ticTimes] = construct_gData_array(rat,skip_save); % Auto-saves gData if skip_save is false
 
-%% Export rate statistics
-% Force save non-smoothed Rates:
-T = getRateTable(gData,[],[],[],true,false); % (allow ~15-30 minutes)
-T = applyTransform(T); % Then, apply transform and overwrite variable 
-                       % (large table; saves workspace memory)
-writetable(T,defaults.files('rate_csv'));
+%% Export statistics tables
+p = defaults.experiment('event_opts','rate_table_includes');
+T = getRateTable(gData,p.event_opts,p.rate_table_includes,{'RFA','CFA'},...
+   false,false); % (allow ~15-30 minutes)
+save(defaults.files('rate_table_matfile'),'T','-v7.3'); % takes a while
+t = applyTransform(T); % Then, apply transform
+writetable(t,defaults.files('rate_csv')); clear t; % Remove from workspace
+T = analyze.slice(T,...
+   'Alignment',{'Reach','Grasp'},...
+   'Outcome','Successful',...
+   'PelletPresent','Present'); % Slice to subset of table
+save(defaults.files('rate_table_default_matfile'),'T','-v7.3'); % Save smaller table also
+clear gData; % Remove from workspace (temporarily)
 
-%% Check on rate principal components
-% First, we just run the top 3 principal components and see how they look.
-opts = statset('Display','off');
-% Note that `analyze.pc.get` uses `splitApply` to just try and find the
-% "best fit" for the pcs rather than a homogeneous set of factors
-pc = analyze.pc.get(T,3,opts);
-% Noticed here that smoothing introduces large artifact:
-make.fig.check_nth_pc(pc,1); 
-% (See: D:\MATLAB\Data\RC\scratchwork\PCA\Top-PC after rate smoothing.png)
+%% Export single-channel spike rates
+G = analyze.stat.get_fitted_table(T); % Takes a while
+save(defaults.files('default_gauspuls_table'),'G','-v7.3');
+clear G; % Remove from workspace (temporarily)
 
-% So, we need to get the correct indices to a subset of rates to use for
-% computing the principal components so we don't introduce the large
-% spurious first principal component:
-t_start_stop = defaults.experiment('t_start_stop_reduced'); % (ms) -- avoid "edge effects"
-pc = analyze.pc.get(T,3,opts,t_start_stop); 
-make.fig.check_nth_pc(pc,3:-1:1); 
+%% Export jPCA dynamics tables
+opentoline(which('rates_to_jPCA.m'),1);
+rates_to_jPCA; % It's already in script format
+opentoline(which('main.m'),74);
+clear;
 
-% Now we know what the factors look like when not "aligned" in any
-% particular fashion when we break down individual recording sessions into
-% their primary components. We will now apply PCA to an aggregate matrix of
-% spike rates in which each row is a trial (so columns, which are time
-% samples, are "variables"). Before any statistics, we are pretty confident
-% that the following variables will already have a drastic effect on the
-% observed rate profiles:
-%
-%  * Alignment (Grasp, Reach, Completion, Support)
-%  * Outcome (Successful, Unsuccessful)
-%  * Group (Intact, Ischemic)
-%  * Area (CFA, RFA)
-%
-%  We're not immediately interested in those differences, which will
-%  complicate the analysis (for now). We will narrow our dataset to only 
-%  include the following types of rows (observations):
-%
-%  * Alignment: {Grasp,Reach}
-%  * Outcome: Successful
-%
-%  With the reduced dataset, each PCA will be applied to rate matrices 
-%  in which observations will have different values for the following
-%  metdata:
-%
-%  * Animal [Random effect]
-%  * Post-Op Day (should correlate with rehabilitation)
-%  * Recording Channel [Random effect]
-%  * Behavioral Trial  [Each "Trial" has an ID]
-%
-%  So, ultimately, we will iterate on 2x Alignment, 2x Group, and 2x Area
-%  giving us 8 different categories for our PCA table that keeps track of
-%  the principal component coefficients.
+%% Export raw spike rate counts table
+A = {'Reach','Grasp','Support','Complete'};
+pars = defaults.block('fname_norm_rate','spike_bin_w');
+group.loadGroupData; % Re-load group data
+for iA = 1:numel(A)
+   runFun(gData,'updateSpikeRateData',A{iA},'All',pars);
+end
+save(defaults.files('group_data_file_raw_binned_version'),'gData','-v7.3');
+R = getRateTable(gData,p.event_opts,p.rate_table_includes,{'RFA','CFA'},false,false);
+save(defaults.files('raw_rates_table_file'),'R','-v7.3');
+clear;
+% % % Now all tables should be generated % % %
 
-[P,C] = analyze.pc.pca_table(T,t_start_stop);
+%% Run behavior statistics
+opentoline(which('behavior_timing.mlx'),1);
+matlab.internal.liveeditor.executeAndSave(which('behavior_timing.mlx'));
+matlab.internal.liveeditor.openAndConvert(which('behavior_timing.mlx'),...
+   fullfile(defaults.files('html_result_dir'),'Trial_Durations.html'));
+opentoline(which('main.m'),97);
 
-%% Non-negative matrix factorization (NNMF)
-% Apply non-negative matrix factorization (NNMF) to successful elements
-% from all animals. 
+%% Run single-channel (raw & normalized) rate statistics
+opentoline(which('raw_rate_stats.mlx'),1);
+matlab.internal.liveeditor.executeAndSave(which('raw_rate_stats.mlx'));
+matlab.internal.liveeditor.openAndConvert(which('raw_rate_stats.mlx'),...
+   fullfile(defaults.files('html_result_dir'),'Raw_Rate_Stats.html'));
+opentoline(which('single_channel_stats.mlx'),1);
+matlab.internal.liveeditor.executeAndSave(which('single_channel_stats.mlx'));
+matlab.internal.liveeditor.openAndConvert(which('single_channel_stats.mlx'),...
+   fullfile(defaults.files('html_result_dir'),'Single_Channel_Stats.html'));
+opentoline(which('main.m'),107);
 
-% Get initialization guesses
-% h0 = analyze.nnm.get_init_factors(T,8);
-% save('D:\MATLAB\Data\RC\2020_NNMF\NNMF_h0.mat','h0','-v7.3');
-
-% Return NNMF table (N) for whole dataset, to be exported
-[N,C,exclusions] = analyze.nnm.nnmf_table(T,false);
-
+%% Run population dynamics rate statistics
+opentoline(which('population_dynamic_stats.mlx'),95);
+matlab.internal.liveeditor.executeAndSave(which('population_dynamics_stats.mlx'));
+matlab.internal.liveeditor.openAndConvert(which('population_dynamics_stats.mlx'),...
+   fullfile(defaults.files('html_result_dir'),'Population_Dynamics_Stats.html'));
+opentoline(which('main.m'),107);

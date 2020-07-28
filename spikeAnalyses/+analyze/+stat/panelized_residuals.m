@@ -23,14 +23,26 @@ fig = figure('Name','Panelized GLME Residuals',...
    'Position',gfx__.addToSecondMonitor,...
    'NumberTitle','off'); 
 
-ax = subplot(2,1,1); 
-set(ax,'FontName','Arial','XColor','k','YColor','k','LineWidth',1.5);
+% Plot histogram of residuals
+ax = subplot(2,2,1); 
+set(ax,'Parent',fig,...
+   'FontName','Arial','XColor','k','YColor','k','LineWidth',1.5);
 plotResiduals(glme,'histogram','ResidualType',type); 
 xlabel('Residual','FontName','Arial','Color','k','FontSize',14);
 ylabel('Count','FontName','Arial','Color','k','FontSize',14);
 
-ax = subplot(2,1,2); 
-set(ax,'FontName','Arial','XColor','k','YColor','k','LineWidth',1.5);
+% Plot probability density
+ax = subplot(2,2,2); 
+set(ax,'Parent',fig,...
+   'FontName','Arial','XColor','k','YColor','k','LineWidth',1.5);
+plotResiduals(glme,'probability','ResidualType',type); 
+xlabel('Residual','FontName','Arial','Color','k','FontSize',14);
+ylabel('Count','FontName','Arial','Color','k','FontSize',14);
+
+% Plot scatter of fitted values vs. residuals
+ax = subplot(2,2,[3,4]); 
+set(ax,'Parent',fig,...
+   'FontName','Arial','XColor','k','YColor','k','LineWidth',1.5);
 plotResiduals(glme,'fitted','ResidualType',type);
 xlabel('Fitted Value','FontName','Arial','Color','k','FontSize',14);
 ylabel('Residual','FontName','Arial','Color','k','FontSize',14);
@@ -52,5 +64,6 @@ end
 suptitle(str);
 disp('<strong>R-squared</strong>');
 disp(glme.Rsquared);
+drawnow;
 
 end

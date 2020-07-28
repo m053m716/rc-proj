@@ -1,12 +1,10 @@
-function Gr = remove_excluded(G,z_pc_index)
+function Gr = remove_excluded(G)
 %REMOVE_EXCLUDED Remove outlier data or categories otherwise not in model
 %
 %  Gr = analyze.stat.remove_excluded(G);
-%  Gr = analyze.stat.remove_excluded(G,z_pc_index);
 %
 % Inputs
 %  G          - Table as returned by analyze.stat.get_fitted_table
-%  z_pc_index - (Optional) PC index to use for "Z" response variable
 %
 % Output
 %  Gr         - Table in same format as `G` but with exclusions removed
@@ -14,13 +12,12 @@ function Gr = remove_excluded(G,z_pc_index)
 % See also: analyze.stat.get_fitted_table, defaults.stat
 
 % Return configured parameters %
-[max_env_bw,max_sse,peak_lims,outcome,align,days_rm,zIdx,mdl] = defaults.stat(...
+[max_env_bw,max_sse,peak_lims,outcome,align,days_rm,mdl] = defaults.stat(...
    'max_env_bw','max_sse','peak_offset_lims',...
    'included_outcome','included_alignment','removed_days',...
-   'default_z_pc_index','modelspec');
-if nargin < 2
-   z_pc_index = zIdx;
-end
+   'modelspec');
+[min_dur,max_dur] = defaults.complete_analyses(...
+   'min_duration','max_duration');
 
 G.Properties.UserData.Excluded = struct; % Initialize exclusion struct
 
@@ -36,6 +33,11 @@ G.Properties.UserData.Excluded.ByDay = sum(~iDay);
 iCategorical = iOutcome & iAlignment & iDay;
 G.Properties.UserData.Excluded.Categorical = sum(~iCategorical);
 Gr = G(iCategorical,:); % Categorical exclusions
+
+% Exclude based on durations
+iDuration = Gr.Duration>=min_dur & Gr.Duration<=max_dur;
+Gr.Properties.UserData.Excluded.Duration = sum(~iDuration);
+Gr = Gr(iDuration,:);
 
 iLowTau = (Gr.PeakOffset > peak_lims(1));
 iHighTau = (Gr.PeakOffset < peak_lims(2));

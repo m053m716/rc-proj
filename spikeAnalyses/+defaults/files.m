@@ -142,6 +142,9 @@ p.rec_analyses_fig_dir = fullfile(pname,'scratchwork','BY-BLOCK');
 % From +analyze/+dynamics
 p.area_dynamics_fig_dir = fullfile(pname,'2020_AREA-DYNAMICS');
 
+% For html exports
+p.html_result_dir = 'D:/MyRepos/GitHub Pages/RC-Data/Results';
+
 % Parse output
 if nargin < 1
    varargout = {p};   
