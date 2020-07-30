@@ -1,8 +1,8 @@
-function glme = fit_spike_count_glme(R,align,outcome,t_epoc,varargin)
-%FIT_SPIKE_COUNT_GLME Fit Generalized Linear Mixed-Effects model for spike counts
+function glme = fit_full_spike_count_glme(R,varargin)
+%FIT_FULL_SPIKE_COUNT_GLME Fit "full" (fixed) Generalized Linear Mixed-Effects model for spike counts, incorporating all alignments of interest
 %
-%  glme = analyze.stat.fit_spike_count_glme(R,align,outcome,t_epoc);
-%  glme = analyze.stat.fit_spike_count_glme(__,'Name',value,...);
+%  glme = analyze.stat.fit_full_spike_count_glme(R);
+%  glme = analyze.stat.fit_full_spike_count_glme(R,'Name',value,...);
 %
 %  Iterates on any cell array inputs of `align`, `outcome`, or `t_epoc`, 
 %  so that if any are provided as a cell then output `glme` is an array
@@ -10,15 +10,6 @@ function glme = fit_spike_count_glme(R,align,outcome,t_epoc,varargin)
 %
 % Inputs
 %  R        - Raw rates table [in defaults.files('raw_rates_table_file')]
-%
-%  align    - 'Reach' | 'Grasp' | 'Support' | 'Complete'
-%              -> Or, a cell array with multiple members from that list
-%
-%  outcome  - 'Successful' | 'Unsuccessful'
-%              -> Or, cell array with both
-%
-%  t_epoc   - [tStart (ms), tStop (ms)] or cell array of relative
-%                 time-ranges, e.g. {[-600 -300]; [-300 300]};
 %
 %  varargin - (Optional) <'Name',value> input argument pairs.
 %
@@ -30,14 +21,16 @@ function glme = fit_spike_count_glme(R,align,outcome,t_epoc,varargin)
 %              input levels.
 %
 % See also: analyze.stat, group, group.getRateTable,
-%           analyze.stat.fit_full_spike_count_glme,
+%           analyze.stat.fit_spike_count_glme,
 %           analyze.stat.surf_partial_dependence
 
 % % Parse input parameters % %
 pars = struct;
+pars.BehaviorEpoch = [-450 150];
 pars.DataVars = {...
-   'Group','AnimalID','BlockID','PostOpDay','Area',...
-   'ProbeID','ChannelID','Duration' ...
+   'Group','AnimalID','BlockID','Alignment',...
+   'PostOpDay','Area','ProbeID','ChannelID',...
+   'Duration' ...
    };
 pars.DispersionFlag = true;
 pars.Distribution = "Poisson";
@@ -47,8 +40,9 @@ pars.Link = "log";
 [pars.MinDuration,pars.MaxDuration] = defaults.complete_analyses('min_duration','max_duration');
 pars.MaxRate = 300; % Spikes/sec
 pars.MinRate = 2.5; % Spikes/sec
-pars.Model = "Spikes~Group*Area+(1+SupportLimbMovement|ChannelID:Day)+(1+Duration+Extension+Retraction|AnimalID)";
+pars.Model = "Spikes~Group*Area*Alignment+(1+SupportLimbMovement|ChannelID:Day)+(1+Duration|AnimalID)";
 pars.PelletPresent = "Present";
+pars.PreEpoch = [-1350 -750];
 pars.Verbose = true;
 pars.WeightVariable = '';
 pars.Weights = [];
@@ -69,109 +63,29 @@ for iV = 1:2:numel(varargin)
 end
 % % End parsing input parameters % %
 
-% % Parse input cell array for "selector" arguments % %
-% Iterate on alignments
-if iscell(align)
-   nA = numel(align);
-   if iscell(outcome)
-      nO = numel(outcome);
-      
-   else
-      nO = 1;
-      assignCell = false;
-   end
-   if iscell(t_epoc)
-      nT = numel(t_epoc);
-      assignCell = true;
-   else
-      nT = 1;
-   end
-   glme = cell(nA*nT*nO,1);
-   if assignCell
-      vec = 1:(nT*nO);
-      for iA = 1:nA
-         glme(vec,1) = analyze.stat.fit_spike_count_glme(...
-            R,align{iA},outcome,t_epoc,pars);
-         vec = vec + (nT*nO);
-      end 
-   else
-      for iA = 1:nA
-         glme{iA} = analyze.stat.fit_spike_count_glme(...
-            R,align{iA},outcome,t_epoc,pars);
-      end 
-   end
-   return;
-end
-
-% Iterate on outcomes
-if iscell(outcome)
-   nO = numel(outcome);
-   if iscell(t_epoc)
-      nT = numel(t_epoc);
-      assignCell = true;
-   else
-      nT = 1;
-      assignCell = false;
-   end
-   glme = cell(nO*nT,1);
-   if assignCell
-      vec = 1:nT;
-      for iO = 1:nO
-         glme(vec,1) = analyze.stat.fit_spike_count_glme(...
-            R,align,outcome{iO},t_epoc,pars);
-         vec = vec + nT;
-      end
-   else
-      for iO = 1:nO
-         glme{iO,1} = analyze.stat.fit_spike_count_glme(...
-            R,align,outcome{iO},t_epoc,pars);
-      end
-   end
-   return;
-end
-
-% Iterate on relative times
-if iscell(t_epoc)
-   nT = numel(t_epoc);
-   glme = cell(nT,1);
-   for iT = 1:nT
-      glme{iT,1} = analyze.stat.fit_spike_count_glme(...
-         R,align,outcome,t_epoc{iT},pars);
-   end
-   return;
-end
-% % End iterations % %
-
-% Screen to a reduced subset of trials
-if strcmpi(outcome,'All')
-   r = analyze.slice(R,...
-      'Alignment',align,...
-      'PelletPresent',pars.PelletPresent);
-else
-   r = analyze.slice(R,...
-      'Alignment',align,...
-      'Outcome',outcome,...
-      'PelletPresent',pars.PelletPresent);
-end
+% Reduce to only trials with the pellet
+r = analyze.slice(R,...
+   'PelletPresent',pars.PelletPresent,...
+   'Outcome','Successful');
 
 % Get relative sample times for each rate bin
 t = r.Properties.UserData.t;
-iEpoch = (t >= t_epoc(1)) & (t <= t_epoc(2));
+iEpoch = (t >= pars.BehaviorEpoch(1)) & (t <= pars.BehaviorEpoch(2));
+iPreEpoch = (t >= pars.PreEpoch(1)) & (t <= pars.PreEpoch(2));
 tt = t(iEpoch);
 dt = (range(tt)+mode(diff(t)))*1e-3; % Each time is the bin center; account for "widths"
 
 % Create new variables to add: Spikes (response); N (weights; total spikes)
 Spikes = sum(r.Rate(:,iEpoch),2);
+PreMovementSpikes = sum(r.Rate(:,iPreEpoch),2);
 N = sum(r.Rate,2);
 Day = ordinal(r.PostOpDay);
 SupportLimbMovement = categorical(~isnan(r.Support)+1,[1 2],{'Absent','Present'});
-Extension = r.Grasp - r.Reach;
-Retraction = r.Complete - r.Grasp;
 
 % Create data table for statistics
-newVars = table(Day,SupportLimbMovement,Spikes,N,Extension,Retraction);
+newVars = table(Day,SupportLimbMovement,Spikes,PreMovementSpikes,N);
 newVars.Properties.VariableUnits = ...
-   {'days','','count','total count','sec','sec'};
+   {'days','','count','count','total count'};
 rThis = r(:,pars.DataVars);
 
 S = [rThis,  newVars];
@@ -208,21 +122,17 @@ S.Properties.UserData.ModelParams = struct;
 S.Properties.UserData.ModelParams.pars = pars;
 S.Properties.UserData.ModelParams.excluded = excluded;
 S.Properties.UserData.ModelParams.tt = tt;
-S.Properties.UserData.ModelParams.t_epoc = t_epoc;
-S.Properties.UserData.ModelParams.align = align;
-S.Properties.UserData.ModelParams.outcome = outcome;
 
 % Fit generalized linear mixed effects model for Poisson distributed
 % response variable with a log-link function
 if pars.Verbose
    fprintf(1,'\n\t==============================================\n');
    fprintf(1,...
-      'GLME: <strong>%s</strong> trials <strong>(%s)</strong>\n', ...
-      align,outcome);
+      'GLME: <strong>All</strong> (successful) motor events\n');
    fprintf(1,...
       ['\t->\tFor spikes occurring <strong>%5.1f-ms</strong>' ...
-      ' to <strong>%5.1f-ms</strong> relative to %s...'],...
-      t_epoc(1),t_epoc(2),align);
+      ' to <strong>%5.1f-ms</strong> relative to given event...'],...
+      pars.BehaviorEpoch(1),pars.BehaviorEpoch(2));
 end
 
 glme = fitglme(...

@@ -5,6 +5,7 @@
 %  batch_estimate_reconstruction_error - Redo reconstruction error estimate
 %  fit_gauspuls                        - Function that goes to the fmincon procedure of fit_transfer_fcn for gauspuls fit
 %  nonlinear_constraint                - Nonlinear constraint(s) on parameter array p
+%  random_levels_2_double              - Helper to convert levels of random effects to numeric double to help match with original data
 %  reconstruct_gauspuls                - Returns reconstructed Gaussian pulse modulated oscillation (primarily used in fit_gauspuls)
 %  remove_excluded                     - Remove outlier data or categories otherwise not in model
 %
@@ -19,8 +20,10 @@
 %  printFigs                           - Export vectorized figures for insertion to other documents etc
 %  scatter_var                         - Make grouped scatter plot of response variable by day
 %  surf_partial_dependence             - Create partial-dependence plot (PDP) surface
+%  surf_predicted                      - Visualize model prediction surface w.r.t. 2 variables
 %
 % Supplementary Functions
+%  fit_full_spike_count_glme           - Fit "full" (fixed) Generalized Linear Mixed-Effects model for spike counts, incorporating all alignments of interest
 %  fit_spike_count_glme                - Fit Generalized Linear Mixed-Effects model for spike counts
 %
 % Main Functions

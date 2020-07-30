@@ -276,8 +276,6 @@ for iG = 1:nTotal
    ax(iG).YLim = yLimExtrema; %#ok<AGROW>
 end
 
-drawnow;
-
    function [x,y] = meanByDay(X,Y)
       %GROUPBYDAY Helper function takes group mean of data by day
       %
