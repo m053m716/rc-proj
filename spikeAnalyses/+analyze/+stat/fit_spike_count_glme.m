@@ -36,7 +36,8 @@ function glme = fit_spike_count_glme(R,align,outcome,t_epoc,varargin)
 % % Parse input parameters % %
 pars = struct;
 pars.DataVars = {...
-   'Group','AnimalID','BlockID','PostOpDay','Area',...
+   'Group','AnimalID','BlockID','Trial_ID',...
+   'PostOpDay','Area','ICMS',...
    'ProbeID','ChannelID','Duration' ...
    };
 pars.DispersionFlag = true;
@@ -47,7 +48,7 @@ pars.Link = "log";
 [pars.MinDuration,pars.MaxDuration] = defaults.complete_analyses('min_duration','max_duration');
 pars.MaxRate = 300; % Spikes/sec
 pars.MinRate = 2.5; % Spikes/sec
-pars.Model = "Spikes~Group*Area+(1+SupportLimbMovement|ChannelID:Day)+(1+Duration+Extension+Retraction|AnimalID)";
+pars.Model = "Spikes~Group*Area+(1|ChannelID:Day)+(1+Duration|AnimalID)+(1|SupportLimbMovement)+(1|Trial_ID)+(1|ICMS)";
 pars.PelletPresent = "Present";
 pars.Verbose = true;
 pars.WeightVariable = '';
@@ -164,7 +165,8 @@ dt = (range(tt)+mode(diff(t)))*1e-3; % Each time is the bin center; account for 
 Spikes = sum(r.Rate(:,iEpoch),2);
 N = sum(r.Rate,2);
 Day = ordinal(r.PostOpDay);
-SupportLimbMovement = categorical(~isnan(r.Support)+1,[1 2],{'Absent','Present'});
+SupportLimbMovement = categorical(~(isnan(r.Support)|isinf(r.Support))+1,...
+   [1 2],{'Absent','Present'});
 Extension = r.Grasp - r.Reach;
 Retraction = r.Complete - r.Grasp;
 

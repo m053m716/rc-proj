@@ -1,0 +1,32 @@
+function cb = getCB95(x)
+%GETCB95 Return 95% confidence bounds
+%
+%  cb = analyze.stat.getCB95(x);
+%
+% Inputs
+%  x  - Data vector
+%
+% Output
+%  cb - Cell containing [lb, ub] based on sorted values of x.
+%        -> Removes nan values
+%        -> Removes inf values
+%
+% See also: analyze.stat, splitapply, findgroups
+
+x = x(~isnan(x) & ~isinf(x));
+x = sort(x,'ascend');
+n = numel(x);
+if n == 0
+   cb = {[nan nan]};
+   return;
+elseif n == 1
+   cb = {[x x]};
+   return;   
+end
+
+i_lb = ceil(0.025 * n);
+i_ub = floor(0.975 * n);
+
+cb = {[x(i_lb) x(i_ub)]};
+
+end

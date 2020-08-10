@@ -18,6 +18,7 @@
 %  plot_glme_residuals                 - Plot generalized linear mixed-effects model residuals
 %  plot_pc_summary                     - Plot PCs summarizing system fit
 %  printFigs                           - Export vectorized figures for insertion to other documents etc
+%  qPDP                                - Quick partial-dependence plot
 %  scatter_var                         - Make grouped scatter plot of response variable by day
 %  surf_partial_dependence             - Create partial-dependence plot (PDP) surface
 %  surf_predicted                      - Visualize model prediction surface w.r.t. 2 variables
@@ -25,6 +26,7 @@
 % Supplementary Functions
 %  fit_full_spike_count_glme           - Fit "full" (fixed) Generalized Linear Mixed-Effects model for spike counts, incorporating all alignments of interest
 %  fit_spike_count_glme                - Fit Generalized Linear Mixed-Effects model for spike counts
+%  getCB95                             - Return 95% confidence bounds
 %
 % Main Functions
 %  fit_transfer_fcn      - Get transfer function parameters and observation weights

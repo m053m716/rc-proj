@@ -28,8 +28,8 @@ function glme = fit_full_spike_count_glme(R,varargin)
 pars = struct;
 pars.BehaviorEpoch = [-450 150];
 pars.DataVars = {...
-   'Group','AnimalID','BlockID','Alignment',...
-   'PostOpDay','Area','ProbeID','ChannelID',...
+   'Group','AnimalID','BlockID','Trial_ID',...
+   'Alignment','PostOpDay','Area','ICMS','ProbeID','ChannelID',...
    'Duration' ...
    };
 pars.DispersionFlag = true;
@@ -40,7 +40,7 @@ pars.Link = "log";
 [pars.MinDuration,pars.MaxDuration] = defaults.complete_analyses('min_duration','max_duration');
 pars.MaxRate = 300; % Spikes/sec
 pars.MinRate = 2.5; % Spikes/sec
-pars.Model = "Spikes~Group*Area*Alignment+(1+SupportLimbMovement|ChannelID:Day)+(1+Duration|AnimalID)";
+pars.Model = "Spikes~Group*Area*Alignment+(1|ChannelID:Day)+(1+Duration|AnimalID)+(1|SupportLimbMovement)+(1|Trial_ID)+(1|ICMS)";
 pars.PelletPresent = "Present";
 pars.PreEpoch = [-1350 -750];
 pars.Verbose = true;
@@ -71,21 +71,23 @@ r = analyze.slice(R,...
 % Get relative sample times for each rate bin
 t = r.Properties.UserData.t;
 iEpoch = (t >= pars.BehaviorEpoch(1)) & (t <= pars.BehaviorEpoch(2));
-iPreEpoch = (t >= pars.PreEpoch(1)) & (t <= pars.PreEpoch(2));
+% iPreEpoch = (t >= pars.PreEpoch(1)) & (t <= pars.PreEpoch(2));
 tt = t(iEpoch);
 dt = (range(tt)+mode(diff(t)))*1e-3; % Each time is the bin center; account for "widths"
 
 % Create new variables to add: Spikes (response); N (weights; total spikes)
 Spikes = sum(r.Rate(:,iEpoch),2);
-PreMovementSpikes = sum(r.Rate(:,iPreEpoch),2);
 N = sum(r.Rate,2);
 Day = ordinal(r.PostOpDay);
-SupportLimbMovement = categorical(~isnan(r.Support)+1,[1 2],{'Absent','Present'});
+SupportLimbMovement = categorical(~(isnan(r.Support)|isinf(r.Support))+1,...
+   [1 2],{'Absent','Present'});
+Extension = r.Grasp - r.Reach;
+Retraction = r.Complete - r.Grasp;
 
 % Create data table for statistics
-newVars = table(Day,SupportLimbMovement,Spikes,PreMovementSpikes,N);
+newVars = table(Day,SupportLimbMovement,Spikes,N,Extension,Retraction);
 newVars.Properties.VariableUnits = ...
-   {'days','','count','count','total count'};
+   {'days','','count','total count','sec','sec'};
 rThis = r(:,pars.DataVars);
 
 S = [rThis,  newVars];
