@@ -1,10 +1,13 @@
-function cb = getCB95(x)
+function cb = getCB95(x,uniformOutput)
 %GETCB95 Return 95% confidence bounds
 %
 %  cb = analyze.stat.getCB95(x);
+%  cb = analyze.stat.getCB95(x,uniformOutput);
 %
 % Inputs
 %  x  - Data vector
+%  uniformOutput - Default: false; set true to return an array instead of
+%                    cell
 %
 % Output
 %  cb - Cell containing [lb, ub] based on sorted values of x.
@@ -12,6 +15,10 @@ function cb = getCB95(x)
 %        -> Removes inf values
 %
 % See also: analyze.stat, splitapply, findgroups
+
+if nargin < 2
+   uniformOutput = false;
+end
 
 x = x(~isnan(x) & ~isinf(x));
 x = sort(x,'ascend');
@@ -27,6 +34,10 @@ end
 i_lb = ceil(0.025 * n);
 i_ub = floor(0.975 * n);
 
-cb = {[x(i_lb) x(i_ub)]};
+if uniformOutput
+   cb = [x(i_lb) x(i_ub)];
+else
+   cb = {[x(i_lb) x(i_ub)]};
+end
 
 end

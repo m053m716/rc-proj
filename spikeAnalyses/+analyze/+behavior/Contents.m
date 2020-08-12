@@ -7,10 +7,12 @@
 %  given post-operative day.
 %
 % Data Functions
-%  durations - Make figure(s) of durations by Animal using Rate Table
-%  score     - Estimates behavior score endpoints by BlockID or PostOpDay
+%  durations                  - Make figure(s) of durations by Animal using Rate Table
+%  getDescriptiveTimingStats  - Returns updated UserData for descriptive stats
+%  makeSupportAssociation     - Makes association between Support time & alignment
+%  score                      - Estimates behavior score endpoints by BlockID or PostOpDay
 %
 % Graphics Functions
-%  blocks    - Shows figure(s) of response variable by Block using Rate Table
-%  outcomes  - Plot scatters of the 4 outcome response variables across days
-%  show      - Shows figure(s) of response variable by Animal using Rate Table
+%  blocks                     - Shows figure(s) of response variable by Block using Rate Table
+%  outcomes                   - Plot scatters of the 4 outcome response variables across days
+%  show                       - Shows figure(s) of response variable by Animal using Rate Table

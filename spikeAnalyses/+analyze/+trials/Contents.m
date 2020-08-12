@@ -3,3 +3,6 @@
 %
 % <strong>Initialize</strong>
 %   make_table - Create table where each row represents a trial
+%
+% Functions
+%  countSpikes - Count spikes in binned vector x, given ts & interval (t1, t2]

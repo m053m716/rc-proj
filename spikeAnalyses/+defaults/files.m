@@ -37,6 +37,10 @@ p.rate_table_default_matfile = fullfile(pname,'T_default.mat');
 p.rate_unique_trials_matfile = fullfile(pname,'T_unique_trials.mat');
 p.raw_rates_table_file = fullfile(pname,'R_raw-rates.mat');
 
+% For figure export
+p.local_figure_export = fullfile(pname,'Figures');
+p.reach_extension_figure_dir = fullfile(p.local_figure_export,'Reach-Retract-Figures');
+
 % Population Dynamics ('multi_jPCA.m' exported table)
 p.multi_jpca_default_matfile = fullfile(pname,'Multi_jPCA_Table.mat'); % Original "multi-jPCA" table
 p.multi_jpca_long_timescale_matfile = fullfile(pname,'Multi_jPCA_Table_Long-Timescale.mat'); % "Multi-jPCA" table using longer time basis
