@@ -8,6 +8,8 @@
 %
 % Data Functions
 %  durations                  - Make figure(s) of durations by Animal using Rate Table
+%  epochSpikeTrends           - Plot trends in spike rate for given epoch
+%  epochSpikeTrends_Split     - Plot trends in spike rate for given epoch (split panels)
 %  getDescriptiveTimingStats  - Returns updated UserData for descriptive stats
 %  makeSupportAssociation     - Makes association between Support time & alignment
 %  score                      - Estimates behavior score endpoints by BlockID or PostOpDay

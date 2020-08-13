@@ -36,6 +36,7 @@ p.rate_table_base_matfile = fullfile(pname,'T.mat');
 p.rate_table_default_matfile = fullfile(pname,'T_default.mat');
 p.rate_unique_trials_matfile = fullfile(pname,'T_unique_trials.mat');
 p.raw_rates_table_file = fullfile(pname,'R_raw-rates.mat');
+p.learning_rates_table_file = fullfile(pname,'r_unit-learning-rates.mat');
 
 % For figure export
 p.local_figure_export = fullfile(pname,'Figures');

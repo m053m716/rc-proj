@@ -4,6 +4,7 @@
 % Helper (Math) Functions
 %  batch_estimate_reconstruction_error - Redo reconstruction error estimate
 %  fit_gauspuls                        - Function that goes to the fmincon procedure of fit_transfer_fcn for gauspuls fit
+%  interpolateUniformTrend             - Interpolates trends between per-day averages
 %  nonlinear_constraint                - Nonlinear constraint(s) on parameter array p
 %  random_levels_2_double              - Helper to convert levels of random effects to numeric double to help match with original data
 %  reconstruct_gauspuls                - Returns reconstructed Gaussian pulse modulated oscillation (primarily used in fit_gauspuls)
