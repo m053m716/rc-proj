@@ -1,3 +1,5 @@
+%TRIAL_DURATION_STATS Run stats on trial durations, split into sub-epochs (Fig S1 stats; Fig S2)
+
 close all force;
 clearvars -except UTrials;
 clc;

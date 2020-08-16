@@ -24,6 +24,7 @@
 %   initTrueArray          - [var1,var2,...] = utils.initTrueArray(dim1,dim2,...); 
 %   initZerosArray         - [var1,var2,...] = utils.initZerosArray(dim1,dim2,...);
 %   load_ratskull_plot_img - utils.load_ratskull_plot_img;
+%   loadTables             - Load tables for a given dataset
 %   makeIncludeStruct      - Make "include" struct for GETRATE method of BLOCK
 %   mtb                    - Move variable to base workspace
 %   name2numeric_id        - Convert categorical name to numeric ID

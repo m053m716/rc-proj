@@ -16,6 +16,8 @@
 %  See also: analyze.jPCA, analyze.jPCA.multi_jPCA, defaults.files
 %
 % Functions
+%  exportTable              - Create table for GLME model fit
 %  fp_classify              - Classify fixed-point for row of table D
+%  plotSliceSampleTrends    - Use model-based surrogates with slicesample to generate by-day trends with 95% confidence bounds
 %  primary_regression_space - Classify fixed point in primary regression space of least-squares optimal regression matrix of top PCs
 %  primaryPCDynamicsByArea  - Test main PC "plane" by top PC of both area states

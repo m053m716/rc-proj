@@ -28,6 +28,8 @@ p.icms_data_name = fullfile(pname,p.icms_data_file);
 p.behavior_data_file = fullfile(pname,'behavior_data.xlsx'); % For score type = 'BehaviorScore'
 p.neurophys_behavior_data_file = fullfile(pname,'neurophys_behavior_data'); % For score type = 'NeurophysScore'
 
+p.default_tables_to_load = 'counts'; % 'counts' | 'dynamics' | 'rates'
+
 p.rate_table = fullfile(pname,'rate_data.mat');
 p.rate_csv = fullfile(pname,'rate_data.csv');
 

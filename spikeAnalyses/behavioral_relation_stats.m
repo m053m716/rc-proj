@@ -1,3 +1,4 @@
+%BEHAVIORAL_RELATION_STATS Create figure S4 (Heatmaps)
 clc;
 clearvars -except r
 if exist('r','var')==0
@@ -57,26 +58,6 @@ if exist(outPath,'dir')==0
    mkdir(outPath);
 end
 
-% fig = figure('Name','Distribution of Pre-Grasp Rates',...
-%    'Color','w','Units','Normalized','Position',[0.35 0.35 0.4 0.4]); 
-% histogram(tid.Pre_Mean);
-% title('Distribution of Pre-Grasp \surdRates');
-% xlabel('\surdRate');
-% ylabel('Count');
-% savefig(fig,fullfile(outPath,'Fig S4 - Pre-Grasp Rates.fig'));
-% saveas(fig,fullfile(outPath,'Fig S4 - Pre-Grasp Rates.png'));
-% delete(fig);
-% 
-% fig = figure('Name','Distribution of Rate Differences',...
-%    'Color','w','Units','Normalized','Position',[0.35 0.35 0.4 0.4]); 
-% histogram(tid.Retract_Mean./tid.Retract_SD - tid.Pre_Mean./tid.Pre_SD,linspace(-10,10,100));
-% title('Distribution of Differences in normalized \surdRates');
-% xlabel('\surdRate');
-% ylabel('Count');
-% savefig(fig,fullfile(outPath,'Fig S4 - Rate Deviation from Pre-Grasp.fig'));
-% saveas(fig,fullfile(outPath,'Fig S4 - Rate Deviation from Pre-Grasp.png'));
-% delete(fig);
-
 fig = figure('Name','Successful Rate Heat Maps','Color','w',...
    'Units','Normalized','Position',[0.16 0.24 0.26 0.57]); 
 colormap('jet');
@@ -102,8 +83,8 @@ colorbar;
 title(ax,'Ischemia::RFA');
 suptitle('Successful Trials Only');
 
-savefig(fig,fullfile(outPath,'Fig S4 - Rate Successful Grasp Heatmaps.fig'));
-saveas(fig,fullfile(outPath,'Fig S4 - Rate Successful Grasp Heatmaps.png'));
+savefig(fig,fullfile(outPath,'FigS4 - Rate Successful Grasp Heatmaps.fig'));
+saveas(fig,fullfile(outPath,'FigS4 - Rate Successful Grasp Heatmaps.png'));
 delete(fig);
 
 fig = figure('Name','Successful Rate Heat Maps','Color','w',...
@@ -131,6 +112,6 @@ colorbar;
 title(ax,'Ischemia::RFA');
 suptitle('Unsuccessful Trials Only');
 
-savefig(fig,fullfile(outPath,'Fig S4 - Rate Unsuccessful Grasp Heatmaps.fig'));
-saveas(fig,fullfile(outPath,'Fig S4 - Rate Unsuccessful Grasp Heatmaps.png'));
+savefig(fig,fullfile(outPath,'FigS4 - Rate Unsuccessful Grasp Heatmaps.fig'));
+saveas(fig,fullfile(outPath,'FigS4 - Rate Unsuccessful Grasp Heatmaps.png'));
 delete(fig);

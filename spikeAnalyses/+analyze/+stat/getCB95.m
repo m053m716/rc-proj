@@ -31,8 +31,8 @@ elseif n == 1
    return;   
 end
 
-i_lb = ceil(0.025 * n);
-i_ub = floor(0.975 * n);
+i_lb = max(round(0.025 * n),1);
+i_ub = round(0.975 * n);
 
 if uniformOutput
    cb = [x(i_lb) x(i_ub)];

@@ -25,7 +25,7 @@ str = strrep(str,'_',' ');
 
 % % Generate groupings vectors % %
 r(r.Properties.UserData.Excluded | r.Outcome=="Unsuccessful",:) = [];
-z = predict(glme,r) .* r.N_Total;
+z = predict(glme,r);
 
 [Groupings,TID] = findgroups(r(:,{'Group','Area'}));
 % Make Partial Dependence Plot (PDP) figure for Reach Fraction
@@ -66,14 +66,20 @@ for ii = 1:nTotal
       'MarkerFaceColor',c,...
       'MarkerFaceAlpha',0.25,...
       'SizeData',sz{ii});
-   line(ax(ii),0,nanmean(y{ii}),'LineStyle','none','Marker','s',...
+   
+   yMu = nan(1,3);
+   yMu(1) = nanmean(y{ii}(x{ii} < 7.5));
+   yMu(2) = nanmean(y{ii}((x{ii} >= 7.5) & (x{ii} < 14.5)));
+   yMu(3) = nanmean(y{ii}((x{ii} >= 14.5) & (x{ii} < 21.5)));
+   line(ax(ii),[4,11,18],yMu,'LineStyle','none','Marker','s',...
       'MarkerFaceColor','m','MarkerEdgeColor','none','MarkerSize',12,...
       'DisplayName','Mean');
+   legend(ax(ii),...
+      'TextColor','k','FontName','Arial','AutoUpdate','off',...
+      'Location','northoutside');
    
-   legend(ax(ii),'TextColor','k','FontName','Arial','AutoUpdate','off');
    
-   
-   ylim(ax(ii),[0 300]);
+   ylim(ax(ii),[0 150]);
    xlim(ax(ii),[0 30]);
    ylabel(ax(ii),sprintf('spikes/sec (%s)',str),...
       'FontName','Arial','Color','k');
@@ -84,6 +90,7 @@ for ii = 1:nTotal
    
    rThis = r(Groupings==ii,:);
    uA = unique(rThis.AnimalID);
+   
    for iA = 1:numel(uA)
       iThis = rThis.AnimalID==uA(iA);
       aThis = rThis(iThis,:);
@@ -91,10 +98,17 @@ for ii = 1:nTotal
       zz = splitapply(@nanmean,z{ii}(iThis),ix);
       [xx,isort] = sort(xx,'ascend');
       zz = zz(isort);
-      line(ax(ii),xx,zz,'LineStyle','-','LineWidth',1.5,'Color','k');
+      line(ax(ii),xx,zz,'LineStyle','-','LineWidth',1.5,'Color','k','Tag',string(uA(iA)));
    end
-   text(ax(ii),1,nanmean(y{ii}),sprintf('%5.1f',nanmean(y{ii})),...
-      'Color','k','FontName','Arial','BackgroundColor','w','FontWeight','bold');
+   text(ax(ii),4,125,sprintf('%5.1f',yMu(1)),...
+      'Color','k','FontName','Arial',...
+      'BackgroundColor','w','FontWeight','bold');
+   text(ax(ii),11,125,sprintf('%5.1f',yMu(2)),...
+      'Color','k','FontName','Arial',...
+      'BackgroundColor','w','FontWeight','bold');
+   text(ax(ii),18,125,sprintf('%5.1f',yMu(3)),...
+      'Color','k','FontName','Arial',...
+      'BackgroundColor','w','FontWeight','bold');
    
 end
 suptitle(sprintf('All Successful %s',str));

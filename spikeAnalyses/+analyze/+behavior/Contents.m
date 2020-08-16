@@ -8,6 +8,8 @@
 %
 % Data Functions
 %  durations                  - Make figure(s) of durations by Animal using Rate Table
+%  epochSpikeFits             - Plot smoothed model trends in spike rate for given epoch (split by Area/Group)
+%  epochSpikeFits_Split       - Plot smoothed model trends in spike rate for given epoch (split panels)
 %  epochSpikeTrends           - Plot trends in spike rate for given epoch
 %  epochSpikeTrends_Split     - Plot trends in spike rate for given epoch (split panels)
 %  getDescriptiveTimingStats  - Returns updated UserData for descriptive stats
