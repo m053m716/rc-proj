@@ -25,6 +25,7 @@ str = strrep(str,'_',' ');
 
 % % Generate groupings vectors % %
 r(r.Properties.UserData.Excluded | r.Outcome=="Unsuccessful",:) = [];
+% z = r.(varName);
 z = predict(glme,r);
 
 [Groupings,TID] = findgroups(r(:,{'Group','Area'}));
