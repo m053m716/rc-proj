@@ -89,13 +89,15 @@ delete(fig);
 %% Export (reduced) table that does whole-model fit without considering "planes"
 E2 = analyze.dynamics.exportSubTable(D);
 
-%% Check that results are similar
-fig = analyze.dynamics.makeJointDistViz(E2);
+%% Fig. 4b - Check that results are similar
+fig = analyze.dynamics.makeJointDistViz(E2,'scatter');
+set(fig,'Position',[0.59 0.33 0.15 0.4]);
+set(fig.Children(1),'Position',[0.36 0.49 0.29 0.075]);
 saveas(fig,fullfile(outPath,'Fig4b - Joint Distribution Plane-Percent-Explained.png'));
 savefig(fig,fullfile(outPath,'Fig4b - Joint Distribution Plane-Percent-Explained.fig'));
 delete(fig);
 
-%% Fig. 4c - Check distribution on R^2 MLS (adjusted) for ALL fit
+%% Fig. 4a - Check distribution on R^2 MLS (adjusted) for ALL fit
 % Use REACH and GRASP together
 fig = analyze.behavior.per_animal_mean_trends(...
    E2,'R2_Best',...
@@ -106,11 +108,11 @@ fig = analyze.behavior.per_animal_mean_trends(...
    'LegendLocation','eastoutside',...
    'LegendStyle','Animals',...
    'Title','R^2_{MLS} (By Animal)');
-saveas(fig,fullfile(outPath,'Fig4c - R2_Best - All - By Animal.png'));
-savefig(fig,fullfile(outPath,'Fig4c - R2_Best - All - By Animal.fig'));
+saveas(fig,fullfile(outPath,'Fig4a - R2_Best - All - By Animal.png'));
+savefig(fig,fullfile(outPath,'Fig4a - R2_Best - All - By Animal.fig'));
 delete(fig);
 
-%% Fig. 4d - Check distribution of Explained values for ALL fit
+%% Fig. 4c - Check distribution of Explained values for ALL fit
 fig = analyze.behavior.per_animal_mean_trends(...
    E2,'Explained',...
    'DoExclusions',false,...
@@ -118,9 +120,10 @@ fig = analyze.behavior.per_animal_mean_trends(...
    'YLim',[75 100],...
    'Scale',1,...
    'LegendLocation','eastoutside',...
+   'LegendStyle','Animals',...
    'Title','Total Data Explained by PCA (By Animal)');
-saveas(fig,fullfile(outPath,'Fig4d - Explained - All - By Animal.png'));
-savefig(fig,fullfile(outPath,'Fig4d - Explained - All - By Animal.fig'));
+saveas(fig,fullfile(outPath,'Fig4c - Explained - All - By Animal.png'));
+savefig(fig,fullfile(outPath,'Fig4c - Explained - All - By Animal.fig'));
 delete(fig);
 
 %% Fig. S8d - Check R2_Skew also
@@ -282,10 +285,10 @@ sounds__.play('bell',0.8,-15);
 
 %% Make figures
 
-fig = analyze.dynamics.plotSliceSampleTrends(glme.populationDynamics.r2_best.mdl);
-saveas(fig,fullfile(outPath,'Fig4a - Smoothed R2 Dynamics Fit by Day.png'));
-savefig(fig,fullfile(outPath,'Fig4a - Smoothed R2 Dynamics Fit by Day.fig'));
-delete(fig);
+% fig = analyze.dynamics.plotSliceSampleTrends(glme.populationDynamics.r2_best.mdl);
+% saveas(fig,fullfile(outPath,'Fig4a - Smoothed R2 Dynamics Fit by Day.png'));
+% savefig(fig,fullfile(outPath,'Fig4a - Smoothed R2 Dynamics Fit by Day.fig'));
+% delete(fig);
 
 fig = analyze.dynamics.scatterR2ByDayAndExplained(E);
 saveas(fig,fullfile(outPath,'FigS8b - R2 Dynamics Fit by Day and Explained - Planes.png'));

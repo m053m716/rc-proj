@@ -17,8 +17,6 @@ else
    fprintf(1,'\n\t->\tPreview (%d rows):\n\n',k);
    disp(r(randsample(size(r,1),k),:));
 end
-
-%% Get interpolated values for all channels
 % `r` has the following exclusions:
 %  -> 'Grasp' aligned only
 %  -> Min total trial rate: > 2.5 spikes/sec
@@ -27,44 +25,52 @@ end
 %  -> Max trial duration: 750-ms
 %  -> Note: some of these are taken care of by
 %              r.Properties.UserData.Excluded
+r.Properties.UserData.Excluded = ...
+   (r.Alignment~="Grasp") | ...
+   (r.N_Total./2.4 >= 300) | ...
+   (r.N_Total./2.4 <= 2.5) | ...
+   (r.Duration <= 0.100) |  ...
+   (r.Duration >= 0.750);
 
 % % Get data table where rows are Channel observations across all days % %
 Y = analyze.stat.interpolateUniformTrend(r);
 
 % % Create output data structs using PCA % %
-Grasp = struct;
+Grasp = struct('epoch','Grasp','desc',["Early","Mid","Late"],'day',Y.Properties.UserData.PostOpDay,'Group',Y.Group,'Area',Y.Area);
 [Grasp.coeff,Grasp.score,~,~,Grasp.explained,Grasp.mu] = pca(Y.Grasp' - Y.Pre');
-Reach = struct;
+Reach = struct('epoch','Reach','desc',["Late","Mid","Early"],'day',Y.Properties.UserData.PostOpDay,'Group',Y.Group,'Area',Y.Area);
 [Reach.coeff,Reach.score,~,~,Reach.explained,Reach.mu] = pca(Y.Reach' - Y.Pre');
-Retract = struct;
+Retract = struct('epoch','Retract','desc',["Late","Mid","Early"],'day',Y.Properties.UserData.PostOpDay,'Group',Y.Group,'Area',Y.Area);
 [Retract.coeff,Retract.score,~,~,Retract.explained,Retract.mu] = pca(Y.Retract' - Y.Pre');
 Reach.labels = categorical(strcat(string(Y.Group),"::",string(Y.Area)));
 Grasp.labels = categorical(strcat(string(Y.Group),"::",string(Y.Area)));
 Retract.labels = categorical(strcat(string(Y.Group),"::",string(Y.Area)));
-Group = ["Ischemia";"Intact"]; 
-Area = ["RFA";"CFA"];
-% Colors struct for groupings
-gplotPars = struct;
-gplotPars.Groups = categorical(strcat(string(Y.Group),"::",string(Y.Area)));
-gplotPars.clr = [0.4 0.4 1.0; 0.2 0.2 0.8; 1.0 0.4 0.4; 0.8 0.2 0.2];
-gplotPars.sym = 'sox.';
-gplotPars.siz = 10;
-gplotPars.doleg = true;
-gplotPars.dispopt = 'grpbars';
-gplotPars.xnam = ["PC-1","PC-2","PC-3"];
-mrk = struct('Ischemia',...
+
+% Set parameters
+pars.Group = ["Ischemia";"Intact"]; 
+pars.Area = ["RFA";"CFA"];
+pars.gplotPars = struct;
+pars.gplotPars.Groups = categorical(strcat(string(Y.Group),"::",string(Y.Area)));
+pars.gplotPars.clr = [0.4 0.4 1.0; 0.2 0.2 0.8; 1.0 0.4 0.4; 0.8 0.2 0.2];
+pars.gplotPars.sym = 'sox.';
+pars.gplotPars.siz = 10;
+pars.gplotPars.doleg = true;
+pars.gplotPars.dispopt = 'grpbars';
+pars.gplotPars.xnam = ["PC-1","PC-2","PC-3"];
+pars.mrk = struct('Ischemia',...
    struct('RFA','.',...
           'CFA','x'), ...
        'Intact',...
     struct('RFA','o',...
            'CFA','s'));
-C = struct('Ischemia',...
+pars.C = struct('Ischemia',...
    struct('RFA',[0.8 0.2 0.2],...
           'CFA',[1.0 0.4 0.4]), ...
        'Intact',...
     struct('RFA',[0.2 0.2 0.8],...
            'CFA',[0.4 0.4 1.0]));
-                 
+
+%% Make figures
 % % % % Generate Figures % % % %
 % Step 1: Visualize distribution of principal components -- are there
 %  trends in these data, in terms of "groupings" of channel-level trends
@@ -77,238 +83,85 @@ end
 
 % Create figures for Grasp trends %
 % % Create Line Plots for primary channel trends across days % %
-fig = figure('Name','Grasp Per-Channel Trends','Color','w',...
-   'Units','Normalized','Position',[0.3 0.3 0.3 0.3]); 
-fig.UserData = Grasp;
-ax = subplot(2,1,1); 
-set(ax,'XColor','k','YColor','k',...
-   'LineWidth',1.5,'NextPlot','add','FontName','Arial');
-plot(ax,Y.Properties.UserData.PostOpDay,Grasp.score(:,1:3),'LineWidth',2); 
-title(ax,'Grasp','FontName','Arial','Color','k');
-xlabel(ax,'Post-Op Day','FontName','Arial','Color','k');
-ylabel(ax,'Score','FontName','Arial','Color','k');
-ylim(ax,[-25 25]);
-xlim(ax,[6 25]);
-ax = subplot(2,1,2); 
-set(ax,'XColor','k','YColor','k','LineWidth',1.5,...
-   'NextPlot','add','FontName','Arial');
-e = cumsum(Grasp.explained);
-desc = ["Early","Mid","Late"];
-for iPC = 1:3
-   stem(ax,iPC,e(iPC),...
-      'DisplayName',sprintf('%s (PC-%d)',desc(iPC),iPC),...
-      'LineWidth',2.5);
-end
-stem(ax,4:numel(Grasp.explained),e(4:end),...
-   'LineWidth',2,'Color','k','Marker','x','DisplayName','Remaining PCs');
-xlabel(ax,'PC Index','FontName','Arial','Color','k');
-ylabel(ax,'%% Explained','FontName','Arial','Color','k');
-legend(ax,'FontName','Arial','TextColor','k');
+fig = analyze.pc.perChannelPCtrends(Grasp);
 saveas(fig,fullfile(outPath,'FigS6 - Grasp Channel Trends.png'));
 savefig(fig,fullfile(outPath,'FigS6 - Grasp Channel Trends.fig'));
 delete(fig);
 
 % % Plot 3D Scatter of coefficients % %
-fig = figure('Name','Grasp Channel PC Coefficients','Color','w',...
-   'Units','Normalized','Position',[0.6 0.3 0.3 0.3]); 
-fig.UserData = Grasp;
-ax = axes(fig,...
-   'XColor','k','YColor','k','LineWidth',1.5,...
-   'NextPlot','add','FontName','Arial');
-box(ax,'on');
-grid(ax,'on');
-for iG = 1:2
-   for iA = 1:2
-      c = C.(Group(iG)).(Area(iA));
-      scatter3(ax,...
-         Grasp.coeff(Y.Group==Group(iG) & Y.Area==Area(iA),1),...
-         Grasp.coeff(Y.Group==Group(iG) & Y.Area==Area(iA),2),...
-         Grasp.coeff(Y.Group==Group(iG) & Y.Area==Area(iA),3),'filled',...
-         'DisplayName',sprintf('%s::%s',Group(iG),Area(iA)),...
-         'MarkerFaceAlpha',0.5,'MarkerEdgeAlpha',0.75,'SizeData',15,...
-         'MarkerFaceColor',c,'MarkerEdgeColor',c,...
-         'Marker',mrk.(Group(iG)).(Area(iA)));
-   end
-end
-legend(ax,'FontName','Arial','TextColor','black');
-view(ax,3);
-title(ax,'Grasp Trend Coefficients','FontName','Arial','Color','k');
-xlabel(ax,'"Early" (PC-1)','FontName','Arial','Color','k');
-ylabel(ax,'"Mid" (PC-2)','FontName','Arial','Color','k');
-zlabel(ax,'"Late" (PC-3)','FontName','Arial','Color','k');
+fig = analyze.pc.perChannelPCtrendScatter(Grasp,pars);
 saveas(fig,fullfile(outPath,'FigS6 - Grasp PC Coefficients.png'));
 savefig(fig,fullfile(outPath,'FigS6 - Grasp PC Coefficients.fig'));
 delete(fig);
 
-fig = figure('Name','GPlotMatrix - Grasp',...
-   'Color','w','Units','Normalized',...
-   'Position',[0.2 0.2 0.4 0.6],'NumberTitle','off',...
-   'UserData',Grasp); 
-gplotmatrix(fig,Grasp.coeff(:,1:3),[],gplotPars.Groups,...
-   gplotPars.clr,gplotPars.sym,gplotPars.siz,...
-   gplotPars.doleg,gplotPars.dispopt,desc);
-suptitle('Grasp Trend Groupings');
-
+fig = analyze.pc.perChannelPCgplotMatrix(Grasp,pars);
 saveas(fig,fullfile(outPath,'FigS6 - Grasp PC Coeff GPlotMatrix.png'));
 savefig(fig,fullfile(outPath,'FigS6 - Grasp PC Coeff GPlotMatrix.fig'));
 delete(fig);
 
 % Create figures for Reach trends %
 % % Create Line Plots for primary channel trends across days % %
-fig = figure('Name','Reach Per-Channel Trends','Color','w',...
-   'Units','Normalized','Position',[0.3 0.3 0.3 0.3]); 
-fig.UserData = Reach;
-ax = subplot(2,1,1); 
-set(ax,'XColor','k','YColor','k',...
-   'LineWidth',1.5,'NextPlot','add','FontName','Arial');
-plot(ax,Y.Properties.UserData.PostOpDay,Reach.score(:,1:3),'LineWidth',2); 
-title(ax,'Reach','FontName','Arial','Color','k');
-xlabel(ax,'Post-Op Day','FontName','Arial','Color','k');
-ylabel(ax,'Score','FontName','Arial','Color','k');
-ylim(ax,[-25 25]);
-xlim(ax,[6 25]);
-ax = subplot(2,1,2); 
-set(ax,'XColor','k','YColor','k','LineWidth',1.5,...
-   'NextPlot','add','FontName','Arial');
-e = cumsum(Reach.explained);
-desc = ["Late","Mid","Early"];
-for iPC = 1:3
-   stem(ax,iPC,e(iPC),...
-      'DisplayName',sprintf('%s (PC-%d)',desc(iPC),iPC),...
-      'LineWidth',2.5);
-end
-stem(ax,4:numel(Reach.explained),e(4:end),...
-   'LineWidth',2,'Color','k','Marker','x','DisplayName','Remaining PCs');
-xlabel(ax,'PC Index','FontName','Arial','Color','k');
-ylabel(ax,'%% Explained','FontName','Arial','Color','k');
-legend(ax,'FontName','Arial','TextColor','k');
-saveas(fig,fullfile(outPath,'Fig3 - Reach Channel Trends.png'));
-savefig(fig,fullfile(outPath,'Fig3 - Reach Channel Trends.fig'));
+fig = analyze.pc.perChannelPCtrends(Reach);
+saveas(fig,fullfile(outPath,'FigS6 - Reach Channel Trends.png'));
+savefig(fig,fullfile(outPath,'FigS6 - Reach Channel Trends.fig'));
 delete(fig);
 
 % % Plot 3D Scatter of coefficients % %
-fig = figure('Name','Reach Channel PC Coefficients','Color','w',...
-   'Units','Normalized','Position',[0.6 0.3 0.3 0.3]); 
-fig.UserData = Reach;
-ax = axes(fig,...
-   'XColor','k','YColor','k','LineWidth',1.5,...
-   'NextPlot','add','FontName','Arial');
-box(ax,'on');
-grid(ax,'on');
-for iG = 1:2
-   for iA = 1:2
-      c = C.(Group(iG)).(Area(iA));
-      scatter3(ax,...
-         Reach.coeff(Y.Group==Group(iG) & Y.Area==Area(iA),1),...
-         Reach.coeff(Y.Group==Group(iG) & Y.Area==Area(iA),2),...
-         Reach.coeff(Y.Group==Group(iG) & Y.Area==Area(iA),3),'filled',...
-         'DisplayName',sprintf('%s::%s',Group(iG),Area(iA)),...
-         'MarkerFaceAlpha',0.5,'MarkerEdgeAlpha',0.75,'SizeData',15,...
-         'MarkerFaceColor',c,'MarkerEdgeColor',c,...
-         'Marker',mrk.(Group(iG)).(Area(iA)));
-   end
-end
-legend(ax,'FontName','Arial','TextColor','black');
-view(ax,3);
-title(ax,'Reach Trend Coefficients','FontName','Arial','Color','k');
-xlabel(ax,'"Late" (PC-1)','FontName','Arial','Color','k');
-ylabel(ax,'"Mid" (PC-2)','FontName','Arial','Color','k');
-zlabel(ax,'"Early" (PC-3)','FontName','Arial','Color','k');
-saveas(fig,fullfile(outPath,'Fig3 - Reach PC Coefficients.png'));
-savefig(fig,fullfile(outPath,'Fig3 - Reach PC Coefficients.fig'));
+fig = analyze.pc.perChannelPCtrendScatter(Reach,pars);
+saveas(fig,fullfile(outPath,'FigS6 - Reach PC Coefficients.png'));
+savefig(fig,fullfile(outPath,'FigS6 - Reach PC Coefficients.fig'));
 delete(fig);
 
-fig = figure('Name','GPlotMatrix - Reach',...
-   'Color','w','Units','Normalized',...
-   'Position',[0.2 0.2 0.4 0.6],'NumberTitle','off','UserData',Reach); 
-gplotmatrix(fig,Reach.coeff(:,1:3),[],gplotPars.Groups,...
-   gplotPars.clr,gplotPars.sym,gplotPars.siz,...
-   gplotPars.doleg,gplotPars.dispopt,desc);
-suptitle('Reach Trend Groupings');
-
-saveas(fig,fullfile(outPath,'Fig3 - Reach PC Coeff GPlotMatrix.png'));
-savefig(fig,fullfile(outPath,'Fig3 - Reach PC Coeff GPlotMatrix.fig'));
+fig = analyze.pc.perChannelPCgplotMatrix(Reach,pars);
+saveas(fig,fullfile(outPath,'FigS6 - Reach PC Coeff GPlotMatrix.png'));
+savefig(fig,fullfile(outPath,'FigS6 - Reach PC Coeff GPlotMatrix.fig'));
 delete(fig);
 
 % Create figures for Retract trends %
-% Create figures for Reach trends %
-% % Create Line Plots for primary channel trends across days % %
-fig = figure('Name','Retract Per-Channel Trends','Color','w',...
-   'Units','Normalized','Position',[0.3 0.3 0.3 0.3]); 
-fig.UserData = Retract;
-ax = subplot(2,1,1); 
-set(ax,'XColor','k','YColor','k',...
-   'LineWidth',1.5,'NextPlot','add','FontName','Arial');
-plot(ax,Y.Properties.UserData.PostOpDay,Retract.score(:,1:3),'LineWidth',2); 
-title(ax,'Retract','FontName','Arial','Color','k');
-xlabel(ax,'Post-Op Day','FontName','Arial','Color','k');
-ylabel(ax,'Score','FontName','Arial','Color','k');
-ylim(ax,[-25 25]);
-xlim(ax,[6 25]);
-ax = subplot(2,1,2); 
-set(ax,'XColor','k','YColor','k','LineWidth',1.5,...
-   'NextPlot','add','FontName','Arial');
-e = cumsum(Retract.explained);
-desc = ["Late","Mid","Early"];
-for iPC = 1:3
-   stem(ax,iPC,e(iPC),...
-      'DisplayName',sprintf('%s (PC-%d)',desc(iPC),iPC),...
-      'LineWidth',2.5);
-end
-stem(ax,4:numel(Retract.explained),e(4:end),...
-   'LineWidth',2,'Color','k','Marker','x','DisplayName','Remaining PCs');
-xlabel(ax,'PC Index','FontName','Arial','Color','k');
-ylabel(ax,'%% Explained','FontName','Arial','Color','k');
-legend(ax,'FontName','Arial','TextColor','k');
-
+fig = analyze.pc.perChannelPCtrends(Retract);
 saveas(fig,fullfile(outPath,'FigS6 - Retract Channel Trends.png'));
 savefig(fig,fullfile(outPath,'FigS6 - Retract Channel Trends.fig'));
 delete(fig);
 
 % % Plot 3D Scatter of coefficients % %
-fig = figure('Name','Retract Channel PC Coefficients','Color','w',...
-   'Units','Normalized','Position',[0.6 0.3 0.3 0.3]); 
-fig.UserData = Retract;
-ax = axes(fig,...
-   'XColor','k','YColor','k','LineWidth',1.5,...
-   'NextPlot','add','FontName','Arial');
-box(ax,'on');
-grid(ax,'on');
-for iG = 1:2
-   for iA = 1:2
-      c = C.(Group(iG)).(Area(iA));
-      scatter3(ax,...
-         Retract.coeff(Y.Group==Group(iG) & Y.Area==Area(iA),1),...
-         Retract.coeff(Y.Group==Group(iG) & Y.Area==Area(iA),2),...
-         Retract.coeff(Y.Group==Group(iG) & Y.Area==Area(iA),3),'filled',...
-         'DisplayName',sprintf('%s::%s',Group(iG),Area(iA)),...
-         'MarkerFaceAlpha',0.5,'MarkerEdgeAlpha',0.75,'SizeData',15,...
-         'MarkerFaceColor',c,'MarkerEdgeColor',c,...
-         'Marker',mrk.(Group(iG)).(Area(iA)));
-   end
-end
-legend(ax,'FontName','Arial','TextColor','black');
-view(ax,3);
-title(ax,'Retract Trend Coefficients','FontName','Arial','Color','k');
-xlabel(ax,'"Late" (PC-1)','FontName','Arial','Color','k');
-ylabel(ax,'"Mid" (PC-2)','FontName','Arial','Color','k');
-zlabel(ax,'"Early" (PC-3)','FontName','Arial','Color','k');
+fig = analyze.pc.perChannelPCtrendScatter(Retract,pars);
 saveas(fig,fullfile(outPath,'FigS6 - Retract PC Coefficients.png'));
 savefig(fig,fullfile(outPath,'FigS6 - Retract PC Coefficients.fig'));
 delete(fig);
 
-fig = figure('Name','GPlotMatrix - Retract',...
-   'Color','w','Units','Normalized',...
-   'Position',[0.2 0.2 0.4 0.6],'NumberTitle','off','UserData',Retract); 
-gplotmatrix(fig,Retract.coeff(:,1:3),[],gplotPars.Groups,...
-   gplotPars.clr,gplotPars.sym,gplotPars.siz,...
-   gplotPars.doleg,gplotPars.dispopt,desc);
-suptitle('Retract Trend Groupings');
-
+fig = analyze.pc.perChannelPCgplotMatrix(Retract,pars);
 saveas(fig,fullfile(outPath,'FigS6 - Retract PC Coeff GPlotMatrix.png'));
 savefig(fig,fullfile(outPath,'FigS6 - Retract PC Coeff GPlotMatrix.fig'));
 delete(fig);
 
+% %
+D = utils.loadTables('multi'); % Load "multi-jPCA" table.
+CID = vertcat(D.CID{:});
+CID = outerjoin(CID,Y,...
+   'Keys',{'AnimalID','Alignment','ChannelID','ICMS','Area'},...
+   'MergeKeys',true,'Type','Left',...
+   'RightVariables',{'Group','Early','Mid','Late'});
+CID = CID(CID.Alignment=="Grasp",:);
+[~,iU] = unique(CID.ChannelID);
+CID = CID(iU,:);
+figure; gplotmatrix(...
+   [CID.X,CID.Y],...
+   [CID.Early,CID.Mid,CID.Late],...
+   CID.AnimalID,...
+   [0.9 0.1 0.1; ... % RC-02
+    0.9 0.1 0.1; ... % RC-04
+    0.9 0.1 0.1; ... % RC-05
+    0.9 0.1 0.1; ... % RC-08 
+    0.1 0.1 0.9; ... % RC-14
+    0.9 0.1 0.1; ... % RC-26
+    0.9 0.1 0.1; ... % RC-30
+    0.1 0.1 0.9],... % RC-43
+   'oshpov^s',[],'on','hist',...
+   {'AP (mm)','ML (mm)'},...
+   {'Early','Mid','Late'});
+
+
+%% Recover GLME models
 % % % % We see that there are a few principal components that explain a
 % majority (top-3 explain > 90% of data variance in each epoch % % % %
 % Step 2: There are trend "groupings." Are there statistically significant
@@ -325,37 +178,56 @@ Y.Properties.RowNames = strcat(string(Y.AnimalID),"::",string(Y.Area),"::",strin
 
 % Fit "Early" (PC-3) component coefficients
 fprintf(1,'--------------------------------------------------------------\n');
-glme_early = fitglme(Y,"Early~1+Area*Group+(1|AnimalID)+(1|ICMS)",...
+glme.channelTrends = struct;
+glme.channelTrends.early.id = 19;
+glme.channelTrends.early.mdl = fitglme(Y,...
+   "Early~1+Area*Group+(1|AnimalID)+(1|ICMS)",...
    "Distribution","normal",...
    "Link","identity",...
    "FitMethod","REMPL");
-disp(glme_early);
+disp(glme.channelTrends.early.mdl);
 fprintf(1,'--------------------------------------------------------------\n');
 fprintf(1,'Fit: <strong>Early</strong>\n');
-disp(glme_early.Rsquared);
+disp(glme.channelTrends.early.mdl.Rsquared);
 fprintf(1,'--------------------------------------------------------------\n');
 
 % Fit "Mid" (PC-2) component coefficients
 fprintf(1,'--------------------------------------------------------------\n');
-glme_mid = fitglme(Y,"Mid~1+Area*Group+(1|AnimalID)+(1|ICMS)",...
+glme.channelTrends.mid.id = 20;
+glme.channelTrends.mid.mdl = fitglme(Y,...
+   "Mid~1+Area*Group+(1|AnimalID)+(1|ICMS)",...
    "Distribution","normal",...
    "Link","identity",...
    "FitMethod","REMPL");
-disp(glme_mid);
+disp(glme.channelTrends.mid.mdl);
 fprintf(1,'--------------------------------------------------------------\n');
 fprintf(1,'Fit: <strong>Mid</strong>\n');
-disp(glme_mid.Rsquared);
+disp(glme.channelTrends.mid.mdl.Rsquared);
 fprintf(1,'--------------------------------------------------------------\n');
 
 % Fit "Late" (PC-1) component coefficients
 fprintf(1,'--------------------------------------------------------------\n');
-glme_late = fitglme(Y,"Late~1+Area*Group+(1|AnimalID)+(1|ICMS)",...
+glme.channelTrends.late.id = 21;
+glme.channelTrends.late.mdl = fitglme(Y,...
+   "Late~1+Area*Group+(1|AnimalID)+(1|ICMS)",...
    "Distribution","normal",...
    "Link","identity",...
    "FitMethod","REMPL");
-disp(glme_late);
+disp(glme.channelTrends.late.mdl);
 fprintf(1,'--------------------------------------------------------------\n');
 fprintf(1,'Fit: <strong>Early</strong>\n');
-disp(glme_late.Rsquared);
+disp(glme.channelTrends.late.mdl.Rsquared);
 fprintf(1,'--------------------------------------------------------------\n');
+
+%% Save models
+clc;
+utils.displayModel(glme.channelTrends,0.05); % Display all models
+tic; fprintf(1,'Saving Fig [3,S6] models...');
+tmp = glme.channelTrends;
+save(defaults.files('cross_day_channel_trends_models_matfile'),'-struct','tmp');
+clear tmp;
+fprintf(1,'complete\n'); 
+fprintf(1,'\t->\t%6.2f seconds elapsed\n',toc);
+utils.addHelperRepos();
+sounds__.play('bell',0.8,-15);
 

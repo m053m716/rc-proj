@@ -83,8 +83,8 @@ colorbar;
 title(ax,'Ischemia::RFA');
 suptitle('Successful Trials Only');
 
-savefig(fig,fullfile(outPath,'FigS4 - Rate Successful Grasp Heatmaps.fig'));
-saveas(fig,fullfile(outPath,'FigS4 - Rate Successful Grasp Heatmaps.png'));
+savefig(fig,fullfile(outPath,'Fig5a - Rate Successful Grasp Heatmaps.fig'));
+saveas(fig,fullfile(outPath,'FigS5a - Rate Successful Grasp Heatmaps.png'));
 delete(fig);
 
 fig = figure('Name','Successful Rate Heat Maps','Color','w',...
@@ -112,6 +112,6 @@ colorbar;
 title(ax,'Ischemia::RFA');
 suptitle('Unsuccessful Trials Only');
 
-savefig(fig,fullfile(outPath,'FigS4 - Rate Unsuccessful Grasp Heatmaps.fig'));
-saveas(fig,fullfile(outPath,'FigS4 - Rate Unsuccessful Grasp Heatmaps.png'));
+savefig(fig,fullfile(outPath,'FigS5b - Rate Unsuccessful Grasp Heatmaps.fig'));
+saveas(fig,fullfile(outPath,'FigS5b - Rate Unsuccessful Grasp Heatmaps.png'));
 delete(fig);

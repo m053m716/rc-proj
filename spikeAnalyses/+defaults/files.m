@@ -42,7 +42,8 @@ p.learning_rates_table_file = fullfile(pname,'r_unit-learning-rates.mat');
 p.outcome_models_matfile = fullfile(pname,'MODELS_1-4.mat');
 p.duration_models_matfile = fullfile(pname,'MODELS_5-9.mat');
 p.rate_models_pre_reach_retract_matfile = fullfile(pname,'MODELS_10-12.mat');
-p.pop_models_pre_reach_retract_matfile = fullfile(pname,'MODELS_13-16.mat');
+p.pop_models_pre_reach_retract_matfile = fullfile(pname,'MODELS_13-18.mat');
+p.cross_day_channel_trends_models_matfile = fullfile(pname,'MODELS_19-21.mat');
 
 % For figure export
 p.local_figure_export = fullfile(pname,'Figures');

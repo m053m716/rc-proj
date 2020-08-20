@@ -48,15 +48,20 @@ fig = figure('Name','Population Dynamics Fit Trends',...
    'Color','w','Units','Normalized','Position',[0.3 0.4 0.5 0.35]);
 ax = axes(fig,'XColor','k','YColor','k','LineWidth',1.5,...
    'FontName','Arial','NextPlot','add','XLim',[0 30],'YLim',[0 1]);
-xlabel(ax,'Post-Op Day','FontName','Arial','Color','k');
-ylabel(ax,'R^2_{MLS}','FontName','Arial','Color','k');
-% title(ax,['Linearized Dynamics Fit by Day' newline ...
-%            sprintf('(N_{surrogate} : %d)',pars.NRep)],...
-%            'FontName','Arial','Color','k');
-title(ax,'Linearized Dynamics Fit by Day','FontName','Arial','Color','k');
+xlabel(ax,'Post-Op Day',...
+   'FontName','Arial','Color','k','FontWeight','bold');
+ylabel(ax,'R^2_{MLS}',...
+   'FontName','Arial','Color','k','FontWeight','bold');
+title(ax,'Linearized Dynamics Fit by Day',...
+   'FontName','Arial','Color','k','FontWeight','bold');
 T = glme_best.Variables;
 T.R2_Best = glme_best.response;
-T(T.Explained_Best < 0.15,:) = [];
+if ismember('Explained_Best',T.Properties.VariableNames)
+   expName = 'Explained_Best';
+else
+   expName = 'Explained';
+end
+T(T.(expName) < 0.15,:) = [];
 [G,TID] = findgroups(T(:,{'GroupID','Alignment'}));
 
 for iG = 1:size(TID,1)
@@ -66,31 +71,6 @@ for iG = 1:size(TID,1)
    idx = G==iG;
    
    data = T(idx,[glme_best.PredictorNames; 'R2_Best']);
-   
-%    nSample = sum(idx);
-%    sdDuration = nanstd(data.Duration);
-%    sdExplained = nanstd(data.Explained_Best);
-%    sdTrials = nanstd(data.N_Trials);   
-%    fprintf(1,'Generating %s surrogates...000%%\n',str);
-%    curPct = 0;
-%    Z = data.R2_Best;
-%    for iRep = 1:pars.NRep
-%       tmp = data;
-%       tmp.Duration = data.Duration + sdDuration.*randn(nSample,1);
-%       tmp.Explained_Best = data.Explained_Best + sdExplained.*randn(nSample,1);
-%       tmp.N_Trials = data.N_Trials + sdTrials.*randn(nSample,1);
-%       Z = [Z; predict(glme_best,tmp)]; %#ok<AGROW>
-      
-%       Z = [Z; random(glme_best,data)]; %#ok<AGROW>
-      
-%       thisPct = round(iRep/pars.NRep * 100);
-%       if (thisPct - curPct) >= 2
-%          fprintf(1,'\b\b\b\b\b%03d%%\n',thisPct);
-%          curPct = thisPct;
-%       end
-%    end
-%    X = repmat(data.PostOpDay,pars.NRep+1,1);
-%    [iDay,x] = findgroups(X);
 
    X = data.PostOpDay;
    Z = data.R2_Best;
@@ -102,8 +82,10 @@ for iG = 1:size(TID,1)
    muq = interp1(x,mu,xq,'makima');
    cb95q = interp1(x,cb95,xq,'makima');
    
-   muq = sgolayfilt(muq,5,11,ones(1,11),1);
+   muq = sgolayfilt(muq,5,15,ones(1,15),1);
    cb95q = sgolayfilt(cb95q,5,15,ones(1,15),1);
+   cb95q(:,1) = min(cb95q(:,1),muq);
+   cb95q(:,2) = max(cb95q(:,2),muq);
    
    gfx__.plotWithShadedError(ax,xq,muq,cb95q,...
       'FaceColor',c,...
