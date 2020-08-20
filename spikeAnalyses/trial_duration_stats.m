@@ -15,45 +15,112 @@ UTrials = analyze.behavior.getDescriptiveTimingStats(UTrials,'Reach_Duration');
 UTrials = analyze.behavior.getDescriptiveTimingStats(UTrials,'Retract_Duration');
 UTrials = analyze.behavior.getDescriptiveTimingStats(UTrials,'Reach_Proportion');
 
+%%
 % % % After descriptive stats, fit simple models for epoch durations % % %
-exc = UTrials.Properties.UserData.Exclude;
-glme_duration = fitglme(UTrials,...
-   "Duration~GroupID*PostOpDay+(1+PostOpDay|AnimalID)",...
+UTrials.Day = UTrials.PostOpDay;
+UTrials.Day_Cubed = UTrials.Day.^3;
+U_success = UTrials;
+U_success(U_success.Outcome=="Unsuccessful",:) = [];
+glme.trialDuration = struct;
+
+% Only fit successful trials, but do not use Neural exclusions %
+glme.trialDuration.duration.mdl = fitglme(UTrials,...
+   "Duration~1+GroupID*Day+(1+Day|AnimalID)",...
    "FitMethod","REMPL",...
-   "Exclude",exc);
-glme_reach = fitglme(UTrials,...
-   "Reach_Duration~GroupID*PostOpDay*Duration+(1+PostOpDay|AnimalID)",...
+   "Distribution",'normal',...
+   "DummyVarCoding",'effects',...
+   "Link",'log');
+glme.trialDuration.duration.id = 5;
+
+U_neu = UTrials;
+U_neu(U_neu.Properties.UserData.Exclude | U_neu.Outcome=="Unsuccessful",:) = [];
+glme.trialDuration.duration_neu.mdl = fitglme(U_neu,...
+   "Duration~1+GroupID*Day+(1+Day+Duration|AnimalID)",...
    "FitMethod","REMPL",...
-   "Exclude",exc);
-glme_retract = fitglme(UTrials,...
-   "Retract_Duration~GroupID*PostOpDay*Duration+(1+PostOpDay|AnimalID)",...
+   "Distribution",'normal',...
+   "DummyVarCoding",'effects',...
+   "Link",'log');
+glme.trialDuration.duration_neu.id = 6;
+
+glme.trialDuration.reach.mdl = fitglme(U_success,...
+   "Reach_Duration~1+GroupID*Day+(1+Day+Duration|AnimalID)",...
    "FitMethod","REMPL",...
-   "Exclude",exc);
-glme_reach_proportion = fitglme(UTrials,...
-   "Reach_Proportion~GroupID*PostOpDay*Duration+(1|AnimalID)",...
+   "Distribution",'normal',...
+   "DummyVarCoding",'effects',...
+   "Link",'log');
+glme.trialDuration.reach.id = 7;
+
+glme.trialDuration.retract.mdl = fitglme(U_success,...
+   "Retract_Duration~1+GroupID*Day+(1+Day+Duration|AnimalID)",...
    "FitMethod","REMPL",...
-   "Exclude",exc);
+   "Distribution",'normal',...
+   "DummyVarCoding",'effects',...
+   "Link",'log');
+glme.trialDuration.retract.id = 8;
 
-disp(glme_duration);
-disp(glme_duration.Rsquared);
-[~,~,re_stats_duration] = randomEffects(glme_duration);
-disp(re_stats_duration(2:2:end,[1:4,8]));
+glme.trialDuration.proportion.mdl = fitglme(U_success,...
+   "Reach_Proportion~1+GroupID*Day+(1+Day+Duration|AnimalID)",...
+   "FitMethod","REMPL",...
+   "Distribution",'normal',...
+   "DummyVarCoding",'effects',...
+   "Link",'log');
+glme.trialDuration.proportion.id = 9;
 
-disp(glme_reach);
-disp(glme_reach.Rsquared);
-[~,~,re_stats_reach] = randomEffects(glme_reach);
-disp(re_stats_reach(:,[1:4,8]));
+%% Display models
+clc;
+% fprintf(1,'GLME: <strong>Duration</strong> (MODEL-%d)\n',glme.trialDuration.duration.id);
+% disp(glme.trialDuration.duration.mdl);
+% disp('------------------------------------------------------------------');
+% fprintf(1,'<strong>Fit (MODEL-%d):</strong>\n',glme.trialDuration.duration.id);
+% disp(glme.trialDuration.duration.mdl.Rsquared);
+% disp('------------------------------------------------------------------');
+% 
+% fprintf(1,'GLME: <strong>Duration (trials for neural analyses)</strong> (MODEL-%d)\n',glme.trialDuration.duration_neu.id);
+% disp(glme.trialDuration.duration_neu.mdl);
+% disp('------------------------------------------------------------------');
+% fprintf(1,'<strong>Fit (MODEL-%d):</strong>\n',glme.trialDuration.duration_neu.id);
+% disp(glme.trialDuration.duration_neu.mdl.Rsquared);
+% disp('------------------------------------------------------------------');
+% 
+% fprintf(1,'GLME: <strong>Reach Phase Duration</strong> (MODEL-%d)\n',glme.trialDuration.reach.id);
+% disp(glme.trialDuration.reach.mdl);
+% disp('------------------------------------------------------------------');
+% fprintf(1,'<strong>Fit (MODEL-%d):</strong>\n',glme.trialDuration.reach.id);
+% disp(glme.trialDuration.reach.mdl.Rsquared);
+% disp('------------------------------------------------------------------');
+% 
+% fprintf(1,'GLME: <strong>Retract Phase Duration</strong> (MODEL-%d)\n',glme.trialDuration.retract.id);
+% disp(glme.trialDuration.retract.mdl);
+% disp('------------------------------------------------------------------');
+% fprintf(1,'<strong>Fit (MODEL-%d):</strong>\n',glme.trialDuration.retract.id);
+% disp(glme.trialDuration.retract.mdl.Rsquared);
+% disp('------------------------------------------------------------------');
+% 
+% fprintf(1,'GLME: <strong>Reach Proportion</strong> (MODEL-%d)\n',glme.trialDuration.proportion.id);
+% disp(glme.trialDuration.proportion.mdl);
+% disp('------------------------------------------------------------------');
+% fprintf(1,'<strong>Fit (MODEL-%d):</strong>\n',glme.trialDuration.proportion.id);
+% disp(glme.trialDuration.proportion.mdl.Rsquared);
+% disp('------------------------------------------------------------------');
 
-disp(glme_retract);
-disp(glme_retract.Rsquared);
-[~,~,re_stats_retract] = randomEffects(glme_retract);
-disp(re_stats_retract(:,[1:4,8]));
+utils.displayModel(glme.trialDuration.duration,0.05,'Fig.S2a');
+utils.displayModel(glme.trialDuration.duration_neu,0.05,'Fig.S2b');
+utils.displayModel(glme.trialDuration.reach,0.05,'Fig.S2c');
+utils.displayModel(glme.trialDuration.retract,0.05,'Fig.S2d');
+utils.displayModel(glme.trialDuration.proportion,0.05,'Fig.S2e');
 
-disp(glme_reach_proportion);
-disp(glme_reach_proportion.Rsquared);
-[~,~,re_stats_proportion] = randomEffects(glme_duration);
-disp(re_stats_proportion(:,[1:4,8]));
+%%
+% Save models %
+tic; fprintf(1,'Saving Fig [S2] models...');
+tmp = glme.trialDuration;
+save(defaults.files('duration_models_matfile'),'-struct','tmp');
+clear tmp;
+fprintf(1,'complete\n'); 
+fprintf(1,'\t->\t%6.2f seconds elapsed\n',toc);
+utils.addHelperRepos();
+sounds__.play('bell',0.8,-15);
 
+%%
 % % % Generate and save figures for Supplementary Figure S2 % % %
 outPath = defaults.files('reach_extension_figure_dir');
 if exist(outPath,'dir')==0
@@ -115,11 +182,13 @@ saveas(fig,fullfile(outPath,'FigS2d - Retract Phase Duration - successful trials
 savefig(fig,fullfile(outPath,'FigS2d - Retract Phase Duration - successful trials.fig'));
 delete(fig);
 
+% % Fig S2e: Reach phase proportion % %
 fig = analyze.behavior.per_animal_mean_trends(...
    Utmp,...    % First required argument is always the data table
    'Reach_Proportion',... % Second required argument is the response variable name
    'Title','Proportion of Trial in Reach Phase',...
    'DoExclusions',false,...
+   'YLim',[0 1],...
    'ModelFormula','%s~1+Day+Day_Cubed', ... % Optional 'ModelFormula' is per-animal trend to fit
    'LegendLocation','northeast' ...
    );

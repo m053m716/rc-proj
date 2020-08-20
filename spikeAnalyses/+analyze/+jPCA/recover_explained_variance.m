@@ -55,9 +55,23 @@ SS = struct(...
 proj = State * M;
 
 SS.mu = mean(dState,1); % ybar; the mean of observed variables
-SS.TSS = sum(bsxfun(@minus,dState,SS.mu).^2,1);         % Total sum-of-squares = Observed - mean(observed)
-SS.ESS = sum(bsxfun(@minus,proj,SS.mu).^2,1);     % Explained sum-of-squares = Predicted - mean(observed)
-SS.RSS = sum(bsxfun(@minus,proj,dState).^2,1);  % Residual sum-of-squares = Observed - Predicted (element-wise)
+ts = bsxfun(@minus,dState,SS.mu).^2; % Total squares
+SS.TSS = sum(ts,1);         % Total sum-of-squares = Observed - mean(observed)
+es = bsxfun(@minus,proj,SS.mu).^2;  % Explained squares
+SS.ESS = sum(es,1);     % Explained sum-of-squares = Predicted - mean(observed)
+rs = bsxfun(@minus,proj,dState).^2; % Residual squares
+SS.RSS = sum(rs,1);  % Residual sum-of-squares = Observed - Predicted (element-wise)
+
+ess = sum(es(:));
+tss = sum(ts(:));
+% rss = sum(rs(:));
+SS.Total.Rsquared = ess/tss;
+n = size(State,1);
+p = size(State,2);
+SS.Total.df_e = n - p - 1;
+SS.Total.df_t = n - 1;
+% SS.Total.Rsquared_adj = 1 - ((rss/SS.Total.df_e)/(tss/SS.Total.df_t));
+SS.Total.Rsquared_adj = 1 - (1 - SS.Total.Rsquared)*(n - 1)/(n - p - 1);
 
 % Percent of original "eigenspace" (from eigenvalue magnitudes):
 SS.explained.eig = SS.info.explained .* e;

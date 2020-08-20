@@ -15,20 +15,7 @@ end
 utils.addHelperRepos();
 
 % % % % Do Pre-vs-Post comparison using "standard" scored data % % % %
-T = readtable(defaults.files('behavior_data_file'));
-% No M1-C rats %
-T(strcmpi(T.Group,'M1-C'),:) = [];
-T.GroupID = categorical(T.Group,{'ET-1','SHAM'},{'Ischemia','Intact'});
-T.AnimalID = categorical(T.Name);
-
-% Add variables to table, parsed from other variables %
-T.PrePost = categorical(double(T.Day > 0),[0 1],{'Pre','Post'});
-T.Properties.RowNames = strcat(string(T.AnimalID),'::',...
-   string(T.PrePost),'::',...
-   string(strtrim(num2str(abs(T.Day),'%02d'))));
-T.nTotal = round(T.nSuccess ./ T.pct);
-T.Day_Cubed = T.Day.^3;
-T.Percent_Successful = T.pct .* 100;
+T = utils.readBehaviorTable(defaults.files('behavior_data_file'));
 
 % % % Select relevant epochs of non-excluded recordings % % %
 tSub = T(~isnan(T.nTotal),:);
@@ -68,58 +55,68 @@ TID.CB95 = splitapply(@analyze.stat.getCB95,tSub.pct,Group); % Return upper and 
 TID.CB95 = cell2mat(TID.CB95);
 disp(TID);
 
-% % % Estimate statistics for behavioral outcome prior to surgery % % %
-% % % "MODEL-1" % % %
-fprintf(1,'----------------------------------------------------------\n');
-fprintf(1,'<strong>MODEL-1</strong> Fitting GLME for <strong>nSuccess</strong> (standard scoring)...');
-glme_outcome_pre = fitglme(tPreOp,...
-   "nSuccess~1+GroupID+(1|AnimalID)",...
-   "FitMethod","REMPL",...
-   "Distribution","binomial",...
-   "Link","logit",...
-   "BinomialSize",tPreOp.nTotal);
-fprintf(1,'complete\n');
-fprintf(1,'----------------------------------------------------------\n');
-disp(glme_outcome_pre);
-fprintf(1,'----------------------------------------------------------\n');
-fprintf(1,'<strong>Fit (MODEL-1):</strong>\n');
-disp(glme_outcome_pre.Rsquared);
-fprintf(1,'----------------------------------------------------------\n');
+% %%
+% % % % Estimate statistics for behavioral outcome prior to surgery % % %
+% glme.trialOutcomes = struct;
+% % % % "MODEL-1" % % %
+% fprintf(1,'----------------------------------------------------------\n');
+% fprintf(1,'<strong>MODEL-1</strong> Fitting GLME for <strong>nSuccess</strong> (standard scoring)...');
+% glme.trialOutcomes.pre.mdl = fitglme(tPreOp,...
+%    "nSuccess~1+GroupID+(1|AnimalID)",...
+%    "FitMethod","REMPL",...
+%    "DummyVarCoding",'effects',...
+%    "Distribution","binomial",...
+%    "Link","logit",...
+%    "BinomialSize",tPreOp.nTotal);
+% glme.trialOutcomes.pre.id = 1;
+% fprintf(1,'complete\n');
+% fprintf(1,'----------------------------------------------------------\n');
+% disp(glme.trialOutcomes.pre.mdl);
+% fprintf(1,'----------------------------------------------------------\n');
+% fprintf(1,'<strong>Fit (MODEL-%d):</strong>\n',glme.trialOutcomes.pre.id);
+% disp(glme.trialOutcomes.pre.mdl.Rsquared);
+% fprintf(1,'----------------------------------------------------------\n');
+% 
+% % % % Estimate statistics for behavioral outcomes: Pre-vs-Post, by Group % % %
+% % % % "MODEL-2" % % %
+% fprintf(1,'----------------------------------------------------------\n');
+% fprintf(1,'\t<strong>MODEL-2</strong> Fitting GLME for <strong>Pre-vs-Post Implant Success</strong>...');
+% glme.trialOutcomes.prepost.mdl = fitglme(tSub,"nSuccess~1+PrePost*GroupID+(1|AnimalID)",...
+%    "BinomialSize",tSub.nTotal,...
+%    "Link","logit",...
+%    "DummyVarCoding",'effects',...
+%    "Distribution","Binomial",...
+%    "FitMethod","REMPL");
+% glme.trialOutcomes.prepost.id = 2;
+% fprintf(1,'complete\n');
+% fprintf(1,'----------------------------------------------------------\n');
+% disp(glme.trialOutcomes.prepost.mdl);
+% fprintf(1,'----------------------------------------------------------\n');
+% fprintf(1,'<strong>Fit (MODEL-%d):</strong>\n',glme.trialOutcomes.prepost.id);
+% disp(glme.trialOutcomes.prepost.mdl.Rsquared);
+% fprintf(1,'----------------------------------------------------------\n');
+% 
+% % % % Estimate statistics for behavioral outcomes using standard scoring % % %
+% % % % "MODEL-3" % % %
+% fprintf(1,'----------------------------------------------------------\n');
+% fprintf(1,'<strong>MODEL-3</strong> Fitting GLME for <strong>nSuccess</strong> (standard scoring)...');
+% glme.trialOutcomes.post.mdl = fitglme(tPostOp,...
+%    "nSuccess~1+GroupID*Day+(1+Day+Day_Cubed|AnimalID)",...
+%    "FitMethod","REMPL",...
+%    "DummyVarCoding",'effects',...
+%    "Distribution","binomial",...
+%    "Link","logit",...
+%    "BinomialSize",tPostOp.nTotal);
+% glme.trialOutcomes.post.id = 3;
+% fprintf(1,'complete\n');
+% fprintf(1,'----------------------------------------------------------\n');
+% disp(glme.trialOutcomes.post.mdl);
+% fprintf(1,'----------------------------------------------------------\n');
+% fprintf(1,'<strong>Fit (MODEL-%d):</strong>\n',glme.trialOutcomes.post.id);
+% disp(glme.trialOutcomes.post.mdl.Rsquared);
+% fprintf(1,'----------------------------------------------------------\n');
 
-% % % Estimate statistics for behavioral outcomes: Pre-vs-Post, by Group % % %
-% % % "MODEL-2" % % %
-fprintf(1,'----------------------------------------------------------\n');
-fprintf(1,'\t<strong>MODEL-2</strong> Fitting GLME for <strong>Pre-vs-Post Implant Success</strong>...');
-glme_prepost = fitglme(tSub,"nSuccess~1+PrePost*GroupID+(1|AnimalID)",...
-   "BinomialSize",tSub.nTotal,...
-   "Link","logit",...
-   "Distribution","Binomial",...
-   "FitMethod","REMPL");
-fprintf(1,'complete\n');
-fprintf(1,'----------------------------------------------------------\n');
-disp(glme_prepost);
-fprintf(1,'----------------------------------------------------------\n');
-fprintf(1,'<strong>Fit (MODEL-2):</strong>\n');
-disp(glme_prepost.Rsquared);
-fprintf(1,'----------------------------------------------------------\n');
-
-% % % Estimate statistics for behavioral outcomes using standard scoring % % %
-% % % "MODEL-3" % % %
-fprintf(1,'----------------------------------------------------------\n');
-fprintf(1,'<strong>MODEL-3</strong> Fitting GLME for <strong>nSuccess</strong> (standard scoring)...');
-glme_outcome_all = fitglme(tPostOp,...
-   "nSuccess~1+GroupID*Day_Cubed+(1+Day+Day_Cubed|AnimalID)",...
-   "FitMethod","REMPL",...
-   "Distribution","binomial",...
-   "Link","logit",...
-   "BinomialSize",tPostOp.nTotal);
-fprintf(1,'complete\n');
-fprintf(1,'----------------------------------------------------------\n');
-disp(glme_outcome_all);
-fprintf(1,'----------------------------------------------------------\n');
-fprintf(1,'<strong>Fit (MODEL-3):</strong>\n');
-disp(glme_outcome_all.Rsquared);
-fprintf(1,'----------------------------------------------------------\n');
+%%
 
 % % % Make Fig. 1b graphics % % %
 %  -> 'Grasp' aligned only
@@ -145,6 +142,7 @@ saveas(fig,fullfile(outPath,'FigS1 - Post-Op Success Rate - Neural Scoring.png')
 savefig(fig,fullfile(outPath,'FigS1 - Post-Op Success Rate - Neural Scoring.fig'));
 delete(fig);
 
+%%
 % % Make (formal) statistical comparison between results by method % %
 methodGroups = categorical(1:2,1:2,{'Standard','Neural'});
 tStandard = tPostOp(:,{'GroupID','AnimalID','Day','Day_Cubed','nSuccess','nTotal','Percent_Successful'});
@@ -159,45 +157,39 @@ tNeural.Properties.RowNames = strcat("Neural::",...
    string(strtrim(num2str(tNeural.Day,'%02d'))));
 tMethod = [tStandard;tNeural];
 
-% % % Estimate statistics for behavioral outcomes using neural scoring % % %
-% % % "MODEL-4" % % %
-fprintf(1,'----------------------------------------------------------\n');
-fprintf(1,'<strong>MODEL-4</strong> Fitting GLME for <strong>nSuccess (comparison of Standard vs Neural)</strong>...');
-glme_methods = fitglme(tMethod,...
-   "nSuccess~1+Method*GroupID*Day_Cubed+(1+Day+Day_Cubed|AnimalID)",...
-   "FitMethod","REMPL",...
-   "Distribution","binomial",...
-   "Link","logit",...
-   "BinomialSize",tMethod.nTotal);
-fprintf(1,'complete\n');
-fprintf(1,'----------------------------------------------------------\n');
-disp(glme_methods);
-fprintf(1,'----------------------------------------------------------\n');
-fprintf(1,'\t<strong>Fit (MODEL-4):</strong>\n');
-disp(glme_methods.Rsquared);
-fprintf(1,'----------------------------------------------------------\n');
-
 % % % % Estimate statistics for behavioral outcomes using neural scoring % % %
-% % % % "MODEL-5" % % %
+% % % % "MODEL-4" % % %
 % fprintf(1,'----------------------------------------------------------\n');
-% fprintf(1,'<strong>MODEL-5</strong> Fitting GLME for <strong>nSuccess</strong> (neural data trial exclusions applied)...');
-% glme_outcome_neu = fitglme(U,...
-%    "nSuccess~1+GroupID*Day_Cubed+(1+Day+Day_Cubed|AnimalID)",...
+% fprintf(1,'<strong>MODEL-4</strong> Fitting GLME for <strong>nSuccess (comparison of Standard vs Neural)</strong>...');
+% glme.trialOutcomes.methods.mdl = fitglme(tMethod,...
+%    "nSuccess~1+Method*GroupID*Day_Cubed+(1+Day+Day_Cubed|AnimalID)",...
 %    "FitMethod","REMPL",...
+%    "DummyVarCoding",'effects',...
 %    "Distribution","binomial",...
 %    "Link","logit",...
-%    "BinomialSize",U.nTotal);
+%    "BinomialSize",tMethod.nTotal);
+% glme.trialOutcomes.methods.id = 4;
 % fprintf(1,'complete\n');
 % fprintf(1,'----------------------------------------------------------\n');
-% disp(glme_outcome_neu);
+% disp(glme.trialOutcomes.methods.mdl);
 % fprintf(1,'----------------------------------------------------------\n');
-% fprintf(1,'\t<strong>Fit (MODEL-5):</strong>\n');
-% disp(glme_outcome_neu.Rsquared);
+% fprintf(1,'\t<strong>Fit (MODEL-%d):</strong>\n',glme.trialOutcomes.methods.id);
+% disp(glme.trialOutcomes.methods.mdl.Rsquared);
 % fprintf(1,'----------------------------------------------------------\n');
-% fprintf(1,'\t<strong>Random Effects (MODEL-5):</strong>\n');
-% [~,~,re_stats] = randomEffects(glme_outcome_neu);
-% disp(re_stats(1:4:size(re_stats,1),[2:4,8]));
-% disp(re_stats(2:4:size(re_stats,1),[2:4,8]));
-% disp(re_stats(3:4:size(re_stats,1),[2:4,8]));
-% disp(re_stats(4:4:size(re_stats,1),[2:4,8]));
-% fprintf(1,'----------------------------------------------------------\n');
+
+%% Display models
+utils.displayModel(glme.trialOutcomes.pre,0.05,'Fig.1a');
+utils.displayModel(glme.trialOutcomes.prepost,0.05,'Fig.S1a');
+utils.displayModel(glme.trialOutcomes.post,0.05,'Fig.1b');
+utils.displayModel(glme.trialOutcomes.methods,0.05,'Fig.S1b');
+
+%%
+% Save models %
+tic; fprintf(1,'Saving Fig [1,S1] models...');
+tmp = glme.trialOutcomes;
+save(defaults.files('outcome_models_matfile'),'-struct','tmp');
+clear tmp;
+fprintf(1,'complete\n'); 
+fprintf(1,'\t->\t%6.2f seconds elapsed\n',toc);
+utils.addHelperRepos();
+sounds__.play('bell',0.8,-15);

@@ -16,8 +16,16 @@
 %  See also: analyze.jPCA, analyze.jPCA.multi_jPCA, defaults.files
 %
 % Functions
-%  exportTable              - Create table for GLME model fit
-%  fp_classify              - Classify fixed-point for row of table D
-%  plotSliceSampleTrends    - Use model-based surrogates with slicesample to generate by-day trends with 95% confidence bounds
-%  primary_regression_space - Classify fixed point in primary regression space of least-squares optimal regression matrix of top PCs
-%  primaryPCDynamicsByArea  - Test main PC "plane" by top PC of both area states
+%  exportSubTable             - Create table for GLME model fit, using only R^2_adj
+%  exportTable                - Create table for GLME model fit
+%  fp_classify                - Classify fixed-point for row of table D
+%  parseSingleR2              - Used to update R^2 estimate for adjusted R^2 etc using proj
+%  plotSliceSampleTrends      - Use model-based surrogates with slicesample to generate by-day trends with 95% confidence bounds
+%  primary_regression_space   - Classify fixed point in primary regression space of least-squares optimal regression matrix of top PCs
+%  primaryPCDynamicsByArea    - Test main PC "plane" by top PC of both area states
+%
+% Graphics
+%  inputDistribution          - Plot observed distribution & smoothed cdf estimate
+%  makeJointDistViz           - Visualize joint distribution between R2 & %-explained
+%  scatterR2andPerf           - Scatter R^2_BEST on x-axis and y-axis as behavioral perf
+%  scatterR2ByDayAndExplained - Create scatter plot for R2 fit by day & % exp

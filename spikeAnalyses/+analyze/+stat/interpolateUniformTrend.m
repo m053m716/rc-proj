@@ -30,30 +30,6 @@ Xreach(iRemove) = [];
 Xgrasp(iRemove) = [];
 Xretract(iRemove) = [];
 
-% tmp = cell2mat(Xpre);
-% for ii = 1:size(tmp,2)
-%    if ~any(isnan(tmp(:,ii)))
-%       iStartAll = ii;
-%       break;
-%    end
-% end
-% 
-% for ii = size(tmp,2):-1:1
-%    if ~any(isnan(tmp(:,ii)))
-%       iStopAll = ii;
-%       break;
-%    end
-% end
-% 
-% vec = iStartAll:iStopAll;
-% Y.Pre = tmp(:,vec);
-% tmp = cell2mat(Xreach);
-% Y.Reach = tmp(:,vec);
-% tmp = cell2mat(Xgrasp);
-% Y.Grasp = tmp(:,vec);
-% tmp = cell2mat(Xretract);
-% Y.Retract = tmp(:,vec);
-
 Y.Pre = cell2mat(Xpre);
 Y.Reach = cell2mat(Xreach);
 Y.Grasp = cell2mat(Xgrasp);
@@ -101,32 +77,6 @@ Y.Properties.UserData = struct('PostOpDay',allDays(idx));
          Xretract = {[]};
          return;
       end
-      
-      
-      
-%       y = Xpre(iQ);
-%       iX = ~isnan(y);
-%       y = y(iX);
-%       x = xq(iX);
-%       Xpre(iQ) = interp1(x,y,xq,'spline',0);
-%       
-%       y = Xreach(iQ);
-%       iX = ~isnan(y);
-%       y = y(iX);
-%       x = xq(iX);
-%       Xreach(iQ) = interp1(x,y,xq,'spline',0);
-%       
-%       y = Xgrasp(iQ);
-%       iX = ~isnan(y);
-%       y = y(iX);
-%       x = xq(iX);
-%       Xreach(iQ) = interp1(x,y,xq,'spline',0);
-%       
-%       y = Xretract(iQ);
-%       iX = ~isnan(y);
-%       y = y(iX);
-%       x = xq(iX);
-%       Xreach(iQ) = interp1(x,y,xq,'spline',0);
       
       iX = ~isnan(Xpre);
       y = Xpre(iX);

@@ -6,18 +6,19 @@
 % Treats the spike rates during these epochs as a spline effect; values are
 % interpolated and smoothed (using sgolayfilt). 
 
+%% Load data
 clc;
 clearvars -except r
 if exist('r','var')==0
-   fprintf(1,'Loading raw rates table...');
-   r = getfield(load(defaults.files('learning_rates_table_file'),'r'),'r');
-   fprintf(1,'complete\n');
+   r = utils.loadTables('rate');
 else
    fprintf(1,'Found `r` (<strong>%d</strong> rows) in workspace.',size(r,1));
    k = 5;
    fprintf(1,'\n\t->\tPreview (%d rows):\n\n',k);
    disp(r(randsample(size(r,1),k),:));
 end
+
+%% Get interpolated values for all channels
 % `r` has the following exclusions:
 %  -> 'Grasp' aligned only
 %  -> Min total trial rate: > 2.5 spikes/sec

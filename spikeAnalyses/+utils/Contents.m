@@ -15,6 +15,7 @@
 %   getCrossCondKeyCombos  - Returns key cross-condition combinations
 %   getFirstNonEmptyCell   - out = utils.getFirstNonEmptyCell(in);
 %   getParamField          - f = utlis.getParamField(p,'paramName');
+%   getUniqueTrialsAverage - Return average from unique trials only
 %   initCellArray          - [var1,var2,...] = utils.initCellArray(dim1,dim2,...);
 %   initDataArray          - [var1,var2,...] = utils.initDataArray(dim1,dim2,...);
 %   initEmpty              - [var1,var2,...] = utils.initEmpty; % Initialize empty array
@@ -32,6 +33,7 @@
 %   parseParameters        - Utility to parse <'Name', value> parameter pairs, when default parameters struct is specified directly in the beginning of the function or method
 %   parseParams            - Utility to parse varargin when default parameter struct is stored in a particular `+defaults` file
 %   plotPCAreconstruction  - fig = utils.plotPCAreconstruction(xPC);
+%   readBehaviorTable      - Read in and format "Standard-Scoring" behavior table
 %   remove_cols            - Simple function checks for a variable column & removes it
 %   screencapture          - screencapture - get a screen-capture of a figure frame, component handle, or screen area rectangle
 %   setParamField          - p = utils.setParamField(p,'paramName',paramValue);

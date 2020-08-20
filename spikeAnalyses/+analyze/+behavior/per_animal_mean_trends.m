@@ -40,10 +40,13 @@ pars.FaceAlpha = 0.35;
 pars.FitOptions = {};
 pars.LegendLabels = {'Model Trend','Model 95% CB','Observed Mean','Model Error'};
 pars.LegendLocation = 'northeast';
+pars.LegendStyle = 'standard'; % 'standard' | 'animals'
 pars.LineWidth = 2.5;
 pars.MarkerOrder = 'oshpv^';
 pars.MarkerFaceAlpha = 0.45;
 pars.ModelFormula = '%s~1+Day+Day_Cubed';
+pars.ModelNumber = nan;
+pars.Scale = 1;
 pars.Title = '';
 pars.XLabel = 'Day';
 pars.XLim = [nan nan];
@@ -71,6 +74,7 @@ end
 if pars.DoExclusions
    T = T(~T.Properties.UserData.Exclude,:);
 end
+T.(responseVar) = T.(responseVar) .* pars.Scale;
 
 % % Parse graphics metavariables % %
 if any(isnan(pars.XLim))
@@ -130,6 +134,7 @@ end
 
 mdlspec = string(sprintf(pars.ModelFormula,responseVar));
 needsLegend = true;
+hGroup = gobjects(size(TIDplot,1),1);
 for ii = 1:size(TIDplot,1)
    gName = string(TIDplot.GroupID(ii));
    c = pars.Color.(gName);
@@ -137,13 +142,13 @@ for ii = 1:size(TIDplot,1)
    theseData = data(Gplot==ii,:);
    iMdlData = find(TIDmdl.AnimalID==TIDplot.AnimalID(ii),1,'first');
    allAnimalData = T(Gmdl==iMdlData,:);
-   mdl{ii,1} = fitglm(allAnimalData,mdlspec,pars.FitOptions{:});
    mdl{ii,2} = string(TIDplot.AnimalID(ii));
    if size(allAnimalData,1) < 5
       fprintf(1,'Too few observations for %s; skipped\n',...
          string(TIDplot.AnimalID(ii)));
       continue;
    end
+   mdl{ii,1} = fitglm(allAnimalData,mdlspec,pars.FitOptions{:});
    Day = (min(theseData.Day):max(theseData.Day))';
    Day_Cubed = Day.^3;
    tPred = table(Day,Day_Cubed);
@@ -168,7 +173,7 @@ for ii = 1:size(TIDplot,1)
    cb95(iBad,:) = nan(sum(iBad),2);
    dayVec = 1:numel(Day);
    mrkIndices = dayVec(ismember(Day,theseData.Day));
-   hGroup = gfx__.plotWithShadedError(ax,...
+   hGroup(ii) = gfx__.plotWithShadedError(ax,...
       Day,mu,cb95,...
       'FaceColor',c,...
       'FaceAlpha',pars.FaceAlpha,...
@@ -193,21 +198,42 @@ for ii = 1:size(TIDplot,1)
       'LineWidth',pars.ErrorLineWidth,...
       'Color',c,...
       'DisplayName','Matched Observation');
-   if needsLegend
-      trendLine = hGroup.Children(1);
-      trendErr = hGroup.Children(2);
-      legend([trendLine,trendErr,hScatter,hLine],...
-         pars.LegendLabels,...
-         'TextColor','black',...
-         'FontName','Arial',...
-         'FontSize',12,...
-         'EdgeColor','none',...
-         'Color','none',...
-         'AutoUpdate','off',...
-         'Location',pars.LegendLocation);
-      needsLegend = false;
+   if strcmpi(pars.LegendStyle,'standard')
+      if needsLegend
+         trendLine = hGroup(ii).Children(1);
+         trendErr = hGroup(ii).Children(2);
+         legend([trendLine,trendErr,hScatter,hLine],...
+            pars.LegendLabels,...
+            'TextColor','black',...
+            'FontName','Arial',...
+            'FontSize',12,...
+            'EdgeColor','none',...
+            'Color','none',...
+            'AutoUpdate','off',...
+            'Location',pars.LegendLocation);
+         needsLegend = false;
+      end
    end
    drawnow;
+end
+if strcmpi(pars.LegendStyle,'animals')
+   excVec = false(size(hGroup));
+   for ii = 1:size(hGroup,1)
+      excVec(ii) = isa(hGroup(ii),'matlab.graphics.GraphicsPlaceholder');
+   end
+   hGroup(excVec) = [];
+   c = gobjects(size(hGroup));
+   for ii = 1:size(hGroup,1)
+      c(ii) = hGroup(ii).Children(1);
+   end
+   legend(c,...
+      'TextColor','black',...
+      'FontName','Arial',...
+      'FontSize',12,...
+      'EdgeColor','none',...
+      'Color','none',...
+      'AutoUpdate','off',...
+      'Location',pars.LegendLocation);
 end
 
 xlabel(ax,pars.XLabel,'FontName','Arial','Color','k');

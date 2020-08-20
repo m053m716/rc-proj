@@ -7,21 +7,23 @@
 %  given post-operative day.
 %
 % Data Functions
-%  durations                  - Make figure(s) of durations by Animal using Rate Table
-%  epochSpikeFits             - Plot smoothed model trends in spike rate for given epoch (split by Area/Group)
-%  epochSpikeFits_Animals     - Plot smoothed trends in per-animal spike rate for given epoch (split by Area/Group)
-%  epochSpikeFits_Split       - Plot smoothed model trends in spike rate for given epoch (split panels)
-%  epochSpikeTrends           - Plot trends in spike rate for given epoch
-%  epochSpikeTrends_Split     - Plot trends in spike rate for given epoch (split panels)
-%  getDescriptiveTimingStats  - Returns updated UserData for descriptive stats
-%  makeSupportAssociation     - Makes association between Support time & alignment
-%  score                      - Estimates behavior score endpoints by BlockID or PostOpDay
+%  durations                     - Make figure(s) of durations by Animal using Rate Table
+%  epochSpikeFits                - Plot smoothed model trends in spike rate for given epoch (split by Area/Group)
+%  epochSpikeFits_Animals        - Plot smoothed trends in per-animal spike rate for given epoch (split by Area/Group)
+%  epochSpikeFits_Split          - Plot smoothed model trends in spike rate for given epoch (split panels)
+%  epochSpikeTrends              - Plot trends in spike rate for given epoch
+%  epochSpikeTrends_Split        - Plot trends in spike rate for given epoch (split panels)
+%  getDescriptiveTimingStats     - Returns updated UserData for descriptive stats
+%  makeSupportAssociation        - Makes association between Support time & alignment
+%  score                         - Estimates behavior score endpoints by BlockID or PostOpDay
 %
 % Graphics Functions
-%  bar_animal_counts          - Create bar plot figure of counts or ratios
-%  blocks                     - Shows figure(s) of response variable by Block using Rate Table
-%  outcomes                   - Plot scatters of the 4 outcome response variables across days
-%  per_animal_trends          - Plot per-animal trends
-%  per_animal_mean_trends     - Plot per-animal (mean) trends
-%  show                       - Shows figure(s) of response variable by Animal using Rate Table
-%  surfSampleTrend            - Surface: x - PostOpDay, y - % Explained, z - R^2_MLS
+%  bar_animal_counts             - Create bar plot figure of counts or ratios
+%  blocks                        - Shows figure(s) of response variable by Block using Rate Table
+%  outcomes                      - Plot scatters of the 4 outcome response variables across days
+%  per_animal_trends             - Plot per-animal trends
+%  per_animal_mean_trends        - Plot per-animal (mean) trends
+%  per_animal_area_mean_rates    - Plot per-animal, per-area (mean) RATE trends
+%  per_animal_area_mean_trends   - Plot per-animal, per-area (mean) trends
+%  show                          - Shows figure(s) of response variable by Animal using Rate Table
+%  surfSampleTrend               - Surface: x - PostOpDay, y - % Explained, z - R^2_MLS
