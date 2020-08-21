@@ -28,6 +28,8 @@
 %  fit_full_spike_count_glme           - Fit "full" (fixed) Generalized Linear Mixed-Effects model for spike counts, incorporating all alignments of interest
 %  fit_spike_count_glme                - Fit Generalized Linear Mixed-Effects model for spike counts
 %  getCB95                             - Return 95% confidence bounds
+%  groupLevelTests                     - Get statistical test for each {'Group','Area','Week'}level
+%  parseLevelTests                     - Get statistical test for each row of `rWeek`
 %
 % Main Functions
 %  fit_transfer_fcn      - Get transfer function parameters and observation weights

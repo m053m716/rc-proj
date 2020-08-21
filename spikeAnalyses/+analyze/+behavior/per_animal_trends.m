@@ -5,7 +5,7 @@ function [fig,mdl] = per_animal_trends(T,varargin)
 %
 % Inputs
 %  T - Table of behavior with variables:
-%        'Day','nSuccess','nTotal','AnimalID','GroupID'
+%        'Day','nSuccess','nTotal','AnimalID','GroupID','Percent_Successful'
 %  varargin - (Optional) 'Name',value pairs
 %           -> 'Title' : "" (def); title string for plot
 %

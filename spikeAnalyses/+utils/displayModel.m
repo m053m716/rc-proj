@@ -83,12 +83,18 @@ fprintf(1,'--------------------------------------------------------------------\
 fprintf(1,'<strong>%s MODEL:</strong> %s (%s)\n',upper(type),tag,mdl.ResponseName);
 disp(mdl.Formula);
 fprintf(1,'--------------------------------------------------------------------\n');
+fprintf(1,'\t\t<strong>%s (%s link)</strong> Fit Method: %s\n',...
+   mdl.Distribution,mdl.Link.Name,upper(mdl.FitMethod));
+fprintf(1,'--------------------------------------------------------------------\n');
 disp(fStats);
 disp(anova(mdl));
 fprintf(1,'\n<strong>FIT (R^2):</strong> %s (%s)\n\n',tag,mdl.ResponseName);
 disp(mdl.Rsquared);
 fprintf(1,'\n<strong>SIGNIFICANT RANDOM EFFECTS:</strong> %s (%s)\n\n',tag,mdl.ResponseName);
 R = table(Group,Rat,Name,Estimate,p);
-disp(R);
-
+if isempty(R)
+   fprintf(1,'<strong>NONE</strong> (alpha: %6.2f)\n\n',alpha);
+else
+   disp(R);
+end
 end

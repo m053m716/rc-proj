@@ -142,8 +142,8 @@ delete(fig);
 
 %% Conduct population-dynamics model level statistics
 % First: are there are differences in included channel statistics? %
-mdl_cfa = "N_CFA~R2_Best+(1+Explained+PostOpDay+Duration+Alignment|AnimalID)";
-
+mdl_cfa = "N_CFA~R2_Best*ExplainedLogit+(1+PostOpDay+Duration|AnimalID)";
+E2.ExplainedLogit = -log(100./E2.Explained - 1);
 modelTic = tic;
 fprintf(1,'Estimating Binomial GLME model for # of CFA channels...');
 glme.populationDynamics.ncfa_channels.id = 14;
@@ -167,7 +167,7 @@ disp(glme.populationDynamics.ncfa_channels.mdl.Rsquared);
 fprintf(1,'-------------------------------------------\n');
 
 % Second: are there differences based on proportion of included distal forelimb channels? %
-mdl_df = "N_Distal_Forelimb~R2_Best+(1+Explained+PostOpDay+Duration+Alignment|AnimalID)";
+mdl_df = "N_Distal_Forelimb~R2_Best*ExplainedLogit+(1+PostOpDay+Duration|AnimalID)";
 
 modelTic = tic;
 fprintf(1,'Estimating Binomial GLME model for # of CFA channels...');
@@ -175,6 +175,7 @@ glme.populationDynamics.ndf_channels.id = 15;
 glme.populationDynamics.ndf_channels.mdl = fitglme(E2,mdl_df,...
    "FitMethod","REMPL",...
    "Distribution","Binomial",...
+   "DummyVarCoding",'effects',...
    "BinomialSize",E2.N_Forelimb,...
    "Link","logit");
 modelToc = toc(modelTic);
@@ -193,10 +194,7 @@ fprintf(1,'-------------------------------------------\n');
 
 % Last: is there a Group*PostOpDay interaction for dynamics signature? %
 
-% "Rotatory Dynamics" model (supplementary):
-% "R2_Skew~GroupID*PostOpDay+(1+R2_Best*Explained_Skew*AverageDuration|GroupID:AnimalID)"
-
-mdl_dynamics = "R2_Best~GroupID*Alignment*PostOpDay+(1+Duration+PostOpDay+Explained+N_Trials+Pct_DF+Pct_RFA|AnimalID)";
+mdl_dynamics = "R2_Best~Performance*ExplainedLogit*GroupID+(1+Duration+PostOpDay|AnimalID)";
 % Inverse Hyperbolic Tangent link (for optimizing probabilities)
 S = struct(...
    'Link',@(mu)2.*atanh(2.*mu - 1), ...
@@ -209,6 +207,7 @@ fprintf(1,'Estimating GLME model for Linearized Dynamics Fit...');
 glme.populationDynamics.r2_best.id = 16;
 glme.populationDynamics.r2_best.mdl = fitglme(E2,mdl_dynamics,...
    "FitMethod","REMPL",...
+   "DummyVarCoding",'effects',...
    "Distribution","Normal",...
    "Link",S);
 modelToc = toc(modelTic);
@@ -228,12 +227,13 @@ fprintf(1,'\t<strong>Custom Link:</strong>\n');
 disp(S);
 fprintf(1,'-------------------------------------------\n');
 
-mdl_dynamics_skew = "R2_Skew~GroupID*Alignment*PostOpDay+(1+Duration+PostOpDay+Explained+N_Trials+Pct_DF+Pct_RFA|AnimalID)";
+mdl_dynamics_skew = "R2_Skew~Performance*ExplainedLogit*GroupID+(1+Duration+PostOpDay|AnimalID)";
 modelTic = tic;
 fprintf(1,'Estimating GLME model for Linearized Dynamics Fit...');
 glme.populationDynamics.r2_skew.id = 17;
 glme.populationDynamics.r2_skew.mdl = fitglme(E2,mdl_dynamics_skew,...
    "FitMethod","REMPL",...
+   "DummyVarCoding",'effects',...
    "Distribution","Normal",...
    "Link",S);
 modelToc = toc(modelTic);
@@ -255,7 +255,7 @@ fprintf(1,'-------------------------------------------\n');
 
 %% Fit models relating Performance
 clc;
-mdl_dynamics_best_perf = "Performance~GroupID*PostOpDay+(1+R2_Best*Duration|AnimalID)";
+mdl_dynamics_best_perf = "Performance~R2_Best*R2_Skew*ExplainedLogit*GroupID+(1+PostOpDay+Duration|AnimalID)";
 modelTic = tic;
 fprintf(1,'Estimating GLME model for Linearized Dynamics Fit...');
 glme.populationDynamics.performance_best.id = 18;
@@ -263,7 +263,7 @@ glme.populationDynamics.performance_best.mdl = fitglme(E2,mdl_dynamics_best_perf
    "FitMethod",'REMPL',...
    "DummyVarCoding",'effects',...
    "Distribution",'Normal',...
-   "Link",'Identity');
+   "Link",'identity');
 modelToc = toc(modelTic);
 model_minutes = floor(modelToc/60);
 model_seconds = modelToc - (model_minutes*60);
@@ -271,6 +271,49 @@ fprintf(1,'complete (%5.2f minutes, %4.1f sec)\n',...
    model_minutes,model_seconds);
 utils.displayModel(glme.populationDynamics.performance_best);
 
+%% Make partial dependence plot for model with respect to Explained,R2,Performance
+fig = figure('Name','PDP: R2_Best + R2_Skew + Performance',...
+   'Units','Normalized','Color','w','Position',[1.16 0.10 0.21 0.52],...
+   'NumberTitle','off');
+ax = axes(fig,'XColor','k','YColor','k','ZColor','k','LineWidth',1.5,...
+   'XGrid','on','YGrid','on','ZGrid','on',...
+   'NextPlot','add','FontName','Arial','View',[-15.9 47.5]);
+plotPartialDependence(glme.populationDynamics.performance_best.mdl,...
+   {'R2_Best','R2_Skew'},'parentAxisHandle',ax);
+set(get(ax,'XLabel'),'FontName','Arial','Color','k','String','\bfR^2_{MLS}');
+set(get(ax,'YLabel'),'FontName','Arial','Color','k','String','\bfR^2_{Skew}');
+set(get(ax,'ZLabel'),'FontName','Arial','Color','k','String','\bfPerformance');
+set(ax,'ZLim',[-1 1],'CLim',[-1 1]);
+colormap('jet');
+set(get(ax,'Children'),'EdgeColor','none','FaceAlpha',0.5);
+colorbar(ax);
+set(fig.Children(1).Label,'FontName','Arial','Color',[0 0 0],'String','Performance');
+
+saveas(fig,fullfile(outPath,'Fig4d - PDP - R2_Best-Skew_Performance.png'));
+savefig(fig,fullfile(outPath,'Fig4d - PDP - R2_Best-Skew_Performance.fig'));
+delete(fig);
+
+fig = figure('Name','PDP: R2_Skew + Explained + Performance',...
+   'Units','Normalized','Color','w','Position',[1.16 0.10 0.21 0.52],...
+   'NumberTitle','off');
+ax = axes(fig,'XColor','k','YColor','k','ZColor','k','LineWidth',1.5,...
+   'XGrid','on','YGrid','on','ZGrid','on',...
+   'NextPlot','add','FontName','Arial','View',[-15.9 47.5]);
+plotPartialDependence(glme.populationDynamics.performance_best.mdl,...
+   {'R2_Skew','ExplainedLogit'},'parentAxisHandle',ax);
+
+set(get(ax,'XLabel'),'FontName','Arial','Color','k','String','\bfR^2_{Skew}');
+set(get(ax,'YLabel'),'FontName','Arial','Color','k','String','\itlogit\rm(\bfExplained\rm)');
+set(get(ax,'ZLabel'),'FontName','Arial','Color','k','String','\bfPerformance');
+set(ax,'ZLim',[-1 1],'CLim',[-1 1]);
+colormap('jet');
+set(get(ax,'Children'),'EdgeColor','none','FaceAlpha',0.5);
+colorbar(ax);
+set(fig.Children(1).Label,'FontName','Arial','Color',[0 0 0],'String','Performance');
+
+saveas(fig,fullfile(outPath,'Fig4e - PDP - R2_Skew-Explained_Performance.png'));
+savefig(fig,fullfile(outPath,'Fig4e - PDP - R2_Skew-Explained_Performance.fig'));
+delete(fig);
 %% Save models
 clc;
 utils.displayModel(glme.populationDynamics,0.05); % Display all models

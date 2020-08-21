@@ -202,6 +202,8 @@ Full = UTrials(~UTrials.Properties.UserData.Exclude,...
    {'AnimalID','GroupID','PostOpDay','Duration','SupportType'});
 Predictors = UTrials(~UTrials.Properties.UserData.Exclude,...
    {'AnimalID','GroupID','PostOpDay','Duration'});
+
+% % % % Model-13 % % % %
 mdl = fitcauto(Full,'SupportType',... % Target labels to fit
    'Learners',{'discr','ensemble','linear','svm','tree'});
 
@@ -209,6 +211,8 @@ mdl = fitcauto(Full,'SupportType',... % Target labels to fit
 fig = figure('Name','Support Type Classification Confusion',...
    'Color','w','Units','Normalized','Position',[0.35 0.35 0.35 0.35]);
 plotconfusion(Full.SupportType,predict(mdl,Predictors));
+set(get(gca,'XLabel'),'FontName','Arial','FontWeight','bold','Color','k');
+set(get(gca,'YLabel'),'FontName','Arial','FontWeight','bold','Color','k');
 saveas(fig,fullfile(outPath,'FigS3 - Support Classification.png'));
 savefig(fig,fullfile(outPath,'FigS3 - Support Classification.fig'));
 delete(fig);

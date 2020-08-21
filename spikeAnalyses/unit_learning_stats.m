@@ -30,74 +30,6 @@ r.Properties.UserData.Excluded = ...
    (r.Duration >= 0.750);
 
 tic;
-% % Define "fixed-epoch" models % %
-fprintf(1,'Fitting <strong>Pre</strong> epoch...');
-glme.unitLearning = struct;
-glme.unitLearning.pre.mdl = fitglme(r,"N_Pre_Grasp~1+Area*Group*PostOpDay+(1|AnimalID)+(1+PostOpDay*Reach_Epoch_Duration|ChannelID)",...
-   "Exclude",r.Properties.UserData.Excluded,...
-   "FitMethod","REMPL",...
-   "Distribution","Poisson",...
-   "Link","log");
-glme.unitLearning.pre.id = nan;
-fprintf(1,'complete\n');
-fprintf(1,'Fitting <strong>Grasp</strong> epoch...');
-N = r.N_Total;
-N(r.Properties.UserData.Excluded | r.Outcome=="Unsuccessful") = 1;
-glme.unitLearning.grasp.mdl = fitglme(r,"N_Grasp~1+Area*Group*PostOpDay+(1|AnimalID)+(1+PostOpDay*Duration+N_Pre_Grasp|ChannelID)",...
-   "Exclude",r.Properties.UserData.Excluded | r.Outcome=="Unsuccessful",...
-   "FitMethod","REMPL",...
-   "BinomialSize",N,...
-   "Distribution","Binomial",...
-   "Link","logit");
-glme.unitLearning.grasp.id = nan;
-fprintf(1,'complete\n');
-% % Define "variable-epoch" models % %
-fprintf(1,'Fitting <strong>Reach</strong> epoch...');
-glme.unitLearning.reach.mdl = fitglme(r,"N_Reach~1+Area*Group*PostOpDay+(1|AnimalID)+(1+PostOpDay*Reach_Epoch_Duration+N_Pre_Grasp|ChannelID)",...
-   "Exclude",r.Properties.UserData.Excluded | r.Outcome=="Unsuccessful",...
-   "FitMethod","REMPL",...
-   "Distribution","Poisson",...
-   "Link","log");
-glme.unitLearning.reach.id = nan;
-fprintf(1,'complete\n');
-fprintf(1,'Fitting <strong>Retract</strong> epoch...');
-glme.unitLearning.retract.mdl = fitglme(r,"N_Retract~1+Area*Group*PostOpDay+(1|AnimalID)+(1+PostOpDay*Retract_Epoch_Duration+N_Pre_Grasp|ChannelID)",...
-   "Exclude",r.Properties.UserData.Excluded | r.Outcome=="Unsuccessful",...
-   "FitMethod","REMPL",...
-   "Distribution","Poisson",...
-   "Link","log");
-glme.unitLearning.retract.id = nan;
-fprintf(1,'complete\n');
-fprintf(1,'%6.2f seconds elapsed\n',toc);
-
-% % Display model outputs
-% fprintf(1,'\n-------------------------------------------------------------\n');
-% fprintf(1,'<strong>Multi-Unit Trend Model Estimates</strong>\n');
-% fprintf(1,'\n-------------------------------------------------------------\n');
-% fprintf(1,'\n\n<strong>Pre-Grasp</strong> (MODEL-%d)\n\n',glme.unitLearning.pre.id);
-% disp(glme.unitLearning.pre.mdl);
-% fprintf(1,'\n-------------------------------------------------------------\n');
-% fprintf(1,'\n<strong>FIT</strong> (MODEL-%d)\n',glme.unitLearning.pre.id);
-% disp(glme.unitLearning.pre.mdl.Rsquared);
-% fprintf(1,'\n-------------------------------------------------------------\n');
-% fprintf(1,'\n\n<strong>Reach</strong> (MODEL-%d)\n\n',glme.unitLearning.reach.id);
-% disp(glme.unitLearning.reach.mdl);
-% fprintf(1,'\n-------------------------------------------------------------\n');
-% fprintf(1,'\n<strong>FIT</strong> (MODEL-%d)\n',glme.unitLearning.reach.id);
-% disp(glme.unitLearning.reach.mdl.Rsquared);
-% fprintf(1,'\n-------------------------------------------------------------\n');
-% fprintf(1,'\n\n<strong>Grasp</strong> (MODEL-%d)\n\n',glme.unitLearning.grasp.id);
-% disp(glme.unitLearning.grasp.mdl);
-% fprintf(1,'\n-------------------------------------------------------------\n');
-% fprintf(1,'\n<strong>FIT</strong> (MODEL-%d)\n',glme.unitLearning.grasp.id);
-% disp(glme.unitLearning.grasp.mdl.Rsquared);
-% fprintf(1,'\n-------------------------------------------------------------\n');
-% fprintf(1,'\n\n<strong>Retract</strong> (MODEL-%d)\n\n',glme.unitLearning.retract.id);
-% disp(glme.unitLearning.retract.mdl);
-% fprintf(1,'\n-------------------------------------------------------------\n');
-% fprintf(1,'\n<strong>FIT</strong> (MODEL-%d)\n',glme.unitLearning.retract.id);
-% disp(glme.unitLearning.retract.mdl.Rsquared);
-% fprintf(1,'\n-------------------------------------------------------------\n');
 
 %%
 clc;
@@ -110,36 +42,19 @@ end
 % Initialize data output variables and data subset to pass to figures %
 Data = struct;
 mdl = struct;
-% rSub = r((~r.Properties.UserData.Excluded) & r.Outcome=="Successful",:);
-% rSub.Properties.UserData.Excluded = rSub.Properties.UserData.Excluded(~rSub.Properties.UserData.Excluded);
 rSub = r;
 rSub.Properties.UserData.Excluded = rSub.Properties.UserData.Excluded | rSub.Outcome=="Unsuccessful";
 
 % Generate figures corresponding to each epoch %
 % % Pre-Grasp Figures % %
-% fig = analyze.behavior.epochSpikeTrends_Split(r,glme.unitLearning.pre.mdl,0.6);       
-% saveas(fig,fullfile(outPath,'FigS4 - Observed Pre-Grasp Trends.png'));
-% savefig(fig,fullfile(outPath,'FigS4 - Observed Pre-Grasp Trends.fig'));
-% delete(fig);
-% 
-% fig = analyze.behavior.epochSpikeFits(r,'N_Pre_Grasp',0.6);       
-% saveas(fig,fullfile(outPath,'FigS4 - Pre-Grasp Trends 95CB.png'));
-% savefig(fig,fullfile(outPath,'FigS4 - Pre-Grasp Trends 95CB.fig'));
-% delete(fig);
-% 
-% fig = analyze.behavior.epochSpikeFits_Animals(r,'N_Pre_Grasp',0.6);       
-% saveas(fig,fullfile(outPath,'FigS4 - Pre-Grasp Trends 95CB - Animals.png'));
-% savefig(fig,fullfile(outPath,'FigS4 - Pre-Grasp Trends 95CB - Animals.fig'));
-% delete(fig);
-
 [fig,mdl.pre.count,Data.pre.count] = analyze.behavior.per_animal_area_mean_trends(rSub,...
    'N_Pre_Grasp',...
    'YLabel','Spike Count',...
    'YLim',[0 60],...
    'Tag','Fig2a',...
    'Title','Activity: Pre-Grasp (successful + included)');
-saveas(fig,fullfile(outPath,'Fig2 - Pre-Grasp Trends 95CB - Animal Mean Trends.png'));
-savefig(fig,fullfile(outPath,'Fig2 - Pre-Grasp Trends 95CB - Animal Mean Trends.fig'));
+saveas(fig,fullfile(outPath,'Fig2a - Pre-Grasp Trends 95CB - Animal Mean Trends.png'));
+savefig(fig,fullfile(outPath,'Fig2a - Pre-Grasp Trends 95CB - Animal Mean Trends.fig'));
 delete(fig);
 
 [fig,mdl.pre.rate,Data.pre.rate] = analyze.behavior.per_animal_area_mean_rates(rSub,...
@@ -148,34 +63,19 @@ delete(fig);
    'YLim',[5 25],...
    'ModelNumber',10,...
    'Title','Activity: Pre-Grasp Rates (successful + included)');
-saveas(fig,fullfile(outPath,'Fig2 - Pre-Grasp Rates 95CB - Animal Mean Trends.png'));
-savefig(fig,fullfile(outPath,'Fig2 - Pre-Grasp Rates 95CB - Animal Mean Trends.fig'));
+saveas(fig,fullfile(outPath,'Fig2d - Pre-Grasp Rates 95CB - Animal Mean Trends.png'));
+savefig(fig,fullfile(outPath,'Fig2d - Pre-Grasp Rates 95CB - Animal Mean Trends.fig'));
 delete(fig);
 
 % % Reach Figures % %
-% fig = analyze.behavior.epochSpikeTrends_Split(r,glme.unitLearning.reach.mdl,'Reach_Epoch_Duration');       
-% saveas(fig,fullfile(outPath,'FigS4 - Observed Reach Trends.png'));
-% savefig(fig,fullfile(outPath,'FigS4 - Observed Reach Trends.fig'));
-% delete(fig);
-% 
-% fig = analyze.behavior.epochSpikeFits(r,'N_Reach','Reach_Epoch_Duration');       
-% saveas(fig,fullfile(outPath,'FigS4 - Reach Trends 95CB.png'));
-% savefig(fig,fullfile(outPath,'FigS4 - Reach Trends 95CB.fig'));
-% delete(fig);
-% 
-% fig = analyze.behavior.epochSpikeFits_Animals(r,'N_Reach','Reach_Epoch_Duration');       
-% saveas(fig,fullfile(outPath,'FigS4 - Reach Trends 95CB - Animals.png'));
-% savefig(fig,fullfile(outPath,'FigS4 - Reach Trends 95CB - Animals.fig'));
-% delete(fig);
-
 [fig,mdl.reach.count,Data.reach.count] = analyze.behavior.per_animal_area_mean_trends(rSub,...
    'N_Reach',...
    'YLabel','Spike Count',...
    'YLim',[0 35],...
    'Tag','Fig2b',...
    'Title','Activity: Reach (successful + included)');
-saveas(fig,fullfile(outPath,'Fig2 - Reach Trends 95CB - Animal Mean Trends.png'));
-savefig(fig,fullfile(outPath,'Fig2 - Reach Trends 95CB - Animal Mean Trends.fig'));
+saveas(fig,fullfile(outPath,'Fig2b - Reach Trends 95CB - Animal Mean Trends.png'));
+savefig(fig,fullfile(outPath,'Fig2b - Reach Trends 95CB - Animal Mean Trends.fig'));
 delete(fig);
 
 [fig,mdl.reach.rate,Data.reach.rate] = analyze.behavior.per_animal_area_mean_rates(rSub,...
@@ -185,34 +85,19 @@ delete(fig);
    'YLim',[5 25],...
    'ModelNumber',11,...
    'Title','Activity: Reach Rates (successful + included)');
-saveas(fig,fullfile(outPath,'Fig2 - Reach Rates 95CB - Animal Mean Trends.png'));
-savefig(fig,fullfile(outPath,'Fig2 - Reach Rates 95CB - Animal Mean Trends.fig'));
+saveas(fig,fullfile(outPath,'Fig2e - Reach Rates 95CB - Animal Mean Trends.png'));
+savefig(fig,fullfile(outPath,'Fig2e - Reach Rates 95CB - Animal Mean Trends.fig'));
 delete(fig);
 
 % % Retract Figures % %
-% fig = analyze.behavior.epochSpikeTrends_Split(r,glme.unitLearning.retract.mdl,'Retract_Epoch_Duration');       
-% saveas(fig,fullfile(outPath,'FigS4 - Observed Retract Trends.png'));
-% savefig(fig,fullfile(outPath,'FigS4 - Observed Retract Trends.fig'));
-% delete(fig);
-% 
-% fig = analyze.behavior.epochSpikeFits(r,'N_Retract','Retract_Epoch_Duration');       
-% saveas(fig,fullfile(outPath,'FigS4 - Retract Trends 95CB.png'));
-% savefig(fig,fullfile(outPath,'FigS4 - Retract Trends 95CB.fig'));
-% delete(fig);
-% 
-% fig = analyze.behavior.epochSpikeFits_Animals(r,'N_Retract','Retract_Epoch_Duration');       
-% saveas(fig,fullfile(outPath,'FigS4 - Retract Trends 95CB - Animals.png'));
-% savefig(fig,fullfile(outPath,'FigS4 - Retract Trends 95CB - Animals.fig'));
-% delete(fig);
-
 [fig,mdl.retract.count,Data.retract.count] = analyze.behavior.per_animal_area_mean_trends(rSub,...
    'N_Retract',...
    'YLabel','Spike Count',...
    'YLim',[0 35],...
    'Tag','Fig2c',...
    'Title','Activity: Retract (successful + included)');
-saveas(fig,fullfile(outPath,'Fig2 - Retract Trends 95CB - Animal Mean Trends.png'));
-savefig(fig,fullfile(outPath,'Fig2 - Retract Trends 95CB - Animal Mean Trends.fig'));
+saveas(fig,fullfile(outPath,'Fig2c - Retract Trends 95CB - Animal Mean Trends.png'));
+savefig(fig,fullfile(outPath,'Fig2c - Retract Trends 95CB - Animal Mean Trends.fig'));
 delete(fig);
 
 [fig,mdl.retract.rate,Data.retract.rate] = analyze.behavior.per_animal_area_mean_rates(rSub,...
@@ -222,49 +107,76 @@ delete(fig);
    'YLim',[5 25],...
    'ModelNumber',12,...
    'Title','Activity: Retract Rates (successful + included)');
-saveas(fig,fullfile(outPath,'Fig2 - Retract Rates 95CB - Animal Mean Trends.png'));
-savefig(fig,fullfile(outPath,'Fig2 - Retract Rates 95CB - Animal Mean Trends.fig'));
+saveas(fig,fullfile(outPath,'Fig2f - Retract Rates 95CB - Animal Mean Trends.png'));
+savefig(fig,fullfile(outPath,'Fig2f - Retract Rates 95CB - Animal Mean Trends.fig'));
 delete(fig);
 
+%% Break down rSub into weeks and get table of empirical values/stats
+rSub = rSub(~rSub.Properties.UserData.Excluded,:);
+rSub.Properties.UserData.Excluded = rSub.Properties.UserData.Excluded(~rSub.Properties.UserData.Excluded);
+rSub.Week = ceil(rSub.PostOpDay/7);
+rSub.Properties.UserData.Excluded(rSub.Week > 4) = [];
+rSub(rSub.Week > 4,:) = [];
+[weekGroups,rWeek] = findgroups(rSub(:,{'Group','AnimalID','Week','Area'}));
+rWeek.Week_Cubed = rWeek.Week.^3;
+rWeek.n_Obs = splitapply(@numel,weekGroups,weekGroups);
+% Make model for spike counts during "Pre" epoch
+rWeek.n_Pre_mean = splitapply(@nanmean,rSub.N_Pre_Grasp,weekGroups);
+rWeek.n_Pre_std  = splitapply(@nanstd,rSub.N_Pre_Grasp,weekGroups);
+mdl.pre.weeks = fitglme(rWeek,...
+   'n_Pre_mean~Group*Area*Week+(1+Week+Week_Cubed|AnimalID)',...
+   'FitMethod','REMPL',...
+   'DummyVarCoding','effects');
+rWeek = analyze.stat.parseLevelTests(rWeek,mdl.pre.weeks);
+% Make model for spike rate during "Reach" epoch
+rWeek.rate_Reach_mean = splitapply(@nanmean,rSub.N_Reach./rSub.Reach_Epoch_Duration,weekGroups);
+rWeek.rate_Reach_std  = splitapply(@nanstd,rSub.N_Reach./rSub.Reach_Epoch_Duration,weekGroups);
+mdl.reach.weeks = fitglme(rWeek,...
+   'rate_Reach_mean~Group*Area*Week+(1+Week+Week_Cubed|AnimalID)',...
+   'FitMethod','REMPL',...
+   'DummyVarCoding','effects');
+rWeek = analyze.stat.parseLevelTests(rWeek,mdl.reach.weeks);
+% Make model for spike rate during "Retract" epoch
+rWeek.rate_Retract_mean = splitapply(@nanmean,rSub.N_Retract./rSub.Retract_Epoch_Duration,weekGroups);
+rWeek.rate_Retract_std  = splitapply(@nanstd,rSub.N_Retract./rSub.Retract_Epoch_Duration,weekGroups);
+mdl.retract.weeks = fitglme(rWeek,...
+   'rate_Retract_mean~Group*Area*Week+(1+Week+Week_Cubed|AnimalID)',...
+   'FitMethod','REMPL',...
+   'DummyVarCoding','effects');
+
+%% Make tables
+
+% Make table for individual animal effects
+rWeek = analyze.stat.parseLevelTests(rWeek,mdl.retract.weeks);
+writetable(rWeek,fullfile(defaults.files('local_tank'),'TABLE-S4.xlsx'));
+
+
+% Aggregate and test random effects to get significance by
+% {Group,Area,Week}
+T = struct;
+fcn = struct('mu',@(x)nanmean(x),'sigma',@(x)nanstd(x));
+T.pre = analyze.stat.groupLevelTests(rWeek,mdl.pre.weeks,rSub,fcn,{'N_Pre_Grasp'});
+writetable(T.pre,fullfile(defaults.files('local_tank'),'TABLE-1.xlsx'),'Sheet','N_PRE');
+
+% Change function handle for the rate ones
+fcn = struct('mu',@(x,t)nanmean(rdivide(x,t)),'sigma',@(x,t)nanstd(rdivide(x,t)));
+T.reach = analyze.stat.groupLevelTests(rWeek,mdl.reach.weeks,rSub,fcn,{'N_Reach','Reach_Epoch_Duration'});
+writetable(T.reach,fullfile(defaults.files('local_tank'),'TABLE-1.xlsx'),'Sheet','RATE_REACH');
+
+T.retract = analyze.stat.groupLevelTests(rWeek,mdl.retract.weeks,rSub,fcn,{'N_Retract','Retract_Epoch_Duration'});
+writetable(T.retract,fullfile(defaults.files('local_tank'),'TABLE-1.xlsx'),'Sheet','RATE_RETRACT');
 
 %% Display model outputs
-% clc;
-% fprintf(1,'\n-------------------------------------------------------------\n');
-% fprintf(1,'<strong>Multi-Unit Rate Model Estimates</strong>\n');
-% fprintf(1,'\n-------------------------------------------------------------\n');
-% fprintf(1,'\n\n<strong>Pre-Grasp Rate</strong> (MODEL-%d: %s)\n\n',...
-%    mdl.pre.rate.id,mdl.pre.rate.main.ResponseName);
-% disp(mdl.pre.rate.fixedEffects);
-% fprintf(1,'\n-------------------------------------------------------------\n');
-% disp(anova(mdl.pre.rate.main));
-% fprintf(1,'\n<strong>FIT</strong> (MODEL-%d: %s)\n',...
-%    mdl.pre.rate.id,mdl.pre.rate.main.ResponseName);
-% disp(mdl.pre.rate.main.Rsquared);
-% fprintf(1,'\n-------------------------------------------------------------\n');
-% fprintf(1,'\n\n<strong>Reach</strong> (MODEL-%d: %s)\n\n',...
-%    mdl.reach.rate.id,mdl.reach.rate.main.ResponseName);
-% disp(mdl.reach.rate.fixedEffects);
-% fprintf(1,'\n-------------------------------------------------------------\n');
-% disp(anova(mdl.reach.rate.main));
-% fprintf(1,'\n<strong>FIT</strong> (MODEL-%d: %s)\n',...
-%    mdl.reach.rate.id,mdl.reach.rate.main.ResponseName);
-% disp(mdl.reach.rate.main.Rsquared);
-% fprintf(1,'\n-------------------------------------------------------------\n');
-% fprintf(1,'\n\n<strong>Retract</strong> (MODEL-%d: %s)\n\n',...
-%    mdl.retract.rate.id,mdl.retract.rate.main.ResponseName);
-% disp(mdl.retract.rate.fixedEffects);
-% fprintf(1,'\n-------------------------------------------------------------\n');
-% disp(anova(mdl.retract.rate.main));
-% fprintf(1,'\n<strong>FIT</strong> (MODEL-%d: %s)\n',...
-%    mdl.retract.rate.id,mdl.retract.rate.main.ResponseName);
-% disp(mdl.retract.rate.main.Rsquared);
-% fprintf(1,'\n-------------------------------------------------------------\n');
-utils.displayModel(mdl.pre.count,0.05,'Poisson','Fig2a::MODEL-10a');
-utils.displayModel(mdl.reach.count,0.05,'Poisson','Fig2b::MODEL-11a');
-utils.displayModel(mdl.retract.count,0.05,'Poisson','Fig2c::MODEL-12a');
-utils.displayModel(mdl.pre.rate.main,0.05,'GLME','Fig2d::MODEL-10b');
-utils.displayModel(mdl.reach.rate.main,0.05,'GLME','Fig2e::MODEL-11b');
-utils.displayModel(mdl.retract.rate.main,0.05,'GLME','Fig2f::MODEL-12b');
+clc;
+utils.displayModel(mdl.pre.count,0.05,'Fig2a','MODEL-10a');
+utils.displayModel(mdl.reach.count,0.05,'Fig2b','MODEL-11a');
+utils.displayModel(mdl.retract.count,0.05,'Fig2c','MODEL-12a');
+utils.displayModel(mdl.pre.rate.main,0.05,'Fig2d','MODEL-10b');
+utils.displayModel(mdl.reach.rate.main,0.05,'Fig2e','MODEL-11b');
+utils.displayModel(mdl.retract.rate.main,0.05,'Fig2f','MODEL-12b');
+utils.displayModel(mdl.pre.weeks,0.05,'Table1','MODEL-10c');
+utils.displayModel(mdl.reach.weeks,0.05,'Table2','MODEL-11c');
+utils.displayModel(mdl.retract.weeks,0.05,'Table3','MODEL-12c');
 
 %% Save model outputs
 tic; fprintf(1,'Saving Fig [2,S4] models...');
@@ -273,11 +185,3 @@ fprintf(1,'complete\n');
 fprintf(1,'\t->\t%6.2f seconds elapsed\n',toc);
 utils.addHelperRepos();
 sounds__.play('bell',0.8,-15);
-
-% tic; fprintf(1,'Saving GLME models...');
-% save(defaults.files('learning_rates_table_file'),...
-%    'glme.unitLearning.pre.mdl','glme.unitLearning.grasp.mdl','glme.unitLearning.reach.mdl','glme.unitLearning.retract.mdl','-append');
-% fprintf(1,'complete\n'); 
-% fprintf(1,'%6.2f seconds elapsed\n',toc);
-% utils.addHelperRepos();
-% sounds__.play('bell',0.8,-15);
