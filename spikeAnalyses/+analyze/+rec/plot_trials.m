@@ -59,7 +59,11 @@ else
 end
 
 poDay = T.PostOpDay(1);
-rat = sprintf('RC-%02g',T.Rat(1));
+if ~ismember('Rat',T.Properties.VariableNames)
+   rat = string(T.AnimalID(1));
+else
+   rat = sprintf('RC-%02g',T.Rat(1));
+end
 t = T.Properties.UserData.t;
 str = sprintf('%s - PO-%02g - %s',rat,poDay,align);
 fig = figure(...
@@ -72,6 +76,10 @@ fig = figure(...
 tsub = T(ismember(T.Outcome,outcome) & T.Alignment==align,:);
 [xtick,ytick,y_lim,rate_colors,n_trial_max] = defaults.rec_analyses(...
    'rate_xtick','rate_ytick','rate_ylim','rate_colors','n_trial_max');
+
+if isfield(T.Properties.UserData,'SpikeYLim')
+   y_lim = T.Properties.UserData.SpikeYLim;
+end
 
 [uTrialID,iID] = unique(tsub.Trial_ID);
 nTotal = numel(uTrialID);
@@ -102,8 +110,8 @@ for iTrial = 1:nThis
    ax.XColor = 'k';
    ax.YColor = 'k';
    ax.LineWidth = 1.5;
-   x_cfa = x(x.Area=='CFA',:);
-   x_rfa = x(x.Area=='RFA',:);
+   x_cfa = x(x.Area=="CFA",:);
+   x_rfa = x(x.Area=="RFA",:);
    for iCh = 1:size(x_cfa,1)
       ch = x_cfa.Channel(iCh);
       c = rate_colors.CFA(ch+1,:);

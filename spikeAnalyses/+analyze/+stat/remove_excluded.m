@@ -19,35 +19,35 @@ function Gr = remove_excluded(G)
 [min_dur,max_dur] = defaults.complete_analyses(...
    'min_duration','max_duration');
 
-G.Properties.UserData.Excluded = struct; % Initialize exclusion struct
+G.Properties.UserData.Exclusions = struct; % Initialize exclusion struct
 
 % Only keep desired rows %
 iOutcome = ismember(string(G.Outcome),outcome);
-G.Properties.UserData.Excluded.Outcome = sum(~iOutcome);
+G.Properties.UserData.Exclusions.Outcome = sum(~iOutcome);
 
 iAlignment = ismember(string(G.Alignment),align);
-G.Properties.UserData.Excluded.Alignment = sum(~iAlignment);
+G.Properties.UserData.Exclusions.Alignment = sum(~iAlignment);
 
 iDay = ~ismember(G.PostOpDay,days_rm);
-G.Properties.UserData.Excluded.ByDay = sum(~iDay);
+G.Properties.UserData.Exclusions.ByDay = sum(~iDay);
 iCategorical = iOutcome & iAlignment & iDay;
-G.Properties.UserData.Excluded.Categorical = sum(~iCategorical);
+G.Properties.UserData.Exclusions.Categorical = sum(~iCategorical);
 Gr = G(iCategorical,:); % Categorical exclusions
 
 % Exclude based on durations
 iDuration = Gr.Duration>=min_dur & Gr.Duration<=max_dur;
-Gr.Properties.UserData.Excluded.Duration = sum(~iDuration);
+Gr.Properties.UserData.Exclusions.Duration = sum(~iDuration);
 Gr = Gr(iDuration,:);
 
 iLowTau = (Gr.PeakOffset > peak_lims(1));
 iHighTau = (Gr.PeakOffset < peak_lims(2));
-Gr.Properties.UserData.Excluded.LowTau = sum(~iLowTau);
-Gr.Properties.UserData.Excluded.HighTau = sum(~iHighTau);
+Gr.Properties.UserData.Exclusions.LowTau = sum(~iLowTau);
+Gr.Properties.UserData.Exclusions.HighTau = sum(~iHighTau);
 
 iHighEnvelopeBW = (Gr.EnvelopeBW < max_env_bw);
 iHighError = (Gr.PeakOffset < max_sse);
-Gr.Properties.UserData.Excluded.HighEnvelopeBW = sum(~iHighEnvelopeBW);
-Gr.Properties.UserData.Excluded.HighError = sum(~iHighError);
+Gr.Properties.UserData.Exclusions.HighEnvelopeBW = sum(~iHighEnvelopeBW);
+Gr.Properties.UserData.Exclusions.HighError = sum(~iHighError);
 
 % Convert categories so only the relevant ones remain %
 Gr.Outcome = string(Gr.Outcome);
@@ -62,7 +62,7 @@ Gr.PostOpPhase = ordinal(Gr.PostOpPhase);
 
 % % % Remove exclusions % % %
 iData = iHighEnvelopeBW & iHighError & iLowTau & iHighTau;
-Gr.Properties.UserData.Excluded.FitParameter = sum(~iData);
+Gr.Properties.UserData.Exclusions.FitParameter = sum(~iData);
 Gr = Gr(iData,:);
 
 % % Compute PCs %

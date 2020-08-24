@@ -66,7 +66,7 @@ E.Explained = E.Explained ./ 100; % Normalize [0 to 1]
 E.RotationStrength = log(E.Explained)-mean(log(E.Explained));
 E.Duration = E.Duration .* 1e-3; % Convert to seconds
 E.Properties.UserData = struct;
-E.Properties.UserData.Excluded.fail_circle_stats_reqs = nOutlier;
+E.Properties.UserData.Exclusions.fail_circle_stats_reqs = nOutlier;
 E.Properties.Description = 'jPCA Rotation Subspace summary table for fitting repeated-measures model';
 
 E = sortrows(E,'AnimalID','ascend');

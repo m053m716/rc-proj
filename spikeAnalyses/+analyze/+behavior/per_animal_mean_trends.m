@@ -72,7 +72,7 @@ end
 
 % % Exclude rows if specified in table % %
 if pars.DoExclusions
-   T = T(~T.Properties.UserData.Exclude,:);
+   T = T(~T.Properties.UserData.Excluded,:);
 end
 T.(responseVar) = T.(responseVar) .* pars.Scale;
 
@@ -101,8 +101,12 @@ end
 
 [G,data] = findgroups(T(:,{'GroupID','AnimalID','PostOpDay'}));
 data.(responseVar) = splitapply(@nanmean,T.(responseVar),G);
-T.Properties.VariableNames{'PostOpDay'} = 'Day';
-data.Properties.VariableNames{'PostOpDay'} = 'Day';
+if ~ismember(T.Properties.VariableNames,'Day')
+   T.Properties.VariableNames{'PostOpDay'} = 'Day';
+end
+if ~ismember(data.Properties.VariableNames,'Day')
+   data.Properties.VariableNames{'PostOpDay'} = 'Day';
+end
 % Add 3rd-order term
 T.Day_Cubed = T.Day.^3;
 data.Day_Cubed = data.Day.^3;

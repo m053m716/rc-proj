@@ -50,11 +50,12 @@ pars.FitOptions = {...
    };
 pars.LegendLabels = {'Model Trend','Model 95% CB','Observed Mean','Model Error'};
 pars.LegendLocation = 'northeast';
+pars.LegendStyle = 'standard';
 pars.LineWidth = 1.0;
 pars.MarkerOrder = 'oshpv^';
 pars.MarkerFaceAlpha = 0.45;
-pars.ModelFormula = '%s~1+Area*GroupID+(1+PostOpDay%s|AnimalID)';
-pars.RandomCovariates = {'Duration','Performance_mu'};
+pars.ModelFormula = '%s~1+Area*GroupID*Performance_mu+(1+PostOpDay%s|AnimalID)';
+pars.RandomCovariates = {'Duration'};
 pars.RandomModelFormula = '%s~1+(1+PostOpDay+PostOpDay_Cubed|AnimalID)';
 pars.Tag = '';
 pars.TimeTrendVar = 'PostOpDay';
@@ -87,9 +88,7 @@ if ~ismember('GroupID',T.Properties.VariableNames)
 end
 
 if pars.DoExclusions
-   if isfield(T.Properties.UserData,'Exclude')
-      T = T(~T.Properties.UserData.Exclude,:);
-   elseif isfield(T.Properties.UserData,'Excluded')
+   if isfield(T.Properties.UserData,'Excluded')
       T = T(~T.Properties.UserData.Excluded,:);
    else
       warning('No "Exclude" or "Excluded" UserData field.');
@@ -143,22 +142,19 @@ for iR = 1:numel(pars.RandomCovariates)
       sprintf(pars.RandomModelFormula,pars.RandomCovariates{iR}));
 end
 mdlspec = string(sprintf(pars.ModelFormula,responseVar,randomVarStr));
+data.N_Total = splitapply(@(x)round(nanmean(x)),T.N_Total,G);
 
 if iscolumn(pars.FitOptions)
    pars.FitOptions = pars.FitOptions';
 end
-if ~isempty(pars.BinomialSize)
-   pars.FitOptions = [pars.FitOptions, 'BinomialSize', pars.BinomialSize];
-end
 
 data = outerjoin(data,B,'Keys',{'GroupID','AnimalID','PostOpDay','PostOpDay_Cubed'},...
    'MergeKeys',true,...
-   'Type','full',...
-   'RightVariables',{'GroupID','AnimalID','PostOpDay','PostOpDay_Cubed','Performance_hat_mu','Performance_hat_cb95'});
-
+   'Type','left',...
+   'RightVariables',{'GroupID','AnimalID','PostOpDay','PostOpDay_Cubed','Performance_mu','Performance_hat_mu','Performance_hat_cb95'});
 mdlTic = tic;
 fprintf(1,'Fitting model: %s  ...',mdlspec);
-mdl = fitglme(data,mdlspec,pars.FitOptions{:});
+mdl = fitglme(data,mdlspec,pars.FitOptions{:},'BinomialSize',data.N_Total);
 mdlToc = toc(mdlTic);
 fprintf(1,'complete (%6.2f sec)\n',mdlToc);
 
@@ -175,10 +171,10 @@ fig = figure('Name',sprintf('%s by Day (Block Average Animal Trends)',responseVa
 ax = [ ...
    axes(fig,'NextPlot','add','XColor','k','YColor','k','LineWidth',1.5,...
          'FontName','Arial','XLim',xLim,'YLim',yLim,'Units','Normalized',...
-         'Position',[0.15 0.55 0.7 0.30],'Tag','Intact CFA');
+         'Position',[0.15 0.55 0.6 0.30],'Tag','Intact CFA');
    axes(fig,'NextPlot','add','XColor','k','YColor','k','LineWidth',1.5,...
          'FontName','Arial','XLim',xLim,'YLim',yLim,'Units','Normalized',...
-         'Position',[0.15 0.15 0.7 0.30],'Tag','Injured RFA')];
+         'Position',[0.15 0.15 0.6 0.30],'Tag','Injured RFA')];
 areaTags = ["Intact CFA"; "Injured RFA"];
  
 for iAx = 1:2
@@ -193,6 +189,7 @@ xlabel(ax(2),pars.XLabel,'FontName','Arial','Color','k');
 iMarker = struct('Intact',struct('CFA',0,'RFA',0),'Ischemia',struct('CFA',0,'RFA',0));
 needsLegend = true(2,1);
 Data = [];
+hGroup = gobjects(size(TIDplot,1),1);
 for ii = 1:size(TIDplot,1)
    gName = string(TIDplot.GroupID(ii));
    aName = string(TIDplot.Area(ii));
@@ -214,15 +211,17 @@ for ii = 1:size(TIDplot,1)
    GroupID = repmat(TIDplot.GroupID(ii),nDay,1);
    Area = repmat(TIDplot.Area(ii),nDay,1);
    AnimalID = repmat(TIDplot.AnimalID(ii),nDay,1);
+   N_Total = theseData.N_Total;
    Period = categorical(discretize(Day,0:11:33),...
       [1,2,3],{'Early','Mid','Late'});
    dayVec = 1:nDay;
 %    mrkIndices = dayVec(ismember(Day,theseData.(pars.TimeTrendVar)));
    mrkIndices = dayVec(~isnan(theseData.(responseVar)));
 
-   tPred = table(GroupID,AnimalID,Area,Period,Day,Day_Cubed);
+   tPred = table(GroupID,AnimalID,Area,Period,Day,Day_Cubed,N_Total);
    tPred.Properties.VariableNames{'Day'} = pars.TimeTrendVar;
    tPred.Properties.VariableNames{'Day_Cubed'} = cube_term;
+   tPred.Performance_mu = theseData.Performance_mu;
    tPred.Performance_hat_mu = theseData.Performance_hat_mu;
    tPred.Performance_hat_cb95 = theseData.Performance_hat_cb95;
    for iR = 1:numel(pars.RandomCovariates)  
@@ -231,14 +230,19 @@ for ii = 1:size(TIDplot,1)
       end
    end
    
-   [mu,cb95] = predict(mdl,tPred);
-   iBad = diff(cb95,1,2)>= pars.BadConfBand;
-   cb95(iBad,:) = nan(sum(iBad),2);
+   [tPred.mu,tPred.cb95] = predict(mdl,tPred);
+   if strcmpi(mdl.Distribution,'binomial')
+      tPred.mu = tPred.mu .* tPred.N_Total; 
+      tPred.cb95 = tPred.cb95 .* tPred.N_Total;
+   end
    
-   Data = [Data; table(GroupID,Area,AnimalID,Day,mu,cb95)]; %#ok<AGROW>
+   iBad = diff(tPred.cb95,1,2)>= pars.BadConfBand;
+   tPred.cb95(iBad,:) = nan(sum(iBad),2);
    
-   hGroup = gfx__.plotWithShadedError(ax(iAx),...
-      Day,mu,cb95,...
+   Data = [Data; tPred]; %#ok<AGROW>
+   
+   hGroup(ii) = gfx__.plotWithShadedError(ax(iAx),...
+      Day,tPred.mu,tPred.cb95,...
       'FaceColor',c,...
       'FaceAlpha',pars.FaceAlpha,...
       'Marker',pars.MarkerOrder(iMarker.(gName).(aName)),...
@@ -258,33 +262,60 @@ for ii = 1:size(TIDplot,1)
       'Tag',sprintf('Scatter::%s::%s',gName,aName),...
       'DisplayName',sprintf('%s (observed)',string(TIDplot.AnimalID(ii))));
    eLineX = ([theseData.(pars.TimeTrendVar),theseData.(pars.TimeTrendVar),nan(size(theseData,1),1)])';
-   eLineY = ([theseData.(responseVar),mu(mrkIndices),nan(size(theseData,1),1)])';
+   eLineY = ([theseData.(responseVar),tPred.mu(mrkIndices),nan(size(theseData,1),1)])';
    hLine = line(ax(iAx),eLineX(:),eLineY(:),...
       'LineStyle',pars.ErrorLineStyle,...
       'LineWidth',pars.ErrorLineWidth,...
       'Color',c,...
       'DisplayName','Matched Observation');
-   if needsLegend(iAx)
-      trendLine = hGroup.Children(1);
-      trendErr = hGroup.Children(2);
-      legend([trendLine,trendErr,hScatter,hLine],...
-         pars.LegendLabels,...
-         'TextColor','black',...
-         'FontName','Arial',...
-         'FontSize',9,...
-         'EdgeColor','none',...
-         'Color','white',...
-         'AutoUpdate','off',...
-         'Location',pars.LegendLocation);
-      needsLegend(iAx) = false;
+   if strcmpi(pars.LegendStyle,'standard')
+      if needsLegend(iAx)
+         trendLine = hGroup(ii).Children(1);
+         trendErr = hGroup(ii).Children(2);
+         legend([trendLine,trendErr,hScatter,hLine],...
+            pars.LegendLabels,...
+            'TextColor','black',...
+            'FontName','Arial',...
+            'FontSize',9,...
+            'EdgeColor','none',...
+            'Color','white',...
+            'AutoUpdate','off',...
+            'Location',pars.LegendLocation);
+         needsLegend(iAx) = false;
+      end
    end
    drawnow;
+end
+if strcmpi(pars.LegendStyle,'animals')
+   [~,iU] = unique(TIDplot.AnimalID);
+   hGroup = hGroup(iU);
+   excVec = false(size(hGroup));
+   for ii = 1:size(hGroup,1)
+      excVec(ii) = isa(hGroup(ii),'matlab.graphics.GraphicsPlaceholder');
+   end
+   hGroup(excVec) = [];
+   c = gobjects(size(hGroup));
+   for ii = 1:size(hGroup,1)
+      c(ii) = hGroup(ii).Children(1);
+   end
+   legend(c,...
+      'TextColor','black',...
+      'FontName','TimesNewRoman',...
+      'FontSize',8,...
+      'EdgeColor','none',...
+      'NumColumns',1,...
+      'Color','none',...
+      'AutoUpdate','off',...
+      ...'Location',pars.LegendLocation);
+      'Parent',fig,...
+      'Units','Normalized',...
+      'Position',[0.80 0.35 0.15 0.30]);
 end
 Data = splitvars(Data,'cb95');
 Data.Properties.VariableNames{'cb95_1'} = 'cb95_lb';
 Data.Properties.VariableNames{'cb95_2'} = 'cb95_ub';
 Data.cb95 = Data.cb95_ub - Data.cb95_lb;
-Data.Week = ordinal(ceil(Data.Day./7));
+Data.Week = ordinal(ceil(Data.(pars.TimeTrendVar)./7));
 
 utils.displayModel(mdl,pars.Alpha,'Poisson',pars.Tag);
 

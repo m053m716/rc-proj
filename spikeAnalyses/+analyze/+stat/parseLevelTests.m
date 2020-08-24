@@ -4,8 +4,8 @@ function rWeek = parseLevelTests(rWeek,mdl)
 %  rWeek = analyze.stat.parseLevelTests(rWeek,mdl);
 %
 % Inputs
-%  rWeek - Table with grouped data by week
-%  mdl   - GeneralizedLinearMixedModel fit to rWeek 
+%  rWeek    - Table with grouped data by week
+%  mdl      - GeneralizedLinearMixedModel fit to rWeek
 %
 % Output
 %  rWeek - Updated table with new variables
@@ -28,19 +28,65 @@ rWeek.(numVar) = nan(nRow,1);
 rWeek.(denVar) = nan(nRow,1);
 rWeek.(fVar) = nan(nRow,1);
 
+isCategorical = mdl.VariableInfo.IsCategorical(mdl.Formula.FELinearFormula.InModel) ...
+   | strcmpi(mdl.VariableInfo.Properties.RowNames(mdl.Formula.FELinearFormula.InModel),'Week');
+
+conName = mdl.Formula.FELinearFormula.PredictorNames(~isCategorical);
+catNames = mdl.Formula.FELinearFormula.PredictorNames(isCategorical);
+feNames = mdl.Formula.FELinearFormula.TermNames';
+iZero = true(1,numel(feNames)); % Final Interaction term is never zeroed
+
+iCat = false(numel(catNames),numel(iZero));
+for ii = 1:size(iCat,1)
+   iCat(ii,:) = contains(feNames,catNames{ii});
+end
+
+iZero(all(iCat,1)) = false; % Get the main interaction "categorical" grouping
+iZero(contains(feNames,conName)) = false; % All continuous terms should be retained
+
 H = mdl.designMatrix;
-H(:,1:(end-1)) = 0; % Set everything except for the full-way interaction term to zero
+
+
+H(:,iZero) = 0; % Set everything except for the full-way interaction term to zero
 [~,~,stats] = randomEffects(mdl);
 q = size(stats,1);
+
+names = cellstr(stats.Name);
+
+randVars = mdl.Formula.RELinearFormula{1}.TermNames;
 
 for iRow = 1:nRow
    h = zeros(1,q);
    iAnimal = strcmpi(cellstr(stats.Level),string(rWeek.AnimalID(iRow)));
-   h(1,iAnimal & strcmpi(cellstr(stats.Name),'Week')) = rWeek.Week(iRow);
-   h(1,iAnimal & strcmpi(cellstr(stats.Name),'Week_Cubed')) = rWeek.Week_Cubed(iRow);
-         
-   [rWeek.(pVar)(iRow),rWeek.(fVar)(iRow),rWeek.(numVar)(iRow),rWeek.(denVar)(iRow)] = ...
-      coefTest(mdl,H(iRow,:),0,'REContrast',h);
+   for iV = 2:numel(randVars) % 1 is always intercept; skip it.
+      if endsWith(randVars{iV},'_Cubed')
+         varName = strsplit(randVars{iV},'_');
+         varName = strjoin(varName(1:(end-1)),'_');
+         h(1,iAnimal & strcmpi(names,randVars{iV})) = rWeek.(varName)(iRow).^3;
+      elseif endsWith(randVars{iV},'_Sigmoid')
+         varName = strsplit(randVars{iV},'_');
+         varName = strjoin(varName(1:(end-1)),'_');
+         h(1,iAnimal & strcmpi(names,randVars{iV})) = ...
+            exp(3.*(rWeek.(varName)(iRow)-2.5))./...
+               (1 + exp(3.*(rWeek.(varName)(iRow)-2.5))) - 0.5;
+      else
+         h(1,iAnimal & strcmpi(names,randVars{iV})) = rWeek.(randVars{iV})(iRow);
+      end
+   end
+   
+   try
+      [rWeek.(pVar)(iRow),rWeek.(fVar)(iRow),rWeek.(numVar)(iRow),rWeek.(denVar)(iRow)] = ...
+         coefTest(mdl,H(iRow,:),0,'REContrast',h);
+   catch
+%       fprintf(1,'\n<strong>Row</strong>: %d\n',iRow);
+%       fprintf(1,'<strong>H</strong>: ');
+%       disp(H(iRow,:));
+%       fprintf(1,'<strong>h</strong>: ');
+%       disp(h);
+%       fprintf(1,'<strong>rWeek(iRow,:)</strong>: ');
+%       disp(rWeek(iRow,:));
+      continue;
+   end
    
 end
 

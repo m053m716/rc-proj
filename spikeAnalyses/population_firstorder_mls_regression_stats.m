@@ -16,7 +16,7 @@ end
 utils.addHelperRepos();
 
 %% Fig. S7a - Distribution of Performance Scores for Population Stats
-fig = analyze.dynamics.inputDistribution(E,'Performance_hat_mu');
+fig = analyze.dynamics.inputDistribution(E,'Performance_mu');
 
 saveas(fig,fullfile(outPath,'FigS7a - Transformed Population Dynamics Performance Covariate.png'));
 savefig(fig,fullfile(outPath,'FigS7a - Transformed Population Dynamics Performance Covariate.fig'));
@@ -143,7 +143,6 @@ delete(fig);
 %% Conduct population-dynamics model level statistics
 % First: are there are differences in included channel statistics? %
 mdl_cfa = "N_CFA~R2_Best*ExplainedLogit+(1+PostOpDay+Duration|AnimalID)";
-E2.ExplainedLogit = -log(100./E2.Explained - 1);
 modelTic = tic;
 fprintf(1,'Estimating Binomial GLME model for # of CFA channels...');
 glme.populationDynamics.ncfa_channels.id = 14;

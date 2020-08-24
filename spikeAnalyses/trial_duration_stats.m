@@ -1,19 +1,31 @@
 %TRIAL_DURATION_STATS Run stats on trial durations, split into sub-epochs (Fig S1 stats; Fig S2)
 
 close all force;
-clearvars -except UTrials;
+clearvars -except r;
 clc;
-if exist('UTrials','var')==0
+if (exist('r','var')~=0) && (istable(r))
+   UTrials = analyze.rec.getUTrials(r);
+elseif exist('UTrials','var')==0
    load(defaults.files('rate_unique_trials_matfile'),'UTrials'); % "Unique trials" from T (main rate table): For analyze.behavior
 end
 
 % Get descriptive statistics for total duration ('Duration'), Reach phase
-% ('Reach_Duration'), and Retract phase ('Retract_Duration')
-UTrials.Reach_Proportion = UTrials.Reach_Duration ./ UTrials.Duration;
+% ('Reach_Epoch_Duration'), and Retract phase ('Retract_Epoch_Duration')
 UTrials = analyze.behavior.getDescriptiveTimingStats(UTrials,'Duration');
-UTrials = analyze.behavior.getDescriptiveTimingStats(UTrials,'Reach_Duration');
-UTrials = analyze.behavior.getDescriptiveTimingStats(UTrials,'Retract_Duration');
-UTrials = analyze.behavior.getDescriptiveTimingStats(UTrials,'Reach_Proportion');
+UTrials = analyze.behavior.getDescriptiveTimingStats(UTrials,'Reach_Epoch_Duration');
+UTrials = analyze.behavior.getDescriptiveTimingStats(UTrials,'Retract_Epoch_Duration');
+UTrials = analyze.behavior.getDescriptiveTimingStats(UTrials,'Reach_Epoch_Proportion');
+
+%% Make figure for duration comparisons
+outPath = defaults.files('reach_extension_figure_dir');
+if exist(outPath,'dir')==0
+   mkdir(outPath);
+end
+fig = analyze.behavior.makeDurationDensities(UTrials);
+saveas(fig,fullfile(outPath,'Fig1c - Duration Distributions.png'));
+savefig(fig,fullfile(outPath,'Fig1c - Duration Distributions.fig'));
+delete(fig);
+
 
 %%
 % % % After descriptive stats, fit simple models for epoch durations % % %
@@ -24,7 +36,7 @@ U_success(U_success.Outcome=="Unsuccessful",:) = [];
 glme.trialDuration = struct;
 
 % Only fit successful trials, but do not use Neural exclusions %
-glme.trialDuration.duration.mdl = fitglme(UTrials,...
+glme.trialDuration.duration.mdl = fitglme(U_success,...
    "Duration~1+GroupID*Day+(1+Day|AnimalID)",...
    "FitMethod","REMPL",...
    "Distribution",'normal',...
@@ -32,8 +44,8 @@ glme.trialDuration.duration.mdl = fitglme(UTrials,...
    "Link",'log');
 glme.trialDuration.duration.id = 5;
 
-U_neu = UTrials;
-U_neu(U_neu.Properties.UserData.Exclude | U_neu.Outcome=="Unsuccessful",:) = [];
+U_neu = analyze.get_subset(UTrials,'align',{'Complete','Support','Grasp','Reach'});
+U_neu(U_neu.Outcome=="Unsuccessful",:) = [];
 glme.trialDuration.duration_neu.mdl = fitglme(U_neu,...
    "Duration~1+GroupID*Day+(1+Day+Duration|AnimalID)",...
    "FitMethod","REMPL",...
@@ -42,24 +54,24 @@ glme.trialDuration.duration_neu.mdl = fitglme(U_neu,...
    "Link",'log');
 glme.trialDuration.duration_neu.id = 6;
 
-glme.trialDuration.reach.mdl = fitglme(U_success,...
-   "Reach_Duration~1+GroupID*Day+(1+Day+Duration|AnimalID)",...
+glme.trialDuration.reach.mdl = fitglme(U_neu,...
+   "Reach_Epoch_Duration~1+GroupID*Day+(1+Day+Duration|AnimalID)",...
    "FitMethod","REMPL",...
    "Distribution",'normal',...
    "DummyVarCoding",'effects',...
    "Link",'log');
 glme.trialDuration.reach.id = 7;
 
-glme.trialDuration.retract.mdl = fitglme(U_success,...
-   "Retract_Duration~1+GroupID*Day+(1+Day+Duration|AnimalID)",...
+glme.trialDuration.retract.mdl = fitglme(U_neu,...
+   "Retract_Epoch_Duration~1+GroupID*Day+(1+Day+Duration|AnimalID)",...
    "FitMethod","REMPL",...
    "Distribution",'normal',...
    "DummyVarCoding",'effects',...
    "Link",'log');
 glme.trialDuration.retract.id = 8;
 
-glme.trialDuration.proportion.mdl = fitglme(U_success,...
-   "Reach_Proportion~1+GroupID*Day+(1+Day+Duration|AnimalID)",...
+glme.trialDuration.proportion.mdl = fitglme(U_neu,...
+   "Reach_Epoch_Proportion~1+GroupID*Day+(1+Day+Duration|AnimalID)",...
    "FitMethod","REMPL",...
    "Distribution",'normal',...
    "DummyVarCoding",'effects',...
@@ -68,57 +80,11 @@ glme.trialDuration.proportion.id = 9;
 
 %% Display models
 clc;
-% fprintf(1,'GLME: <strong>Duration</strong> (MODEL-%d)\n',glme.trialDuration.duration.id);
-% disp(glme.trialDuration.duration.mdl);
-% disp('------------------------------------------------------------------');
-% fprintf(1,'<strong>Fit (MODEL-%d):</strong>\n',glme.trialDuration.duration.id);
-% disp(glme.trialDuration.duration.mdl.Rsquared);
-% disp('------------------------------------------------------------------');
-% 
-% fprintf(1,'GLME: <strong>Duration (trials for neural analyses)</strong> (MODEL-%d)\n',glme.trialDuration.duration_neu.id);
-% disp(glme.trialDuration.duration_neu.mdl);
-% disp('------------------------------------------------------------------');
-% fprintf(1,'<strong>Fit (MODEL-%d):</strong>\n',glme.trialDuration.duration_neu.id);
-% disp(glme.trialDuration.duration_neu.mdl.Rsquared);
-% disp('------------------------------------------------------------------');
-% 
-% fprintf(1,'GLME: <strong>Reach Phase Duration</strong> (MODEL-%d)\n',glme.trialDuration.reach.id);
-% disp(glme.trialDuration.reach.mdl);
-% disp('------------------------------------------------------------------');
-% fprintf(1,'<strong>Fit (MODEL-%d):</strong>\n',glme.trialDuration.reach.id);
-% disp(glme.trialDuration.reach.mdl.Rsquared);
-% disp('------------------------------------------------------------------');
-% 
-% fprintf(1,'GLME: <strong>Retract Phase Duration</strong> (MODEL-%d)\n',glme.trialDuration.retract.id);
-% disp(glme.trialDuration.retract.mdl);
-% disp('------------------------------------------------------------------');
-% fprintf(1,'<strong>Fit (MODEL-%d):</strong>\n',glme.trialDuration.retract.id);
-% disp(glme.trialDuration.retract.mdl.Rsquared);
-% disp('------------------------------------------------------------------');
-% 
-% fprintf(1,'GLME: <strong>Reach Proportion</strong> (MODEL-%d)\n',glme.trialDuration.proportion.id);
-% disp(glme.trialDuration.proportion.mdl);
-% disp('------------------------------------------------------------------');
-% fprintf(1,'<strong>Fit (MODEL-%d):</strong>\n',glme.trialDuration.proportion.id);
-% disp(glme.trialDuration.proportion.mdl.Rsquared);
-% disp('------------------------------------------------------------------');
-
 utils.displayModel(glme.trialDuration.duration,0.05,'Fig.S2a');
 utils.displayModel(glme.trialDuration.duration_neu,0.05,'Fig.S2b');
 utils.displayModel(glme.trialDuration.reach,0.05,'Fig.S2c');
 utils.displayModel(glme.trialDuration.retract,0.05,'Fig.S2d');
 utils.displayModel(glme.trialDuration.proportion,0.05,'Fig.S2e');
-
-%%
-% Save models %
-tic; fprintf(1,'Saving Fig [S2] models...');
-tmp = glme.trialDuration;
-save(defaults.files('duration_models_matfile'),'-struct','tmp');
-clear tmp;
-fprintf(1,'complete\n'); 
-fprintf(1,'\t->\t%6.2f seconds elapsed\n',toc);
-utils.addHelperRepos();
-sounds__.play('bell',0.8,-15);
 
 %%
 % % % Generate and save figures for Supplementary Figure S2 % % %
@@ -134,6 +100,8 @@ end
    'Title','Total Reach Duration',...
    'DoExclusions',false,...
    'ModelFormula','%s~1+Day+Day_Cubed', ... % Optional 'ModelFormula' is per-animal trend to fit
+   'LegendStyle','animals',...
+   'LegendLocation','eastoutside',...
    'YLim',[0 1.6] ... % Determined empirically
    );
 saveas(fig,fullfile(outPath,'FigS2a - Duration Trends - All.png'));
@@ -142,7 +110,7 @@ delete(fig);
 
 % % Fig S2b: Total duration - only included successful trials % %
 Utmp = UTrials;
-Utmp.Properties.UserData.Exclude = Utmp.Properties.UserData.Exclude | ...
+Utmp.Properties.UserData.Excluded = Utmp.Properties.UserData.Excluded | ...
    Utmp.Outcome=="Unsuccessful";
 fig = analyze.behavior.per_animal_mean_trends(...
    Utmp,...    % First required argument is always the data table
@@ -150,7 +118,8 @@ fig = analyze.behavior.per_animal_mean_trends(...
    'Title','Total Reach Duration (Neural Analysis exclusions applied)',...
    'DoExclusions',true,...
    'ModelFormula','%s~1+Day+Day_Cubed', ... % Optional 'ModelFormula' is per-animal trend to fit
-   'LegendLocation','southwest' ...
+   'LegendStyle','animals',...
+   'LegendLocation','eastoutside' ...
    );
 saveas(fig,fullfile(outPath,'FigS2b - Duration Trends - successful neural trials only.png'));
 savefig(fig,fullfile(outPath,'FigS2b - Duration Trends - successful neural trials only.fig'));
@@ -159,48 +128,51 @@ delete(fig);
 % % Fig S2c: Reach duration % %
 fig = analyze.behavior.per_animal_mean_trends(...
    Utmp,...    % First required argument is always the data table
-   'Reach_Duration',... % Second required argument is the response variable name
-   'Title','Reach Phase Duration (successful trials)',...
-   'DoExclusions',false,...
+   'Reach_Epoch_Duration',... % Second required argument is the response variable name
+   'Title','Reach Phase Duration (Neural Analysis exclusions applied)',...
+   'DoExclusions',true,...
    'ModelFormula','%s~1+Day+Day_Cubed', ... % Optional 'ModelFormula' is per-animal trend to fit
-   'LegendLocation','northeast' ...
+   'LegendStyle','animals',...
+   'LegendLocation','eastoutside' ...
    );
-saveas(fig,fullfile(outPath,'FigS2c - Reach Phase Duration - successful trials.png'));
-savefig(fig,fullfile(outPath,'FigS2c - Reach Phase Duration - successful trials.fig'));
+saveas(fig,fullfile(outPath,'FigS2c - Reach Phase Duration - successful neural trials.png'));
+savefig(fig,fullfile(outPath,'FigS2c - Reach Phase Duration - successful neural trials.fig'));
 delete(fig);
 
 % % Fig S2d: Retract duration % %
 fig = analyze.behavior.per_animal_mean_trends(...
    Utmp,...    % First required argument is always the data table
-   'Retract_Duration',... % Second required argument is the response variable name
-   'Title','Retract Phase Duration (successful trials)',...
-   'DoExclusions',false,...
+   'Retract_Epoch_Duration',... % Second required argument is the response variable name
+   'Title','Retract Phase Duration (Neural Analysis exclusions applied)',...
+   'DoExclusions',true,...
    'ModelFormula','%s~1+Day+Day_Cubed', ... % Optional 'ModelFormula' is per-animal trend to fit
-   'LegendLocation','northeast' ...
+   'LegendStyle','animals',...
+   'LegendLocation','eastoutside' ...
    );
-saveas(fig,fullfile(outPath,'FigS2d - Retract Phase Duration - successful trials.png'));
-savefig(fig,fullfile(outPath,'FigS2d - Retract Phase Duration - successful trials.fig'));
+saveas(fig,fullfile(outPath,'FigS2d - Retract Phase Duration - successful neural trials.png'));
+savefig(fig,fullfile(outPath,'FigS2d - Retract Phase Duration - successful neural trials.fig'));
 delete(fig);
 
 % % Fig S2e: Reach phase proportion % %
 fig = analyze.behavior.per_animal_mean_trends(...
    Utmp,...    % First required argument is always the data table
-   'Reach_Proportion',... % Second required argument is the response variable name
-   'Title','Proportion of Trial in Reach Phase',...
-   'DoExclusions',false,...
+   'Reach_Epoch_Proportion',... % Second required argument is the response variable name
+   'Title','Proportion of Trial in Reach Phase (Neural Analysis exclusions applied)',...
+   'DoExclusions',true,...
    'YLim',[0 1],...
    'ModelFormula','%s~1+Day+Day_Cubed', ... % Optional 'ModelFormula' is per-animal trend to fit
-   'LegendLocation','northeast' ...
+   'LegendStyle','animals',...
+   'LegendLocation','eastoutside' ...
    );
-saveas(fig,fullfile(outPath,'FigS2e - Reach Proportion - successful trials.png'));
-savefig(fig,fullfile(outPath,'FigS2e - Reach Proportion - successful trials.fig'));
+saveas(fig,fullfile(outPath,'FigS2e - Reach Proportion - successful neural trials.png'));
+savefig(fig,fullfile(outPath,'FigS2e - Reach Proportion - successful neural trials.fig'));
 delete(fig);
 
-
+%%
 % Train a classifier for "Type" of support association
 Full = UTrials(~UTrials.Properties.UserData.Exclude,...
    {'AnimalID','GroupID','PostOpDay','Duration','SupportType'});
-Predictors = UTrials(~UTrials.Properties.UserData.Exclude,...
+Predictors = UTrials(~UTrials.Properties.UserData.Excluded,...
    {'AnimalID','GroupID','PostOpDay','Duration'});
 
 % % % % Model-13 % % % %
@@ -257,9 +229,14 @@ end
 saveas(fig,fullfile(outPath,'FigS3 - Support Type Trends.png'));
 savefig(fig,fullfile(outPath,'FigS3 - Support Type Trends.fig'));
 delete(fig);
-
-% At end, save results that have been appended as UserData fields
-save(defaults.files('rate_unique_trials_matfile'),...
-   'UTrials','glme_duration','glme_reach',...
-   'glme_retract','glme_reach_proportion','mdl',...
-   '-v7.3');
+%%
+% Save models %
+tic; fprintf(1,'Saving Fig [S2] models...');
+tmp = glme.trialDuration;
+tmp.SupportTypeClassifier = mdl;
+save(defaults.files('duration_models_matfile'),'-struct','tmp');
+clear tmp;
+fprintf(1,'complete\n'); 
+fprintf(1,'\t->\t%6.2f seconds elapsed\n',toc);
+utils.addHelperRepos();
+sounds__.play('bell',0.8,-15);

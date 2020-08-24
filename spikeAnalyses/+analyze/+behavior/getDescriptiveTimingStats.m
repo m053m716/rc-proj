@@ -113,7 +113,7 @@ fprintf(1,'\t<strong>%s</strong>: Restrict durations to range [%d %d] (ms)\n',..
    strrep(varName,'_',' '),round(min_dur*1e3),round(max_dur*1e3));
 fprintf(1,'-----------------------------------------------------------------------------\n');
 iInclude = (UTrials.Duration >= min_dur) & (UTrials.Duration <= max_dur);
-UTrials.Properties.UserData.Exclude = (~iInclude) | (~hasPellet) | iUnsuccessful;
+UTrials.Properties.UserData.Excluded = (~iInclude) | (~hasPellet) | iUnsuccessful;
 
 % Output descriptive statistic for observations in Intact group
 mu.Intact = struct;

@@ -18,6 +18,7 @@
 %  plot_example_fit                    - Plot example of reconstructed Gaussian-pulse oscillation
 %  plot_glme_residuals                 - Plot generalized linear mixed-effects model residuals
 %  plot_pc_summary                     - Plot PCs summarizing system fit
+%  plotROC                             - Plot ROC for prediction model of Successful/Unsuccessful by trial
 %  printFigs                           - Export vectorized figures for insertion to other documents etc
 %  qPDP                                - Quick partial-dependence plot
 %  scatter_var                         - Make grouped scatter plot of response variable by day
@@ -30,6 +31,7 @@
 %  getCB95                             - Return 95% confidence bounds
 %  groupLevelTests                     - Get statistical test for each {'Group','Area','Week'}level
 %  parseLevelTests                     - Get statistical test for each row of `rWeek`
+%  weekTrendTable                      - Return summary trend table by week 
 %
 % Main Functions
 %  fit_transfer_fcn      - Get transfer function parameters and observation weights

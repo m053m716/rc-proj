@@ -59,8 +59,12 @@ else
    end
 end
 [~,~,rStats] = randomEffects(mdl);
+tmp = string(cellstr(rStats(:,1)));
+rStats(~strcmpi(tmp,'AnimalID'),:) = [];
+
 idx = rStats.pValue < alpha;
 rStats = rStats(idx,[1:4,8]);
+
 [~,iSort] = sort(rStats.pValue,'ascend');
 rStats = rStats(iSort,:);
 [~,~,fStats] = fixedEffects(mdl);

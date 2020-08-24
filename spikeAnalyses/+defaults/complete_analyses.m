@@ -11,7 +11,9 @@ function varargout = complete_analyses(varargin)
 
 p = struct;
 p.min_duration = 0.100; % seconds
-p.max_duration = 0.750; % seconds
+p.max_duration = 1.500; % seconds
+p.max_reach = 0.650;    % seconds
+p.max_retract = 0.750;  % seconds
 p.n_factors = 4;
 p.factor_names = {...
    'Excitation_to_Suppression',...

@@ -31,13 +31,16 @@ for iD = 1:nTotal
    N_Forelimb = sum(contains(string(D.CID{iD}.ICMS),'F'));
    Pct_DF = N_Distal_Forelimb ./ N_Forelimb;
    Pct_RFA = N_RFA ./ N_Channels;
-   Duration = nanmean([D.PhaseData{iD}{1}.duration].' .* 1e-3);
+   Duration = nanmean([D.PhaseData{iD}{1}.duration] .* 1e-3);
+   Reach_Epoch_Duration = nanmean(([D.Data{iD}.tGrasp] - [D.Data{iD}.tReach]) .* 1e-3);
+   Retract_Epoch_Duration = nanmean(([D.Data{iD}.tComplete] - [D.Data{iD}.tGrasp]) .* 1e-3);
    
    SS = analyze.dynamics.parseSingleR2(D.Projection{iD});
    Explained = SS.best.explained_pcs;
    R2_Best = SS.best.Total.Rsquared_adj;
    R2_Skew = SS.skew.Total.Rsquared_adj;
-   E = [E; table(AnimalID,GroupID,BlockID,Alignment,PostOpDay,Duration,...
+   E = [E; table(AnimalID,GroupID,BlockID,Alignment,PostOpDay,...
+         Duration,Reach_Epoch_Duration,Retract_Epoch_Duration,...
          N_Trials,N_Channels,N_CFA,N_RFA,N_Forelimb,N_Distal_Forelimb,...
          Pct_DF,Pct_RFA,Explained,R2_Best,R2_Skew,SS)]; %#ok<AGROW>
    
@@ -69,5 +72,5 @@ obsNames = strcat(...
    string(arrayfun(@(d)sprintf('D%02d',d),E.PostOpDay,'UniformOutput',false)),"::",...
    E.Alignment);
 E.Properties.RowNames = obsNames;
-
+E.ExplainedLogit = -log(100./E.Explained - 1);
 end

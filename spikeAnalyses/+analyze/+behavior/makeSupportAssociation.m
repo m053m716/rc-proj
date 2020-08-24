@@ -17,6 +17,7 @@ supportCategories = categorical(...
    {'No Support','Reach','Retract','Grasp'});        % categories
 
 values = repmat(supportCategories(1),size(UTrials,1),1);
+UTrials.SupportGraspOffset = UTrials.Support - UTrials.Grasp;
 values(UTrials.SupportGraspOffset <  0) = supportCategories(2);
 values(UTrials.SupportGraspOffset >  0) = supportCategories(3);
 values(UTrials.SupportGraspOffset == 0) = supportCategories(4);

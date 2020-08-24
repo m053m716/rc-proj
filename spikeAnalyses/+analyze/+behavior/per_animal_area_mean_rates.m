@@ -54,12 +54,13 @@ pars.FitOptions = {...
 pars.GroupVars = {'GroupID','AnimalID','Area','Period','PostOpDay','PostOpDay_Cubed'};
 pars.LegendLabels = {'Model Trend','Model 95% CB','Observed Mean','Model Error'};
 pars.LegendLocation = 'northeast';
+pars.LegendStyle = 'standard'; % 'standard' | 'animals'
 pars.LineWidth = 1.0;
 pars.MarkerOrder = 'oshpv^';
 pars.MarkerFaceAlpha = 0.45;
-pars.ModelFormula = '%s~1+Area*GroupID+(1+PostOpDay%s|AnimalID)';
+pars.ModelFormula = '%s~1+Area*GroupID*Performance_mu+(1+PostOpDay%s|AnimalID)';
 pars.ModelNumber = nan;
-pars.RandomCovariates = {'Duration','Performance_mu'};
+pars.RandomCovariates = {'Duration'};
 pars.RandomModelFormula = '%s~1+(1+PostOpDay+PostOpDay_Cubed|AnimalID)';
 pars.ResponseAggregatorFcn = [];
 pars.ResponseAggregationVars = responseVar;
@@ -93,9 +94,7 @@ if ~ismember('GroupID',T.Properties.VariableNames)
 end
 
 if pars.DoExclusions
-   if isfield(T.Properties.UserData,'Exclude')
-      T = T(~T.Properties.UserData.Exclude,:);
-   elseif isfield(T.Properties.UserData,'Excluded')
+   if isfield(T.Properties.UserData,'Excluded')
       T = T(~T.Properties.UserData.Excluded,:);
    else
       warning('No "Exclude" or "Excluded" UserData field.');
@@ -235,6 +234,7 @@ xlabel(ax(2),pars.XLabel,'FontName','Arial','Color','k');
 iMarker = struct('Intact',struct('CFA',0,'RFA',0),'Ischemia',struct('CFA',0,'RFA',0));
 needsLegend = true(2,1);
 Data = [];
+hGroup = gobjects(size(TIDplot,1),1);
 for ii = 1:size(TIDplot,1)
    gName = string(TIDplot.GroupID(ii));
    aName = string(TIDplot.Area(ii));
@@ -262,6 +262,7 @@ for ii = 1:size(TIDplot,1)
    tPred = table(GroupID,AnimalID,Area,Period,Day,Day_Cubed);
    tPred.Properties.VariableNames{'Day'} = pars.TimeTrendVar;
    tPred.Properties.VariableNames{'Day_Cubed'} = cube_term;
+   tPred.Performance_mu = theseData.Performance_mu;
    tPred.Performance_hat_mu = theseData.Performance_hat_mu;
    tPred.Performance_hat_cb95 = theseData.Performance_hat_cb95;
    for iR = 1:numel(pars.RandomCovariates)  
@@ -280,7 +281,7 @@ for ii = 1:size(TIDplot,1)
    cb95(iBad,:) = nan(sum(iBad),2);   
    Data = [Data; table(GroupID,Area,AnimalID,Day,mu,cb95)]; %#ok<AGROW>
    
-   hGroup = gfx__.plotWithShadedError(ax(iAx),...
+   hGroup(ii) = gfx__.plotWithShadedError(ax(iAx),...
       Day,mu,cb95,...
       'FaceColor',c,...
       'FaceAlpha',pars.FaceAlpha,...
@@ -309,21 +310,48 @@ for ii = 1:size(TIDplot,1)
       'LineWidth',pars.ErrorLineWidth,...
       'Color',c,...
       'DisplayName','Matched Observation');
-   if needsLegend(iAx)
-      trendLine = hGroup.Children(1);
-      trendErr = hGroup.Children(2);
-      legend([trendLine,trendErr,hScatter,hLine],...
-         pars.LegendLabels,...
-         'TextColor','black',...
-         'FontName','Arial',...
-         'FontSize',9,...
-         'EdgeColor','none',...
-         'Color','white',...
-         'AutoUpdate','off',...
-         'Location',pars.LegendLocation);
-      needsLegend(iAx) = false;
+   if strcmpi(pars.LegendStyle,'standard')
+      if needsLegend(iAx)
+         trendLine = hGroup(ii).Children(1);
+         trendErr = hGroup(ii).Children(2);
+         legend([trendLine,trendErr,hScatter,hLine],...
+            pars.LegendLabels,...
+            'TextColor','black',...
+            'FontName','Arial',...
+            'FontSize',9,...
+            'EdgeColor','none',...
+            'Color','white',...
+            'AutoUpdate','off',...
+            'Location',pars.LegendLocation);
+         needsLegend(iAx) = false;
+      end
    end
    drawnow;
+end
+if strcmpi(pars.LegendStyle,'animals')
+%    [~,iU] = unique(TIDplot.AnimalID);
+%    hGroup = hGroup(iU);
+   excVec = false(size(hGroup));
+   for ii = 1:size(hGroup,1)
+      excVec(ii) = isa(hGroup(ii),'matlab.graphics.GraphicsPlaceholder');
+   end
+   hGroup(excVec) = [];
+   c = gobjects(size(hGroup));
+   for ii = 1:size(hGroup,1)
+      c(ii) = hGroup(ii).Children(1);
+   end
+   legend(c,...
+      'TextColor','black',...
+      'FontName','TimesNewRoman',...
+      'FontSize',8,...
+      'EdgeColor','none',...
+      'NumColumns',1,...
+      'Color','none',...
+      'AutoUpdate','off',...
+      ...'Location',pars.LegendLocation);
+      'Parent',fig,...
+      'Units','Normalized',...
+      'Position',[0.80 0.35 0.15 0.30]);
 end
 Data = splitvars(Data,'cb95');
 Data.Properties.VariableNames{'cb95_1'} = 'cb95_lb';

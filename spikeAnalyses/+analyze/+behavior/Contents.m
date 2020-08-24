@@ -15,11 +15,14 @@
 %  epochSpikeTrends_Split        - Plot trends in spike rate for given epoch (split panels)
 %  getDescriptiveTimingStats     - Returns updated UserData for descriptive stats
 %  makeSupportAssociation        - Makes association between Support time & alignment
+%  mergePredictionData           - Merge data from prediction models with data table
+%  mergeRatePerformance          - Merge rate (count) table and performance table
 %  score                         - Estimates behavior score endpoints by BlockID or PostOpDay
 %
 % Graphics Functions
 %  bar_animal_counts             - Create bar plot figure of counts or ratios
 %  blocks                        - Shows figure(s) of response variable by Block using Rate Table
+%  makeDurationDensities         - Make figure with duration overlays for different epochs of behavior, by groupings
 %  outcomes                      - Plot scatters of the 4 outcome response variables across days
 %  per_animal_trends             - Plot per-animal trends
 %  per_animal_mean_trends        - Plot per-animal (mean) trends
