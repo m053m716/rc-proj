@@ -13,6 +13,8 @@ function T = get_subset(T,varargin)
 %     - 'align'   : Cell array of included alignment events ({'Reach','Grasp'})
 %     - 'max_reach' : Max duration (sec, exclusive) for Reach epoch/phase
 %     - 'max_retract' : Max duration (sec, exclusive) for Retract epoch/phase
+%     - 'min_rate' : Minimum (total spikes)/(trial duration)
+%     - 'max_rate' : Maximum (total spikes)/(trial duration)
 %
 %  -- Output --
 %  T : Table in same format, but has subset meeting following criteria:
@@ -20,10 +22,10 @@ function T = get_subset(T,varargin)
 %        -> Reach, Grasp, Complete, and Pellet are all present.
 
 pars = struct;
-[pars.min_dur,pars.max_dur,pars.align,pars.max_reach,pars.max_retract] =  ...
+[pars.min_dur,pars.max_dur,pars.align,pars.max_reach,pars.max_retract,pars.min_rate,pars.max_rate] =  ...
    defaults.complete_analyses(...
       'min_duration','max_duration','alignment_events',...
-      'max_reach','max_retract');
+      'max_reach','max_retract','min_rate','max_rate');
 fn = fieldnames(pars);
 if numel(varargin) > 0
    if isstruct(varargin{1})
@@ -61,8 +63,12 @@ hasReach = ~isnan(T.Reach) & ~isinf(T.Reach);
 hasGrasp = ~isnan(T.Grasp) & ~isinf(T.Grasp);
 hasComplete = ~isnan(T.Complete) & ~isinf(T.Complete);
 
+tTotal = (T.Properties.UserData.t(end)-T.Properties.UserData.t(1))*1e-3; % convert to seconds
+iRateHighEnough = (T.N_Total./tTotal) >= pars.min_rate;
+iRateLowEnough = (T.N_Total./tTotal) <= pars.max_rate;
+
 % % Do Row exclusion % %
-iKeep = iDuration & iReach & iRetract & iAlign & hasPellet & hasReach & hasGrasp & hasComplete;
+iKeep = iDuration & iReach & iRetract & iAlign & hasPellet & hasReach & hasGrasp & hasComplete & iRateHighEnough & iRateLowEnough;
 T = T(iKeep,:);
 if ismember('PostOpDay',T.Properties.VariableNames)
    T.Day = T.PostOpDay;
@@ -80,8 +86,11 @@ T.Properties.UserData.hasPellet = hasPellet;
 T.Properties.UserData.hasReach = hasReach;
 T.Properties.UserData.hasGrasp = hasGrasp;
 T.Properties.UserData.hasComplete = hasComplete;
-if isfield(T.Properties.UserData,'Excluded')
-   T.Properties.UserData.Excluded = T.Properties.UserData.Excluded(iKeep);
-end
+T.Properties.UserData.iRateHighEnough = iRateHighEnough;
+T.Properties.UserData.iRateLowEnough = iRateLowEnough;
+T.Properties.UserData.Excluded = false(size(T,1),1);
+% if isfield(T.Properties.UserData,'Excluded')
+%    T.Properties.UserData.Excluded = T.Properties.UserData.Excluded(iKeep);
+% end
 
 end

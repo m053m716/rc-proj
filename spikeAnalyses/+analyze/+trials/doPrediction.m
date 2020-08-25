@@ -28,7 +28,8 @@ function [TPR,FPR] = doPrediction(mdl,r,threshold,varargin)
 %              FP = [# False Positives: Output Unsuccessful v True Success]
 %              N  = [FP + # True Negatives] = Total target negatives
 %
-% See also: analyze.stat.plotROC, analyze.trials, unit_learning_stats
+% See also: analyze.trials, analyze.stat.plotROC, analyze.stat.computeROC, 
+%           unit_learning_stats
 
 if nargin < 3
    threshold = 0.5;

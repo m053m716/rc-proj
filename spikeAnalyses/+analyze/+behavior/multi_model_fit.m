@@ -111,6 +111,8 @@ if pars.DoExclusions
       warning('No "Exclude" or "Excluded" UserData field.');
    end
 end
+T.Properties.UserData.Excluded(T.Outcome=="Unsuccessful") = [];
+T(T.Outcome=="Unsuccessful",:) = [];
 
 % % Parse graphics metavariables % %
 if any(isnan(pars.XLim))

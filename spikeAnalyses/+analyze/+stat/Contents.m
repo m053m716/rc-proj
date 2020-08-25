@@ -2,7 +2,9 @@
 % MATLAB Version 9.7 (R2019b Update 5) 18-Jun-2020
 %
 % Helper (Math) Functions
+%  addWeeklyROCdata                    - Add ROC area-under-curve data by weekly grouping
 %  batch_estimate_reconstruction_error - Redo reconstruction error estimate
+%  computeROC                          - Compute true-positive rate, false-positive rate, and area-under-curve for ROC analysis
 %  fit_gauspuls                        - Function that goes to the fmincon procedure of fit_transfer_fcn for gauspuls fit
 %  interpolateUniformTrend             - Interpolates trends between per-day averages
 %  nonlinear_constraint                - Nonlinear constraint(s) on parameter array p

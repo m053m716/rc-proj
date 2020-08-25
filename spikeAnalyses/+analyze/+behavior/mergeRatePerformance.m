@@ -26,5 +26,5 @@ end
 r.Week = ceil(r.PostOpDay/7);
 r.Properties.UserData.Excluded(r.Week > 4) = [];
 r(r.Week > 4,:) = [];
-
+r.Properties.RowNames = r.ObservationID;
 end

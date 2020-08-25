@@ -26,7 +26,13 @@ if nargin < 2
 end
 
 if nargin < 3
-   type = 'GLME';
+   if isfield(mdl,'tag')
+      type = mdl.tag;
+   elseif isfield(mdl,'type')
+      type = mdl.type;
+   else
+      type = 'GLME';
+   end
 end
 
 if nargin < 4
@@ -67,7 +73,7 @@ rStats = rStats(idx,[1:4,8]);
 
 [~,iSort] = sort(rStats.pValue,'ascend');
 rStats = rStats(iSort,:);
-[~,~,fStats] = fixedEffects(mdl);
+[coefVal,coefName,fStats] = fixedEffects(mdl);
 [~,iSort] = sort(fStats.pValue,'ascend');
 tmp = rStats(:,2);
 Rat = string(cellstr(tmp));
@@ -91,6 +97,13 @@ fprintf(1,'\t\t<strong>%s (%s link)</strong> Fit Method: %s\n',...
    mdl.Distribution,mdl.Link.Name,upper(mdl.FitMethod));
 fprintf(1,'--------------------------------------------------------------------\n');
 disp(fStats);
+if strcmpi(mdl.Link.Name,'logit')
+   fprintf(1,'\n<strong>Coefficient Log-odds</strong>:\n\n');
+   coefName = coefName(iSort,:);
+   LogOdds = exp(coefVal(iSort));
+   le_tab = [coefName,table(LogOdds)];
+   disp(le_tab);
+end
 disp(anova(mdl));
 fprintf(1,'\n<strong>FIT (R^2):</strong> %s (%s)\n\n',tag,mdl.ResponseName);
 disp(mdl.Rsquared);

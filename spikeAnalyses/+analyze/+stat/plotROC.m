@@ -1,4 +1,4 @@
-function fig = plotROC(mdl,varargin)
+function [fig,TPR,FPR,AUC,r] = plotROC(mdl,varargin)
 %PLOTROC Plot ROC for prediction model of Successful/Unsuccessful by trial
 %
 %  fig = analyze.stat.plotROC(mdl);
@@ -14,8 +14,10 @@ function fig = plotROC(mdl,varargin)
 %
 % Output
 %  fig - Figure handle with ROC curve
+%  [TPR, FPR, AUC, r] - see analyze.stat.computeROC
 %
-% See also: unit_learning_stats, analyze.trials.doPrediction
+% See also: analyze.stat, analyze.stat.computeROC, analyze.stat.batchROC, 
+%           analyze.trials.doPrediction, unit_learning_stats
 
 if isa(mdl,'matlab.graphics.axis.Axes')
    ax = mdl;
@@ -27,21 +29,13 @@ else
    ax = axes(fig,'XColor','k','YColor','k','NextPlot','add',...
       'LineWidth',1.5,'FontName','Arial');
 end
-r = mdl.Variables;
-r.Week = categorical(ceil(r.PostOpDay/7),1:4,{'Week-1','Week-2','Week-3','Week-4'});
-r = analyze.slice(r,varargin{:});
-threshold_list = linspace(0,1,25);
-TPR = nan(size(threshold_list));
-FPR = nan(size(threshold_list));
 
-for iT = 1:numel(threshold_list)
-   thresh = threshold_list(iT);
-   [TPR(iT),FPR(iT)] = analyze.trials.doPrediction(mdl,r,thresh);
-   
-end
+[TPR,FPR,AUC,r] = analyze.stat.computeROC(mdl,varargin{:});
 
 if numel(varargin) >= 2
    dispID = strjoin(varargin(2:2:end),'::');
+else
+   dispID = 'ROC';
 end
 
 line(ax,FPR,TPR,...
@@ -61,9 +55,8 @@ line(ax,ones(1,2).*FPR_thresh,[0 1],'LineStyle','--','LineWidth',1.5,...
 xlabel(ax,'False Positive Rate','FontName','Arial','Color','k','FontWeight','bold');
 ylabel(ax,'True Positive Rate','FontName','Arial','Color','k','FontWeight','bold');
 legend(ax,'TextColor','k','FontName','Arial','Location','southeast');
-title(ax,sprintf('Predictive Model ROC (%s)',strjoin(varargin,'::')),...
+title(ax,sprintf('(%s)',dispID),...
    'FontName','Arial','FontWeight','bold','Color','k');
-
 
 analyze.stat.addInputDistribution(ax,outputs,bestThresh);
 

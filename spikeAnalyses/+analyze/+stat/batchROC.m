@@ -1,4 +1,4 @@
-function fig = batchROC(mdl,type,varargin)
+function [fig,AUC] = batchROC(mdl,type,varargin)
 %BATCHROC Plot ROC for prediction model of individual animals or groups Successful/Unsuccessful by trial
 %
 %  fig = analyze.stat.batchROC(mdl);
@@ -15,6 +15,7 @@ function fig = batchROC(mdl,type,varargin)
 %
 % Output
 %  fig - Figure handle with ROC curve
+%  AUC - AUC corresponding to each panel
 %
 % See also: unit_learning_stats, analyze.trials.doPrediction,
 %           analyze.stat.plotROC
@@ -29,7 +30,7 @@ fig = figure('Name',mainTitle,...
    'Units','Normalized','Position',[0.1 0.1 0.8 0.8]);
 r = mdl.Variables;
 r.Week = categorical(ceil(r.PostOpDay/7),1:4,{'Week-1','Week-2','Week-3','Week-4'});
-
+AUC = [];
 switch lower(type)
    case 'animalid'
       [~,TID] = findgroups(r(:,{'GroupID','AnimalID'}));
@@ -83,7 +84,7 @@ switch lower(type)
       end
       
       TID = TID((TID.AnimalID==animalid),:);
-      mainTitle = sprintf('%s: %s',animalid,mainTitle);
+      mainTitle = sprintf('%s: %s (by Week)',animalid,mainTitle);
       ax = gobjects(4,2);
       for iT = 1:8
          ax(iT) = subplot(4,2,iT);
@@ -134,11 +135,13 @@ switch lower(type)
          group = varargin{1};
       end
       TID = TID(TID.GroupID==group,:);
-      
+      mainTitle = sprintf('%s: (Area by Week %s} ROC)',...
+         group,strrep(mdl.PredictorNames{end},'_','_{'));
       ax = gobjects(4,2);
       for iT = 1:8
          ax(iT) = subplot(4,2,iT);
       end
+      AUC = nan(4,2);
       for iT = 1:size(TID,1)
          g = char(TID.GroupID(iT));
          a = char(TID.Area(iT));
@@ -147,7 +150,7 @@ switch lower(type)
          iPlot = 2*(double(TID.Week(iT))-1)+iArea;
          
          formatAxes(ax(iPlot),fig,sprintf('%s::%s',g,a));
-         analyze.stat.plotROC(ax(iPlot),mdl,'GroupID',g,'Area',a,'Week',w);
+         [~,~,~,AUC(iPlot),~] = analyze.stat.plotROC(ax(iPlot),mdl,'GroupID',g,'Area',a,'Week',w);
          if iPlot<=2
             title(ax(iPlot),a,'FontName','Arial','FontWeight','bold','Color','k');
          end
@@ -156,13 +159,13 @@ switch lower(type)
          end
       end
       delete(findobj(fig.Children,'Type','Legend'));
-      
-      % Add legend at end
-      legend(findobj(ax(1).Children,'Tag','ROC'),...
-         'Location','southeast',...
-         'FontName','Arial',...
-         'TextColor','black',...
-         'AutoUpdate','off');
+%       
+%       % Add legend at end
+%       legend(findobj(ax(1).Children,'Tag','ROC'),...
+%          'Location','southeast',...
+%          'FontName','Arial',...
+%          'TextColor','black',...
+%          'AutoUpdate','off');
    otherwise
       error('Unrecognized `type`: <strong>%s</strong>',type);
       

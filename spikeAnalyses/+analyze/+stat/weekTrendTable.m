@@ -34,9 +34,17 @@ T.df_num = nan(n,1);
 T.df_den = nan(n,1);
 T.F = nan(n,1);
 T.Performance = splitapply(@nanmean,rWeek.Performance,G);
+T.Performance_mu = T.Performance; % To match other tables
+predictedVar = sprintf('%s_pred',mdl.ResponseName);
+rWeek.(predictedVar) = predict(mdl,rWeek).*rWeek.n_Total;
 T.(mdl.ResponseName) = splitapply(@(x,nC,nT)nansum(x.*nC.*nT./(nansum(nC.*nT))),rWeek.(mdl.ResponseName),rWeek.n_Channels,rWeek.n_Trials,G);
 sdvar = strrep(mdl.ResponseName,'_mean','_std');
 T.sd = splitapply(@nanmean,rWeek.(sdvar),G); % Crude way but it's not used for anything else here
+T.sem = splitapply(@(x)nanstd(x)/sqrt(numel(x)),rWeek.(mdl.ResponseName),G);
+errVar = strrep(strrep(mdl.ResponseName,'_mean','_err'),'n_','');
+T.(predictedVar) = splitapply(@(x,nC,nT)nansum(x.*nC.*nT./(nansum(nC.*nT))),rWeek.(predictedVar),rWeek.n_Channels,rWeek.n_Trials,G);
+T.(errVar) = splitapply(@(x,nC,nT)nansum(x.*nC.*nT./(nansum(nC.*nT))),rWeek.(errVar),rWeek.n_Channels,rWeek.n_Trials,G);
+T.sem_detrended = splitapply(@(x)nanstd(x)/sqrt(numel(x)),rWeek.(errVar),G);
 T.N = splitapply(@(x)sum(~isnan(x)),rWeek.(mdl.ResponseName),G); % Number of animal/area/week combos with non-NaN values
 T.Duration = splitapply(@nanmean,rWeek.Duration,G);
 T.Reach_Epoch_Duration = splitapply(@nanmean,rWeek.Reach_Epoch_Duration,G);
@@ -62,6 +70,6 @@ end
 
 T.(wkType) = double(T.(wkType));
 T.Properties.VariableNames{wkType} = 'Week';
-T.Properties.UserData = struct('Response',mdl.ResponseName,'SD',sdvar);
+T.Properties.UserData = struct('Response',mdl.ResponseName,'SD',sdvar,'Predicted',predictedVar,'Detrended',errVar);
 
 end

@@ -14,6 +14,8 @@ p.min_duration = 0.100; % seconds
 p.max_duration = 1.500; % seconds
 p.max_reach = 0.650;    % seconds
 p.max_retract = 0.750;  % seconds
+p.min_rate = 6.5; % spikes/sec --> Poisson expectation 90% chance at least 1 spike during 600-ms "pre" phase
+p.max_rate = 300; % spikes/sec
 p.n_factors = 4;
 p.factor_names = {...
    'Excitation_to_Suppression',...
