@@ -7,7 +7,7 @@ function varargout = rec_analyses(varargin)
 p = struct;
 p.rate_xtick = [-1000 -500 0 500];
 p.rate_ytick = [-2 0 2];
-p.rate_ylim = [-5 5];
+p.rate_ylim = [0 30];
 p.rate_colors = struct(...
    'CFA',getColorMap(18,'blue'),...
    'RFA',getColorMap(18,'red'));

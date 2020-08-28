@@ -1,12 +1,12 @@
-function T = get_subset(T,varargin)
+function [rSub,r] = get_subset(r,varargin)
 %GET_SUBSET  Returns subset of full table for "marginalization" analyses
 %
-%  T = analyze.get_subset(T);
+%  [rSub,r] = analyze.get_subset(r);
 %  e.g.
-%     >> r = analyze.get_subset(r); % Table of spike counts
+%     >> [rSub,r] = analyze.get_subset(r); % Table of spike counts
 %
 %  -- Inputs --
-%  T : Table with behavioral time fields, PelletPresent field
+%  r : Table with behavioral time fields, PelletPresent field
 %  varargin : (Optional) <'name',value> pairs
 %     - 'min_dur' : Minimum value for Total trial duration (inclusive, sec)
 %     - 'max_dur' : Maximum value for Total trial duration (exclusive, sec)
@@ -17,9 +17,15 @@ function T = get_subset(T,varargin)
 %     - 'max_rate' : Maximum (total spikes)/(trial duration)
 %
 %  -- Output --
-%  T : Table in same format, but has subset meeting following criteria:
-%        -> Duration is >= 100ms and <= 750ms
+%  rSub : Table in same format, but has subset meeting following criteria:
+%        -> Duration is >= 100ms and <= 1500ms
+%        -> Reach Phase is <= 650 ms
+%        -> Retract Phase is <= 750 ms
+%        -> Rate >= 6.5 spikes/sec & <= 300 spikes/sec averaged on Trial.
 %        -> Reach, Grasp, Complete, and Pellet are all present.
+%  r    : Original data table
+%
+% See also: unit_learning_stats, analyze, analyze.behavior, analyze.stats
 
 pars = struct;
 [pars.min_dur,pars.max_dur,pars.align,pars.max_reach,pars.max_retract,pars.min_rate,pars.max_rate] =  ...
@@ -40,57 +46,57 @@ for iV = 1:2:numel(varargin)
    end
 end
 
-if ~ismember('Duration',T.Properties.VariableNames)
-   T.Duration = T.Complete - T.Reach;
-   T.Properties.VariableUnits{'Duration'} = 'sec';
+if ~ismember('Duration',r.Properties.VariableNames)
+   r.Duration = r.Complete - r.Reach;
+   r.Properties.VariableUnits{'Duration'} = 'sec';
 end
-if ~ismember('Reach_Epoch_Duration',T.Properties.VariableNames)
-   T.Reach_Epoch_Duration = T.Grasp - T.Reach;
-   T.Properties.VariableUnits{'Reach_Epoch_Duration'} = 'sec';
+if ~ismember('Reach_Epoch_Duration',r.Properties.VariableNames)
+   r.Reach_Epoch_Duration = r.Grasp - r.Reach;
+   r.Properties.VariableUnits{'Reach_Epoch_Duration'} = 'sec';
 end
-if ~ismember('Retract_Epoch_Duration',T.Properties.VariableNames)
-   T.Retract_Epoch_Duration = T.Complete - T.Grasp;
-   T.Properties.VariableUnits{'Retract_Epoch_Duration'} = 'sec';
+if ~ismember('Retract_Epoch_Duration',r.Properties.VariableNames)
+   r.Retract_Epoch_Duration = r.Complete - r.Grasp;
+   r.Properties.VariableUnits{'Retract_Epoch_Duration'} = 'sec';
 end
 
-iDuration = (T.Duration>=pars.min_dur) & (T.Duration < pars.max_dur);
-iReach = T.Reach_Epoch_Duration < pars.max_reach;
-iRetract = T.Retract_Epoch_Duration < pars.max_retract;
+iDuration = (r.Duration>=pars.min_dur) & (r.Duration < pars.max_dur);
+iReach = r.Reach_Epoch_Duration < pars.max_reach;
+iRetract = r.Retract_Epoch_Duration < pars.max_retract;
 
-iAlign = ismember(string(T.Alignment),string(pars.align));
-hasPellet = (T.PelletPresent=='Present') & (~isundefined(T.PelletPresent));
-hasReach = ~isnan(T.Reach) & ~isinf(T.Reach);
-hasGrasp = ~isnan(T.Grasp) & ~isinf(T.Grasp);
-hasComplete = ~isnan(T.Complete) & ~isinf(T.Complete);
+iAlign = ismember(string(r.Alignment),string(pars.align));
+hasPellet = (r.PelletPresent=='Present') & (~isundefined(r.PelletPresent));
+hasReach = ~isnan(r.Reach) & ~isinf(r.Reach);
+hasGrasp = ~isnan(r.Grasp) & ~isinf(r.Grasp);
+hasComplete = ~isnan(r.Complete) & ~isinf(r.Complete);
 
-tTotal = (T.Properties.UserData.t(end)-T.Properties.UserData.t(1))*1e-3; % convert to seconds
-iRateHighEnough = (T.N_Total./tTotal) >= pars.min_rate;
-iRateLowEnough = (T.N_Total./tTotal) <= pars.max_rate;
+tTotal = (r.Properties.UserData.t(end)-r.Properties.UserData.t(1))*1e-3; % convert to seconds
+iRateHighEnough = (r.N_Total./tTotal) >= pars.min_rate;
+iRateLowEnough = (r.N_Total./tTotal) <= pars.max_rate;
+
+if ismember('PostOpDay',r.Properties.VariableNames)
+   r.Day = r.PostOpDay;
+   r.Week = ceil(r.PostOpDay/7);
+elseif ismember('Day',r.Properties.VariableNames)
+   r.PostOpDay = r.Day;
+   r.Week = ceil(r.PostOpDay/7);
+end
 
 % % Do Row exclusion % %
 iKeep = iDuration & iReach & iRetract & iAlign & hasPellet & hasReach & hasGrasp & hasComplete & iRateHighEnough & iRateLowEnough;
-T = T(iKeep,:);
-if ismember('PostOpDay',T.Properties.VariableNames)
-   T.Day = T.PostOpDay;
-   T.Week = ceil(T.PostOpDay/7);
-elseif ismember('Day',T.Properties.VariableNames)
-   T.PostOpDay = T.Day;
-   T.Week = ceil(T.PostOpDay/7);
-end
+rSub = r(iKeep,:);
+r.Properties.UserData.Excluded = ~iKeep;
 
-T.Properties.UserData.iDuration = iDuration;
-T.Properties.UserData.iReach = iReach;
-T.Properties.UserData.iRetract = iRetract;
-T.Properties.UserData.iAlign = iAlign;
-T.Properties.UserData.hasPellet = hasPellet;
-T.Properties.UserData.hasReach = hasReach;
-T.Properties.UserData.hasGrasp = hasGrasp;
-T.Properties.UserData.hasComplete = hasComplete;
-T.Properties.UserData.iRateHighEnough = iRateHighEnough;
-T.Properties.UserData.iRateLowEnough = iRateLowEnough;
-T.Properties.UserData.Excluded = false(size(T,1),1);
-% if isfield(T.Properties.UserData,'Excluded')
-%    T.Properties.UserData.Excluded = T.Properties.UserData.Excluded(iKeep);
-% end
 
+rSub.Properties.UserData.iDuration = iDuration;
+rSub.Properties.UserData.iReach = iReach;
+rSub.Properties.UserData.iRetract = iRetract;
+rSub.Properties.UserData.iAlign = iAlign;
+rSub.Properties.UserData.hasPellet = hasPellet;
+rSub.Properties.UserData.hasReach = hasReach;
+rSub.Properties.UserData.hasGrasp = hasGrasp;
+rSub.Properties.UserData.hasComplete = hasComplete;
+rSub.Properties.UserData.iRateHighEnough = iRateHighEnough;
+rSub.Properties.UserData.iRateLowEnough = iRateLowEnough;
+rSub.Properties.UserData.Excluded = false(size(rSub,1),1);
+rSub = utils.addProcessing(rSub,'Subset');
 end

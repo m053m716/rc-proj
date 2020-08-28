@@ -85,7 +85,9 @@ x = data(iIschemia & hasPellet);
 mu.Ischemia.All = nanmean(x);
 cb.Ischemia.All = analyze.stat.getCB95(x,true);
 
-UTrials.Properties.UserData.Stats = struct;
+if ~isfield(UTrials.Properties.UserData,'Stats')
+   UTrials.Properties.UserData.Stats = struct;
+end
 UTrials.Properties.UserData.Stats.All.(varName) = struct;
 UTrials.Properties.UserData.Stats.All.(varName).mu = mu;
 UTrials.Properties.UserData.Stats.All.(varName).cb95 = cb;

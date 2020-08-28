@@ -18,6 +18,7 @@
 %  mergePredictionData           - Merge data from prediction models with data table
 %  mergeRatePerformance          - Merge rate (count) table and performance table
 %  score                         - Estimates behavior score endpoints by BlockID or PostOpDay
+%  writeUTrialsTable             - Write/return table with descriptive Duration stats
 %
 % Graphics Functions
 %  bar_animal_counts             - Create bar plot figure of counts or ratios

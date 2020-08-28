@@ -35,5 +35,4 @@ UTrials = analyze.behavior.getDescriptiveTimingStats(UTrials,'Retract_Epoch_Dura
 UTrials = analyze.behavior.getDescriptiveTimingStats(UTrials,'Reach_Epoch_Proportion');
 UTrials = analyze.behavior.makeSupportAssociation(UTrials);
 
-UTrials.Properties.UserData.Excluded = UTrials.Properties.UserData.Excluded(iU);
 end

@@ -45,7 +45,11 @@ if nargin < 4
          end
          return;
       end
-      tag = sprintf('MODEL-%02d',mdl.id);
+      if isnumeric(mdl.id)
+         tag = sprintf('MODEL-%02d',mdl.id);
+      else
+         tag = sprintf('MODEL-%s',string(mdl.id));
+      end
       mdl = mdl.mdl;
    else
       tag = 'Summary';
@@ -101,12 +105,15 @@ if strcmpi(mdl.Link.Name,'logit')
    fprintf(1,'\n<strong>Coefficient Log-odds</strong>:\n\n');
    coefName = coefName(iSort,:);
    LogOdds = exp(coefVal(iSort));
-   le_tab = [coefName,table(LogOdds)];
+   pValue = double(fStats.pValue);
+   le_tab = [coefName,table(LogOdds,pValue)];
    disp(le_tab);
 end
 disp(anova(mdl));
 fprintf(1,'\n<strong>FIT (R^2):</strong> %s (%s)\n\n',tag,mdl.ResponseName);
 disp(mdl.Rsquared);
+fprintf(1,'\n\t<strong>%6s</strong>  |  <strong>%-6s</strong>\n','AIC','BIC');
+fprintf(1,'\t%6.2f  |  %-6.2f\n',mdl.ModelCriterion.AIC,mdl.ModelCriterion.BIC);
 fprintf(1,'\n<strong>SIGNIFICANT RANDOM EFFECTS:</strong> %s (%s)\n\n',tag,mdl.ResponseName);
 R = table(Group,Rat,Name,Estimate,p);
 if isempty(R)

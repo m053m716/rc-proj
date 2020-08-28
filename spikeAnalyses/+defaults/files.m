@@ -44,6 +44,7 @@ p.duration_models_matfile = fullfile(pname,'MODELS_5-9.mat');
 p.rate_models_pre_reach_retract_matfile = fullfile(pname,'MODELS_10-12.mat');
 p.pop_models_pre_reach_retract_matfile = fullfile(pname,'MODELS_13-18.mat');
 p.cross_day_channel_trends_models_matfile = fullfile(pname,'MODELS_19-21.mat');
+p.utrials_durations_table = fullfile(pname,'TABLE-DURATIONS.xlsx');
 
 % For figure export
 p.local_figure_export = fullfile(pname,'Figures');
@@ -149,7 +150,7 @@ p.complete_jmp = 'RC-JMP_Complete-PCs.xlsx';
 
 % From +analyze/+rec
 p.rec_analyses_dir = fullfile(pname,'2020_BY-BLOCK');
-p.rec_analyses_fig_dir = fullfile(pname,'scratchwork','BY-BLOCK');
+p.rec_analyses_fig_dir = fullfile(pname,'Figures','By-Animal');
 
 % From +analyze/+dynamics
 p.area_dynamics_fig_dir = fullfile(pname,'2020_AREA-DYNAMICS');

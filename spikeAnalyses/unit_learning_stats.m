@@ -19,7 +19,7 @@ if ismember('Group',r.Properties.VariableNames) && ~ismember('GroupID',r.Propert
 end
 
 %% Get subset for analysis
-rSub = analyze.get_subset(r,'align',{'Grasp'});
+[rSub,r] = analyze.get_subset(r,'align',{'Grasp'});
 [~,rSub] = analyze.trials.getChannelWeeklyGroupings(rSub,'animal',true);
 % rSub = analyze.mergePredictionData
 
@@ -50,10 +50,10 @@ mdl = struct;
    'LegendLocation','eastoutside',...
    'YLim',[0 80],...
    'Tag','All-Trials-Pre-Counts',...
-   'ID',10,...
+   'ID','10a',...
    'Title','Activity: Pre-Grasp (All Trials with Duration Exclusions)');
-saveas(fig,fullfile(outPath,'Fig2a - Pre-Grasp Trends 95CB - Animal Mean Trends - All Trials.png'));
-savefig(fig,fullfile(outPath,'Fig2a - Pre-Grasp Trends 95CB - Animal Mean Trends - All Trials.fig'));
+saveas(fig,fullfile(outPath,'FigS3 - Pre-Grasp Trends 95CB - Animal Mean Trends - All Trials.png'));
+savefig(fig,fullfile(outPath,'FigS3 - Pre-Grasp Trends 95CB - Animal Mean Trends - All Trials.fig'));
 delete(fig);
 
 % % Reach Figures % %
@@ -71,10 +71,10 @@ delete(fig);
    'LegendLocation','eastoutside',...
    'YLim',[0 80],...
    'Tag','All-Trials-Reach-Counts',...
-   'ID',11,...
+   'ID','11a',...
    'Title','Activity: Reach (All Trials with Duration Exclusions)');
-saveas(fig,fullfile(outPath,'Fig2b - Reach Trends 95CB - Animal Mean Trends - All Trials.png'));
-savefig(fig,fullfile(outPath,'Fig2b - Reach Trends 95CB - Animal Mean Trends - All Trials.fig'));
+saveas(fig,fullfile(outPath,'FigS3 - Reach Trends 95CB - Animal Mean Trends - All Trials.png'));
+savefig(fig,fullfile(outPath,'FigS3 - Reach Trends 95CB - Animal Mean Trends - All Trials.fig'));
 delete(fig);
 
 % % Retract Figures % %
@@ -92,13 +92,14 @@ delete(fig);
    'LegendLocation','eastoutside',...
    'YLim',[0 80],...
    'Tag','All-Trials-Retract-Counts',...
-   'ID',12,...
+   'ID','12a',...
    'Title','Activity: Retract (All Trials with Duration Exclusions)');
-saveas(fig,fullfile(outPath,'Fig2c - Retract Trends 95CB - Animal Mean Trends - All Trials.png'));
-savefig(fig,fullfile(outPath,'Fig2c - Retract Trends 95CB - Animal Mean Trends - All Trials.fig'));
+saveas(fig,fullfile(outPath,'FigS3 - Retract Trends 95CB - Animal Mean Trends - All Trials.png'));
+savefig(fig,fullfile(outPath,'FigS3 - Retract Trends 95CB - Animal Mean Trends - All Trials.fig'));
 delete(fig);
 
-%% Make predictive models, holding out Performance
+%% Make "swapped" label data tables for predictive models
+clc;
 Data.pre.pred = Data.pre.all;
 Data.pre.pred.GroupID = categorical(3-double(Data.pre.pred.GroupID),1:2,{'Ischemia','Intact'});
 Data.reach.pred = Data.reach.all;
@@ -106,17 +107,18 @@ Data.reach.pred.GroupID = categorical(3-double(Data.reach.pred.GroupID),1:2,{'Is
 Data.retract.pred = Data.retract.all;
 Data.retract.pred.GroupID = categorical(3-double(Data.retract.pred.GroupID),1:2,{'Ischemia','Intact'});
 
-Data.pre.pred.N_Pre_Hat = predict(mdl.pre.all,Data.pre.pred).*Data.pre.pred.N_Total;
-Data.reach.pred.N_Reach_Hat = predict(mdl.reach.all,Data.reach.pred).*Data.reach.pred.N_Total;
-Data.retract.pred.N_Retract_Hat = predict(mdl.retract.all,Data.retract.pred).*Data.retract.pred.N_Total;
-Data.pre.all.N_Pre_Hat = predict(mdl.pre.all,Data.pre.all).*Data.pre.all.N_Total;
-Data.reach.all.N_Reach_Hat = predict(mdl.reach.all,Data.reach.all).*Data.reach.all.N_Total;
-Data.retract.all.N_Retract_Hat = predict(mdl.retract.all,Data.retract.all).*Data.retract.all.N_Total;
+Data.pre.pred.N_Pre_Hat = predict(mdl.pre.all.mdl,Data.pre.pred).*Data.pre.pred.N_Total ./ (Data.pre.pred.N_Trials .* Data.pre.pred.N_Channels);
+Data.reach.pred.N_Reach_Hat = predict(mdl.reach.all.mdl,Data.reach.pred).*Data.reach.pred.N_Total./ (Data.reach.pred.N_Trials .* Data.reach.pred.N_Channels);
+Data.retract.pred.N_Retract_Hat = predict(mdl.retract.all.mdl,Data.retract.pred).*Data.retract.pred.N_Total./ (Data.retract.pred.N_Trials .* Data.retract.pred.N_Channels);
+Data.pre.all.N_Pre_Hat = predict(mdl.pre.all.mdl,Data.pre.all).*Data.pre.all.N_Total ./ (Data.pre.all.N_Trials .* Data.pre.all.N_Channels);
+Data.reach.all.N_Reach_Hat = predict(mdl.reach.all.mdl,Data.reach.all).*Data.reach.all.N_Total ./ (Data.reach.all.N_Trials .* Data.reach.all.N_Channels);
+Data.retract.all.N_Retract_Hat = predict(mdl.retract.all.mdl,Data.retract.all).*Data.retract.all.N_Total ./ (Data.retract.all.N_Trials .* Data.retract.all.N_Channels);
 
 rSub = analyze.get_subset(r,'align',{'Grasp'});
 rWeek = analyze.trials.getChannelWeeklyGroupings(rSub,'animal',true);
 rSub = analyze.behavior.mergePredictionData(rSub,Data);
 rSub = analyze.behavior.mergeRatePerformance(rSub,false);
+disp('Pseudo-data generated.');
 
 %% Fit Error Prediction models
 S = struct(...
@@ -126,7 +128,7 @@ S = struct(...
    'Inverse',@(y)sin((y.^2).*(pi/2))...
    );
 tic; fprintf(1,'Fitting classification model for <strong>PRE</strong> phase...');
-mdl.pre.outcome.id = 10;
+mdl.pre.outcome.id = '10e';
 mdl.pre.outcome.tag = 'PRE-Outcome-Classifier';
 mdl.pre.outcome.mdl = fitglme(rSub,...
    'Labels~GroupID*Area*PostOpDay+Performance_mu+epsilon_pre+(1+Performance_mu|AnimalID)+(1+epsilon_pre|ChannelID)',...
@@ -137,7 +139,7 @@ mdl.pre.outcome.mdl = fitglme(rSub,...
    'DummyVarCoding','effects');
 fprintf(1,'complete (%5.2f sec)\n',toc);
 tic; fprintf(1,'Fitting classification model for <strong>REACH</strong> phase...');
-mdl.reach.outcome.id = 11;
+mdl.reach.outcome.id = '11e';
 mdl.reach.outcome.tag = 'REACH-Outcome-Classifier';
 mdl.reach.outcome.mdl = fitglme(rSub,...
    'Labels~GroupID*Area*PostOpDay+Performance_mu+epsilon_reach+(1+Performance_mu|AnimalID)+(1+epsilon_reach|ChannelID)',...
@@ -148,7 +150,7 @@ mdl.reach.outcome.mdl = fitglme(rSub,...
    'DummyVarCoding','effects');
 fprintf(1,'complete (%5.2f sec)\n',toc);
 tic; fprintf(1,'Fitting classification model for <strong>RETRACT</strong> phase...');
-mdl.retract.outcome.id = 12;
+mdl.retract.outcome.id = '12e';
 mdl.retract.outcome.tag = 'RETRACT-Outcome-Classifier';
 mdl.retract.outcome.mdl = fitglme(rSub,...
    'Labels~GroupID*Area*PostOpDay+Performance_mu+epsilon_retract+(1+Performance_mu|AnimalID)+(1+epsilon_retract|ChannelID)',...
@@ -156,6 +158,19 @@ mdl.retract.outcome.mdl = fitglme(rSub,...
    'Distribution','binomial',...
    'BinomialSize',ones(size(rSub,1),1),...
    'Link',S,...
+   'DummyVarCoding','effects');
+fprintf(1,'complete (%5.2f sec)\n',toc);
+
+%% Fit simple version of single-trial classifier model
+mdl.all.direct_outcome.id = 14;
+mdl.all.direct_outcome.tag = 'ALL-Outcome-Classifier-Direct';
+tic; fprintf(1,'Fitting classification model for <strong>ALL</strong> phases...');
+mdl.all.direct_outcome.mdl = fitglme(rSub,...
+   'Labels~1+(1+N_Pre_Grasp+N_Reach+N_Retract|ChannelID)',...
+   'FitMethod','REMPL',...
+   'Distribution','binomial',...
+   'Link',S,...
+   'BinomialSize',ones(size(rSub,1),1),...
    'DummyVarCoding','effects');
 fprintf(1,'complete (%5.2f sec)\n',toc);
 
@@ -180,6 +195,7 @@ fig = analyze.stat.batchROC(mdl.pre.outcome.mdl,'GroupID*Area*Week','Intact');
 saveas(fig,fullfile(outPath,'Fig3 - Outcome Prediction ROC - Pre Counts - Intact.png'));
 savefig(fig,fullfile(outPath,'Fig3 - Outcome Prediction ROC - Pre Counts - Intact.fig'));
 delete(fig);
+disp('<strong>Pre</strong> ROC figures complete.');
 
 %% Make figure to show predictive model result: Reach Phase
 fig = analyze.stat.plotROC(mdl.reach.outcome.mdl);
@@ -196,6 +212,7 @@ fig = analyze.stat.batchROC(mdl.reach.outcome.mdl,'GroupID*Area*Week','Intact');
 saveas(fig,fullfile(outPath,'Fig3 - Outcome Prediction ROC - Reach Counts - Intact.png'));
 savefig(fig,fullfile(outPath,'Fig3 - Outcome Prediction ROC - Reach Counts - Intact.fig'));
 delete(fig);
+disp('<strong>Reach</strong> ROC figures complete.');
 
 %% Make figure to show predictive model result: Retract Phase
 fig = analyze.stat.plotROC(mdl.retract.outcome.mdl);
@@ -212,15 +229,21 @@ fig = analyze.stat.batchROC(mdl.retract.outcome.mdl,'GroupID*Area*Week','Intact'
 saveas(fig,fullfile(outPath,'Fig3 - Outcome Prediction ROC - Retract Counts - Intact.png'));
 savefig(fig,fullfile(outPath,'Fig3 - Outcome Prediction ROC - Retract Counts - Intact.fig'));
 delete(fig);
+disp('<strong>Retract</strong> ROC figures complete.');
 
 %% Get Area-Under-Curve statistic for different weekly-groupings
-rWeek = analyze.stat.addWeeklyROCdata(rWeek,mdl);
+rSub = analyze.stat.addChannelROCdata(rSub,mdl);
+rPivot = analyze.stat.pivotChannelAUCtable(rSub);
+rSub = analyze.stat.addDirectModelROCdata(rSub,mdl);
+% rWeek = analyze.stat.addWeeklyROCdata(rWeek,mdl);
+% rPivot = analyze.stat.pivotWeeklyAUCtable(rWeek);
+disp('Weekly <strong>AUC</strong> data included with weekly-grouped table.');
 
 %% Make figure for Area-Under Curve trends
 fig = figure('Name','Weekly AUC Trends','Color','w'); 
-gCats = categorical(strcat(string(rWeek.GroupID),"::",string(rWeek.Area)));
-gplotmatrix(rWeek.Week+double(gCats).*0.1,...
-   [rWeek.Pre_AUC, rWeek.Reach_AUC, rWeek.Retract_AUC],...
+gCats = categorical(strcat(string(rSub.GroupID),"::",string(rSub.Area)));
+gplotmatrix(rSub.Week+double(gCats).*0.1,...
+   [rSub.Pre_AUC, rSub.Reach_AUC, rSub.Retract_AUC],...
    gCats,...
    [0.9 0.1 0.1; 0.9 0.1 0.1; 0.1 0.1 0.9; 0.1 0.1 0.9],...
    'x.os',[],'on','hist',{'Week'},{'AUC_{Pre}','AUC_{Reach}','AUC_{Retract}'});
@@ -231,74 +254,149 @@ saveas(fig,fullfile(outPath,'Fig3 - Weekly Classifier AUC by Group Area and Phas
 savefig(fig,fullfile(outPath,'Fig3 - Weekly Classifier AUC by Group Area and Phase.fig'));
 delete(fig);
 
-%% Make statistical model for AUC Trends
-mdl.pre.AUC.id  = 10;
-mdl.pre.AUC.tag = 'Weekly-Pre-ROC-AUC';
-mdl.pre.AUC.mdl = fitglme(rWeek,...
-   'Pre_AUC~GroupID*Week+(1+Area|AnimalID)',...
-   'FitMethod','REMPL',...
-   'Distribution','normal',...
-   'Link',S,...
-   'Exclude',isnan(rWeek.Pre_AUC),...
-   'DummyVarCoding','effects');
+fig = figure('Name','Performance and AUC','Color','w');
+gscatter(rPivot.Performance_mu,rPivot.AUC,rPivot.Phase,[],[],[],...
+   'on','Performance','AUC');
+xlim([-1 1]); ylim([0 1]);
+saveas(fig,fullfile(outPath,'Fig3 - Scatter AUC by Performance.png'));
+savefig(fig,fullfile(outPath,'Fig3 - Scatter AUC by Performance.fig'));
+delete(fig);
+disp('Scatter plot of AUC trends by Animal and Performance saved.');
 
-mdl.reach.AUC.id  = 11;
-mdl.reach.AUC.tag = 'Weekly-Reach-ROC-AUC';
-mdl.reach.AUC = fitglme(rWeek,...
-   'Reach_AUC~GroupID*Week+(1+Area|AnimalID)',...
-   'FitMethod','REMPL',...
-   'Distribution','normal',...
-   'Link',S,...
-   'Exclude',isnan(rWeek.Pre_AUC),...
-   'DummyVarCoding','effects');
+%% Fit model relating Performance and AUC
+mdl.auc = struct;
 
-mdl.retract.AUC.id  = 12;
-mdl.retract.AUC.tag = 'Weekly-Retract-ROC-AUC';
-mdl.retract.AUC = fitglme(rWeek,...
-   'Retract_AUC~GroupID*Week+(1+Area|AnimalID)',...
+mdl.auc.trend.id = '13a';
+mdl.auc.trend.tag = 'AUC-Week-Trend';
+tic; fprintf(1,'Estimating model to predict <strong>Area Under Curve</strong>...');
+mdl.auc.trend.mdl = fitglme(rPivot,'AUC~Duration+(1+Phase*Phase_Duration|ChannelID)',...
    'FitMethod','REMPL',...
-   'Distribution','normal',...
-   'Link',S,...
-   'Exclude',isnan(rWeek.Pre_AUC),...
-   'DummyVarCoding','effects');
+   'DummyVarCoding','effects'); % ~ 1-minute
+fprintf(1,'complete (%6.2f sec)\n',toc);
 
-%% Display AUC model info
-clc;
-utils.displayModel(mdl.pre.AUC);
-utils.displayModel(mdl.reach.AUC);
-utils.displayModel(mdl.retract.AUC);
+% Add predicted values to table
+rPivot.AUC_pred = predict(mdl.auc.trend.mdl,rPivot);
+rPivot.AUC_resid = rPivot.AUC - rPivot.AUC_pred;
+
+% mdl.auc.performance.id = '13b';
+% mdl.auc.performance.tag = 'Performance-AUC_detrended-Trend';
+% tic; fprintf(1,'Estimating model to predict <strong>Behavioral Function</strong> with random effect of AUC...');
+% mdl.auc.performance.mdl = fitglme(rPivot,'Performance_mu~GroupID*Area*Week+(1+AUC_pred|ChannelID)',...
+%    'FitMethod','REMPL',...
+%    'DummyVarCoding','effects',...
+%    'Link','identity');
+% fprintf(1,'complete (%6.2f sec)\n',toc);
+% 
+% fig = analyze.stat.panelized_residuals(mdl.auc.performance.mdl);
+% saveas(fig,fullfile(outPath,'Fig3c - Behavior Prediction Unit Model - Residuals.png'));
+% savefig(fig,fullfile(outPath,'Fig3c - Behavior Prediction Unit Model - Residuals.fig'));
+% delete(fig);
+
+[gAUC,rWeek_AUC] = findgroups(rPivot(:,{'GroupID','AnimalID','Area','Week','Phase','ChannelID'}));
+rWeek_AUC.Performance_mu = tanh(splitapply(@nanmean,rPivot.Performance_mu,gAUC))*0.5+0.5;
+rWeek_AUC.AUC_mu = splitapply(@nanmean,rPivot.AUC,gAUC);
+rWeek_AUC.Duration = splitapply(@nanmean,rPivot.Duration,gAUC);
+rWeek_AUC.Phase_Duration = splitapply(@nanmean,rPivot.Phase_Duration,gAUC);
+rWeek_AUC.AUC_pred = predict(mdl.auc.trend.mdl,rWeek_AUC);
+rWeek_AUC.AUC_resid = rWeek_AUC.AUC_mu - rWeek_AUC.AUC_pred;
+
+rWeek_AUC.Properties.RowNames = strcat(...
+   string(rWeek_AUC.AnimalID),...
+   string(rWeek_AUC.Area),'_W',...
+   string(rWeek_AUC.Week),...
+   string(rWeek_AUC.Phase),'_C',...
+   string(rWeek_AUC.ChannelID));
+mdl.auc.weeks.id = '13b';
+mdl.auc.weeks.tag = 'Performance-AUC_detrended-Weekly';
+tic; fprintf(1,'Estimating model to predict <strong>Weekly Behavioral Function</strong> with random effect of AUC...');
+mdl.auc.weeks.mdl = fitglme(rWeek_AUC,'Performance_mu~GroupID*Week+(1+AUC_resid+Phase|AnimalID:Area)',...
+   'FitMethod','REMPL',...
+   'DummyVarCoding','effects',...
+   'Link','logit');
+fprintf(1,'complete (%6.2f sec)\n',toc);
+
+fig = analyze.stat.panelized_residuals(mdl.auc.weeks.mdl);
+saveas(fig,fullfile(outPath,'Fig3d - Weekly Behavior Prediction Unit Model - Residuals.png'));
+savefig(fig,fullfile(outPath,'Fig3d - Weekly Behavior Prediction Unit Model - Residuals.fig'));
+delete(fig);
+
+disp('Model relating Performance to AUC & Week complete.');
+utils.displayModel(mdl.auc);
+
+% %% Make statistical model for AUC Trends
+% mdl.pre.AUC.id  = '10f';
+% mdl.pre.AUC.tag = 'Weekly-Pre-ROC-AUC';
+% mdl.pre.AUC.mdl = fitglme(rWeek,...
+%    'Pre_AUC~GroupID*Week+(1+Area|AnimalID)',...
+%    'FitMethod','REMPL',...
+%    'Distribution','normal',...
+%    'Link',S,...
+%    'Exclude',isnan(rWeek.Pre_AUC),...
+%    'DummyVarCoding','effects');
+% 
+% mdl.reach.AUC.id  = '11f';
+% mdl.reach.AUC.tag = 'Weekly-Reach-ROC-AUC';
+% mdl.reach.AUC.mdl = fitglme(rWeek,...
+%    'Reach_AUC~GroupID*Week+(1+Area|AnimalID)',...
+%    'FitMethod','REMPL',...
+%    'Distribution','normal',...
+%    'Link',S,...
+%    'Exclude',isnan(rWeek.Pre_AUC),...
+%    'DummyVarCoding','effects');
+% 
+% mdl.retract.AUC.id  = '12f';
+% mdl.retract.AUC.tag = 'Weekly-Retract-ROC-AUC';
+% mdl.retract.AUC.mdl = fitglme(rWeek,...
+%    'Retract_AUC~GroupID*Week+(1+Area|AnimalID)',...
+%    'FitMethod','REMPL',...
+%    'Distribution','normal',...
+%    'Link',S,...
+%    'Exclude',isnan(rWeek.Pre_AUC),...
+%    'DummyVarCoding','effects');
+% 
+% %% Display AUC model info
+% clc;
+% utils.displayModel(mdl.pre.AUC);
+% utils.displayModel(mdl.reach.AUC);
+% utils.displayModel(mdl.retract.AUC);
 
 %% Do multi-model prediction for trends at the "Week" level
 rSub_s = rSub;
 rSub_s.Properties.UserData.Excluded(rSub_s.Outcome=="Unsuccessful") = [];
+rSub_s.PostOpDay_Cubed = rSub_s.PostOpDay.^3;
 rSub_s(rSub_s.Outcome=="Unsuccessful",:) = [];
 [fig,mdl.pre.multi_mdl,T.pre_full] = analyze.behavior.multi_model_fit(rSub_s,...
-   'N_Pre_Grasp','Title','Pre-Grasp Epoch','YLim',[0 250],...
-   'DurationTrendVar','Duration');
-saveas(fig,fullfile(outPath,'Fig2a - Pre Counts 95CB - Grouped Mean Trends - Successful Trials.png'));
-savefig(fig,fullfile(outPath,'Fig2a - Pre Counts 95CB - Grouped Mean Trends - Successful Trials.fig'));
+   'N_Pre_Grasp','Title','Pre-Grasp Epoch','YLim',[0 60],...
+   'DurationTrendVar','Duration',...
+   'Tag','Successful-Pre-Detrended-Performance',...
+   'ID','10b');
+saveas(fig,fullfile(outPath,'FigS3a - Pre Counts 95CB - Grouped Mean Trends - Successful Trials.png'));
+savefig(fig,fullfile(outPath,'FigS3a - Pre Counts 95CB - Grouped Mean Trends - Successful Trials.fig'));
 delete(fig);
 
 [fig,mdl.reach.multi_mdl,T.reach_full] = analyze.behavior.multi_model_fit(rSub_s,...
-   'N_Reach','Title','Reach Epoch','YLim',[0 250],...
-   'SimpleModelFormula','%s~PostOpDayc+Reach_Epoch_Duration+Duration+(1+PostOpDay|AnimalID)',...
-   'DurationTrendVar','Reach_Epoch_Duration');
-saveas(fig,fullfile(outPath,'Fig2b - Reach Counts 95CB - Grouped Mean Trends - Successful Trials.png'));
-savefig(fig,fullfile(outPath,'Fig2b - Reach Counts 95CB - Grouped Mean Trends - Successful Trials.fig'));
+   'N_Reach','Title','Reach Epoch','YLim',[0 60],...
+   'DurationTrendVar','Reach_Epoch_Duration',...
+   'Tag','Successful-Reach-Detrended-Performance',...
+   'ID','11b');
+saveas(fig,fullfile(outPath,'FigS3b - Reach Counts 95CB - Grouped Mean Trends - Successful Trials.png'));
+savefig(fig,fullfile(outPath,'FigS3b - Reach Counts 95CB - Grouped Mean Trends - Successful Trials.fig'));
 delete(fig);
 
 [fig,mdl.retract.multi_mdl,T.retract_full] = analyze.behavior.multi_model_fit(rSub_s,...
-   'N_Retract','Title','Retract Epoch','YLim',[0 250],...
-   'SimpleModelFormula','%s~PostOpDayc+Retract_Epoch_Duration+Duration+(1+PostOpDay|AnimalID)',...
-   'DurationTrendVar','Retract_Epoch_Duration');
-saveas(fig,fullfile(outPath,'Fig2c - Retract Counts 95CB - Grouped Mean Trends - Successful Trials.png'));
-savefig(fig,fullfile(outPath,'Fig2c - Retract Counts 95CB - Grouped Mean Trends - Successful Trials.fig'));
+   'N_Retract','Title','Retract Epoch','YLim',[0 60],...
+   'DurationTrendVar','Retract_Epoch_Duration',...
+   'Tag','Successful-Retract-Detrended-Performance',...
+   'ID','12b');
+saveas(fig,fullfile(outPath,'FigS3c - Retract Counts 95CB - Grouped Mean Trends - Successful Trials.png'));
+savefig(fig,fullfile(outPath,'FigS3c - Retract Counts 95CB - Grouped Mean Trends - Successful Trials.fig'));
 delete(fig);
+disp('Multi-model daily trend estimates complete.');
 
 %% Get prediction models first
 rWeek_s = analyze.trials.getChannelWeeklyGroupings(rSub_s,'animal',true);
 
-mdl.pre.predict.id = 10;
+mdl.pre.predict.id = '10c';
 mdl.pre.predict.tag = 'Weekly-Pre-Predicted_Successes';
 mdl.pre.predict.mdl = fitglme(rWeek_s,...
    'n_Pre_mean~Week+Duration+(1+Week|AnimalID)',...
@@ -309,7 +407,7 @@ mdl.pre.predict.mdl = fitglme(rWeek_s,...
    'Weights',rWeek_s.n_Blocks,...
    'DummyVarCoding','effects');
 
-mdl.reach.predict.id = 11;
+mdl.reach.predict.id = '11c';
 mdl.reach.predict.tag = 'Weekly-Reach-Predicted_Successes';
 mdl.reach.predict.mdl = fitglme(rWeek_s,...
    'n_Reach_mean~Week+Reach_Epoch_Duration+Duration+n_Pre_mean+(1+Week|AnimalID)',...
@@ -320,7 +418,7 @@ mdl.reach.predict.mdl = fitglme(rWeek_s,...
    'Weights',rWeek_s.n_Blocks,...
    'DummyVarCoding','effects');
 
-mdl.retract.predict.id = 12;
+mdl.retract.predict.id = '12c';
 mdl.retract.predict.tag = 'Weekly-Retract-Predicted_Successes';
 mdl.retract.predict.mdl = fitglme(rWeek_s,...
    'n_Retract_mean~Week+Retract_Epoch_Duration+Duration+n_Pre_mean+(1+Week|AnimalID)',...
@@ -341,11 +439,12 @@ rWeek_s.n_Retract_pred = predict(mdl.retract.predict.mdl,rWeek_s).*rWeek_s.n_Tot
 rWeek_s.Pre_err = rWeek_s.n_Pre_mean - rWeek_s.n_Pre_pred;
 rWeek_s.Reach_err = rWeek_s.n_Reach_mean - rWeek_s.n_Reach_pred;
 rWeek_s.Retract_err = rWeek_s.n_Retract_mean - rWeek_s.n_Retract_pred;
+disp('Prediction models estimated.');
 
 %% Fit GLME for weekly/channel grouped count data
 % Make model for spike counts during "Pre" or "Baseline" epoch
-
-mdl.pre.detrended.id = 10;
+clc;
+mdl.pre.detrended.id = '10d';
 mdl.pre.detrended.tag = 'Weekly-Pre-Detrended-Count-Successes';
 mdl.pre.detrended.mdl = fitglme(rWeek_s,...
    'n_Pre_mean~GroupID*Area+(1+n_Pre_pred|AnimalID)',...
@@ -357,7 +456,7 @@ mdl.pre.detrended.mdl = fitglme(rWeek_s,...
    'DummyVarCoding','effects');
 
 % Make model for spike counts during "Reach" epoch
-mdl.reach.detrended.id = 11;
+mdl.reach.detrended.id = '11d';
 mdl.reach.detrended.tag = 'Weekly-Reach-Detrended-Count-Successes';
 mdl.reach.detrended.mdl = fitglme(rWeek_s,...
    'n_Reach_mean~GroupID*Area+(1+n_Reach_pred|AnimalID)',...
@@ -370,7 +469,7 @@ mdl.reach.detrended.mdl = fitglme(rWeek_s,...
 
 
 % Make model for spike counts during "Retract" epoch
-mdl.retract.detrended.id = 12;
+mdl.retract.detrended.id = '12d';
 mdl.retract.detrended.tag = 'Weekly-Retract-Detrended-Count-Successes';
 mdl.retract.detrended.mdl = fitglme(rWeek_s,...
    'n_Retract_mean~GroupID*Area+(1+n_Retract_pred|AnimalID)',...
@@ -380,6 +479,7 @@ mdl.retract.detrended.mdl = fitglme(rWeek_s,...
    'BinomialSize',rWeek_s.n_Total,...
    'Weights',rWeek_s.n_Blocks,...
    'DummyVarCoding','effects');
+disp('Detrended models estimated.');
 
 %% Make tables
 % Make table for individual animal effects
@@ -393,36 +493,49 @@ T = struct;
 T.pre = analyze.stat.weekTrendTable(mdl.pre.detrended.mdl);
 writetable(T.pre,fullfile(defaults.files('local_tank'),'TABLE-1.xlsx'),'Sheet','N_PRE');
 fig = analyze.trials.plotTableData(T,'Pre');
-saveas(fig,fullfile(outPath,'Fig2d - Pre Weekly Group Area Count Trends - Successes.png'));
-savefig(fig,fullfile(outPath,'Fig2d - Pre Weekly Group Area Count Trends - Successes.fig'));
+saveas(fig,fullfile(outPath,'Fig2a - Pre Weekly Group Area Count Trends - Successes.png'));
+savefig(fig,fullfile(outPath,'Fig2a - Pre Weekly Group Area Count Trends - Successes.fig'));
 delete(fig);
 
 % T.reach = analyze.stat.groupLevelTests(rWeek_s,mdl.reach.weeks,rSub,fcn,{'N_Reach'});
 T.reach = analyze.stat.weekTrendTable(mdl.reach.detrended.mdl);
 writetable(T.reach,fullfile(defaults.files('local_tank'),'TABLE-1.xlsx'),'Sheet','N_REACH');
 fig = analyze.trials.plotTableData(T,'Reach');
-saveas(fig,fullfile(outPath,'Fig2e - Reach Weekly Group Area Count Trends - Successes.png'));
-savefig(fig,fullfile(outPath,'Fig2e - reach Weekly Group Area Count Trends - Successes.fig'));
+saveas(fig,fullfile(outPath,'Fig2b - Reach Weekly Group Area Count Trends - Successes.png'));
+savefig(fig,fullfile(outPath,'Fig2b - reach Weekly Group Area Count Trends - Successes.fig'));
 delete(fig);
 
 % T.retract = analyze.stat.groupLevelTests(rWeek_s,mdl.retract.weeks,rSub,fcn,{'N_Retract'});
 T.retract = analyze.stat.weekTrendTable(mdl.retract.detrended.mdl);
 writetable(T.retract,fullfile(defaults.files('local_tank'),'TABLE-1.xlsx'),'Sheet','N_RETRACT');
 fig = analyze.trials.plotTableData(T,'Retract');
-saveas(fig,fullfile(outPath,'Fig2f - Retract Weekly Group Area Count Trends - Successes.png'));
-savefig(fig,fullfile(outPath,'Fig2f - Retract Weekly Group Area Count Trends - Successes.fig'));
+saveas(fig,fullfile(outPath,'Fig2c - Retract Weekly Group Area Count Trends - Successes.png'));
+savefig(fig,fullfile(outPath,'Fig2c - Retract Weekly Group Area Count Trends - Successes.fig'));
 delete(fig);
+disp('Tables saved.');
 
-%% Display model outputs
+%% Display model outputs for daily trends
 clc;
-utils.displayModel(mdl.pre.multi_mdl);
+% Fig. S3a
+utils.displayModel(mdl.pre.multi_mdl.simple); % (daily predictions for detrending, with success rate)
+utils.displayModel(mdl.pre.multi_mdl);        % (detrended daily fit)
+% Fig. S3b
+utils.displayModel(mdl.reach.multi_mdl.simple);
 utils.displayModel(mdl.reach.multi_mdl);
+% Fig. S3c
+utils.displayModel(mdl.retract.multi_mdl.simple);
 utils.displayModel(mdl.retract.multi_mdl);
-utils.displayModel(mdl.pre.predict);
+
+%% Display model outputs for weekly trends
+% clc;
+% Fig. 2a
+utils.displayModel(mdl.pre.predict);   % (weekly prediction for detrending, without "performance")
+utils.displayModel(mdl.pre.detrended); % (detrended weekly fit)
+% Fig. 2b
 utils.displayModel(mdl.reach.predict);
-utils.displayModel(mdl.retract.predict);
-utils.displayModel(mdl.pre.detrended);
 utils.displayModel(mdl.reach.detrended);
+% Fig. 2c
+utils.displayModel(mdl.retract.predict);
 utils.displayModel(mdl.retract.detrended);
 
 %% Save model outputs

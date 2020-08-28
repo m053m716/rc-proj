@@ -48,6 +48,7 @@ T.Day_Cubed = T.Day.^3;
 T.Percent_Successful = T.pct .* 100;
 T.PostOpDay = T.Day;
 T.PostOpDay_Cubed = T.Day_Cubed;
+T.Performance_score = sqrt(asin(T.pct)./(pi/2));
 
 if ~addPerformance
    return;

@@ -2,12 +2,16 @@
 % MATLAB Version 9.7 (R2019b Update 5) 18-Jun-2020
 %
 % Helper (Math) Functions
+%  addChannelROCdata                   - Add ROC area-under-curve data by channel grouping
+%  addDirectModelROCdata               - Add ROC area-under-curve data for channel-grouped model for directly predicting outcome labels from spike counts
 %  addWeeklyROCdata                    - Add ROC area-under-curve data by weekly grouping
 %  batch_estimate_reconstruction_error - Redo reconstruction error estimate
 %  computeROC                          - Compute true-positive rate, false-positive rate, and area-under-curve for ROC analysis
 %  fit_gauspuls                        - Function that goes to the fmincon procedure of fit_transfer_fcn for gauspuls fit
 %  interpolateUniformTrend             - Interpolates trends between per-day averages
 %  nonlinear_constraint                - Nonlinear constraint(s) on parameter array p
+%  pivotChannelAUCtable                - Pivot channel AUC table for ROC prediction to make combined statistical model
+%  pivotWeeklyAUCtable                 - Pivot weekly AUC table for ROC prediction to make combined statistical model
 %  random_levels_2_double              - Helper to convert levels of random effects to numeric double to help match with original data
 %  reconstruct_gauspuls                - Returns reconstructed Gaussian pulse modulated oscillation (primarily used in fit_gauspuls)
 %  remove_excluded                     - Remove outlier data or categories otherwise not in model

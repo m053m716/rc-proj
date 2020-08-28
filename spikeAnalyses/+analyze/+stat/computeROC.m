@@ -23,7 +23,13 @@ function [TPR,FPR,AUC,r,threshold_list] = computeROC(mdl,varargin)
 r = mdl.Variables;
 r.Week = categorical(ceil(r.PostOpDay/7),1:4,{'Week-1','Week-2','Week-3','Week-4'});
 r = analyze.slice(r,varargin{:});
-threshold_list = linspace(0,1,25);
+% threshold_list = linspace(0,1,25);
+p = predict(mdl,r);
+if min(p)==max(p) % If the minimum value is same as maximum value, can't do a thresholding on it
+   TPR = nan; FPR = nan; AUC = nan; threshold_list = nan;
+   return;
+end
+threshold_list = linspace(min(p)-0.1,max(p)+0.1,25);
 TPR = nan(size(threshold_list));
 FPR = nan(size(threshold_list));
 
