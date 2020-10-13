@@ -107,6 +107,9 @@ end
 if ~ismember(data.Properties.VariableNames,'Day')
    data.Properties.VariableNames{'PostOpDay'} = 'Day';
 end
+if ~ismember(data.Properties.VariableNames,'Duration')
+   data.Duration = splitapply(@nanmean,T.Duration,G);
+end
 % Add 3rd-order term
 T.Day_Cubed = T.Day.^3;
 data.Day_Cubed = data.Day.^3;
@@ -155,7 +158,12 @@ for ii = 1:size(TIDplot,1)
    mdl{ii,1} = fitglm(allAnimalData,mdlspec,pars.FitOptions{:});
    Day = (min(theseData.Day):max(theseData.Day))';
    Day_Cubed = Day.^3;
-   tPred = table(Day,Day_Cubed);
+%    Duration = interp1(theseData.Day,theseData.Duration,Day);
+   nObs = size(theseData,1);
+   mid = round((1 + nObs)/2);
+   pp = csape(theseData.Day([1 mid nObs]),theseData.Duration([1 mid nObs]),'clamped');
+   Duration = fnval(pp,Day);
+   tPred = table(Day,Day_Cubed,Duration);
    try
       [mu,cb95] = predict(mdl{ii},tPred);
    catch me

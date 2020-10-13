@@ -112,6 +112,60 @@ saveas(fig,fullfile(outPath,'Fig4a - R2_Best - All - By Animal.png'));
 savefig(fig,fullfile(outPath,'Fig4a - R2_Best - All - By Animal.fig'));
 delete(fig);
 
+%% Make model for R2_best by day (Model-15 in manuscript)
+out = struct;
+E2.PostOpDay3 = E2.PostOpDay.^3;
+E2.Week = ordinal(ceil(E2.PostOpDay/7));
+out.m15.id = 15;
+out.m15.tag = 'Trends in R2 MLS by day';
+tic; fprintf(1,'Fitting <strong>Model-15</strong>: R2_Best~1+Week+(1+PostOpDay+PostOpDay3|AnimalID)...');
+out.m15.mdl = fitglme(E2,...
+   "R2_Best~1+Week+(1+PostOpDay+PostOpDay3|AnimalID)",...
+   "DummyVarCoding","effects",...
+   "FitMethod","REMPL");
+fprintf(1,'complete (%5.2f sec)\n\n',toc);
+utils.displayModel(out.m15);
+
+%% Make table for fixed point data
+E3 = E2;
+E3.AnimalID = string(E3.AnimalID);
+E3 = outerjoin(E3,D,...
+   'Keys',{'AnimalID','Alignment','PostOpDay'},...
+   'Type','left',...
+   'LeftVariables',{'AnimalID','GroupID','Alignment','PostOpDay','PostOpDay3','Duration','R2_Best','R2_Skew','SS','Performance','Week'},...
+   'RightVariables',{'FP_Classification','FP_Dim','FP_Explained','FP_VarCapt','FP_M'});
+E3 = E3(E3.FP_Dim == 2,:);
+E3.IsSaddle = strcmp(E3.FP_Classification,"Saddle Point");
+E3.IsStable = contains(E3.FP_Classification,"Stable");
+
+analyze.dynamics.plotPhaseQuiver(E3.FP_M(8),...
+   'Title','RC-04 Day-16 Grasp: Saddle Point',...
+   'FileName',fullfile(outPath,'Fig4 - Example FP - Saddle - RC-04 Day-16 Grasp'));
+
+%%
+clc;
+out.m17.id = 17;
+out.m17.tag = 'Trends for Performance by Fixed Point';
+tic; fprintf(1,'Fitting <strong>Model-17</strong>: Performance~1+IsSaddle*Alignment+(1+PostOpDay|AnimalID) ...');
+out.m17.mdl = fitglme(E3,...
+   "Performance~1+IsSaddle*Alignment+(1+PostOpDay|AnimalID)",...
+   "DummyVarCoding","effects",...
+   "FitMethod","REMPL");
+fprintf(1,'complete (%5.2f sec)\n\n',toc);
+utils.displayModel(out.m17);
+
+%% (Model-17 in manuscript)
+clc;
+out.m18.id = 18;
+out.m18.tag = 'Trends for Performance by Fixed Point';
+tic; fprintf(1,'Fitting <strong>Model-18</strong>: Performance~1+(1+FP_Classification*FP_VarCapt|Alignment)+(1+PostOpDay|AnimalID) ...');
+out.m18.mdl = fitglme(E3,...
+   "Performance~1+(1+FP_Classification*FP_VarCapt|Alignment)+(1+PostOpDay|AnimalID)",...
+   "DummyVarCoding","effects",...
+   "FitMethod","REMPL");
+fprintf(1,'complete (%5.2f sec)\n\n',toc);
+utils.displayModel(out.m18);
+
 %% Fig. 4c - Check distribution of Explained values for ALL fit
 fig = analyze.behavior.per_animal_mean_trends(...
    E2,'Explained',...
@@ -229,7 +283,7 @@ fprintf(1,'-------------------------------------------\n');
 mdl_dynamics_skew = "R2_Skew~Performance*ExplainedLogit*GroupID+(1+Duration+PostOpDay|AnimalID)";
 modelTic = tic;
 fprintf(1,'Estimating GLME model for Linearized Dynamics Fit...');
-glme.populationDynamics.r2_skew.id = 17;
+glme.populationDynamics.r2_skew.id = 19;
 glme.populationDynamics.r2_skew.mdl = fitglme(E2,mdl_dynamics_skew,...
    "FitMethod","REMPL",...
    "DummyVarCoding",'effects',...

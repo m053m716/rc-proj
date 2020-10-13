@@ -1,4 +1,4 @@
-%UNIT_LEARNING_STATS Use Mitz/Wise approach for Figs 2, S4: count spikes in pre-defined epochs to define activity
+%UNIT_LEARNING_STATS Use Mitz/Wise approach for Figs 2, 3, S4: count spikes in pre-defined epochs to define activity
 %
 %  Sets up Figure 3: do trends in activity distinguish specific sub-types
 %  of unit trends, and if so, are those trends more strongly associated
@@ -18,18 +18,72 @@ if ismember('Group',r.Properties.VariableNames) && ~ismember('GroupID',r.Propert
    r.Properties.VariableNames{'Group'} = 'GroupID';
 end
 
-%% Get subset for analysis
+% Get subset for analysis
 [rSub,r] = analyze.get_subset(r,'align',{'Grasp'});
 [~,rSub] = analyze.trials.getChannelWeeklyGroupings(rSub,'animal',true);
 % rSub = analyze.mergePredictionData
 
-%%
-clc;
+%% Create Figure 3
 % Create corresponding figures.
 outPath = defaults.files('reach_extension_figure_dir');
 if exist(outPath,'dir')==0
    mkdir(outPath);
 end
+
+[rClass,data,fig,tbl] = analyze.trials.fitOutcomeClassifier(rSub);
+saveas(fig(1),fullfile(outPath,'Fig3b - Model-14 - Individual Channels NB - Duration.png'));
+savefig(fig(1),fullfile(outPath,'Fig3b - Model-14 - Individual Channels NB - Duration.fig'));
+delete(fig(1));
+
+saveas(fig(2),fullfile(outPath,'Fig3a - Model-13 - Individual Channels NB - No Duration.png'));
+savefig(fig(2),fullfile(outPath,'Fig3a - Model-13 - Individual Channels NB - No Duration.fig'));
+delete(fig(2));
+
+%% Create posterior probability visuals
+tmp = rClass(rClass.Area=="RFA" & rClass.AnimalID=="RC-05" & rClass.Week==2,:);
+tmp2 = tmp(tmp.ChannelID==tmp.ChannelID(1),:); % ChannelID == 177
+
+fig = analyze.trials.plotPosterior(tmp2,'N_Retract','N_Pre_Grasp','simple');
+saveas(fig,fullfile(outPath,'Fig3 - Example Posterior - N_Retract - N_Pre_Grasp - Ch 177.png'));
+savefig(fig,fullfile(outPath,'Fig3 - Example Posterior - N_Retract - N_Pre_Grasp - Ch 177.fig'));
+delete(fig);
+
+fig = analyze.trials.plotPosterior(tmp2,'N_Retract','N_Reach','simple');
+saveas(fig,fullfile(outPath,'Fig3 - Example Posterior - N_Retract - N_Reach - Ch 177.png'));
+savefig(fig,fullfile(outPath,'Fig3 - Example Posterior - N_Retract - N_Reach - Ch 177.fig'));
+delete(fig);
+
+fig = analyze.trials.plotPosterior(tmp2,'N_Retract','Retract_Epoch_Duration');
+saveas(fig,fullfile(outPath,'Fig3 - Example Posterior - N_Retract - Retract_Epoch_Duration - Ch 177.png'));
+savefig(fig,fullfile(outPath,'Fig3 - Example Posterior - N_Retract - Retract_Epoch_Duration - Ch 177.fig'));
+delete(fig);
+
+fig = analyze.trials.plotPosterior(tmp2,'N_Reach','Duration');
+saveas(fig,fullfile(outPath,'Fig3 - Example Posterior - N_Reach - Duration - Ch 177.png'));
+savefig(fig,fullfile(outPath,'Fig3 - Example Posterior - N_Reach - Duration - Ch 177.fig'));
+delete(fig);
+
+tmp3 = tmp(tmp.ChannelID==tmp.ChannelID(993),:); % ChannelID == 186
+fig = analyze.trials.plotPosterior(tmp3,'N_Retract','N_Pre_Grasp','simple');
+saveas(fig,fullfile(outPath,'Fig3 - Example Posterior - N_Retract - N_Pre_Grasp - Ch 186.png'));
+savefig(fig,fullfile(outPath,'Fig3 - Example Posterior - N_Retract - N_Pre_Grasp - Ch 186.fig'));
+delete(fig);
+
+fig = analyze.trials.plotPosterior(tmp3,'N_Retract','Retract_Epoch_Duration');
+saveas(fig,fullfile(outPath,'Fig3 - Example Posterior - N_Retract - Retract_Epoch_Duration - Ch 186.png'));
+savefig(fig,fullfile(outPath,'Fig3 - Example Posterior - N_Retract - Retract_Epoch_Duration - Ch 186.fig'));
+delete(fig);
+
+tmp4 = tmp(tmp.ChannelID==tmp.ChannelID(778),:); % ChannelID == 184
+fig = analyze.trials.plotPosterior(tmp4,'N_Retract','N_Pre_Grasp','simple');
+saveas(fig,fullfile(outPath,'Fig3 - Example Posterior - N_Retract - N_Pre_Grasp - Ch 184.png'));
+savefig(fig,fullfile(outPath,'Fig3 - Example Posterior - N_Retract - N_Pre_Grasp - Ch 184.fig'));
+delete(fig);
+
+
+%%
+clc;
+
 
 % Initialize data output variables and data subset to pass to figures %
 Data = struct;
@@ -98,71 +152,78 @@ saveas(fig,fullfile(outPath,'FigS3 - Retract Trends 95CB - Animal Mean Trends - 
 savefig(fig,fullfile(outPath,'FigS3 - Retract Trends 95CB - Animal Mean Trends - All Trials.fig'));
 delete(fig);
 
-%% Make "swapped" label data tables for predictive models
-clc;
-Data.pre.pred = Data.pre.all;
-Data.pre.pred.GroupID = categorical(3-double(Data.pre.pred.GroupID),1:2,{'Ischemia','Intact'});
-Data.reach.pred = Data.reach.all;
-Data.reach.pred.GroupID = categorical(3-double(Data.reach.pred.GroupID),1:2,{'Ischemia','Intact'});
-Data.retract.pred = Data.retract.all;
-Data.retract.pred.GroupID = categorical(3-double(Data.retract.pred.GroupID),1:2,{'Ischemia','Intact'});
-
-Data.pre.pred.N_Pre_Hat = predict(mdl.pre.all.mdl,Data.pre.pred).*Data.pre.pred.N_Total ./ (Data.pre.pred.N_Trials .* Data.pre.pred.N_Channels);
-Data.reach.pred.N_Reach_Hat = predict(mdl.reach.all.mdl,Data.reach.pred).*Data.reach.pred.N_Total./ (Data.reach.pred.N_Trials .* Data.reach.pred.N_Channels);
-Data.retract.pred.N_Retract_Hat = predict(mdl.retract.all.mdl,Data.retract.pred).*Data.retract.pred.N_Total./ (Data.retract.pred.N_Trials .* Data.retract.pred.N_Channels);
-Data.pre.all.N_Pre_Hat = predict(mdl.pre.all.mdl,Data.pre.all).*Data.pre.all.N_Total ./ (Data.pre.all.N_Trials .* Data.pre.all.N_Channels);
-Data.reach.all.N_Reach_Hat = predict(mdl.reach.all.mdl,Data.reach.all).*Data.reach.all.N_Total ./ (Data.reach.all.N_Trials .* Data.reach.all.N_Channels);
-Data.retract.all.N_Retract_Hat = predict(mdl.retract.all.mdl,Data.retract.all).*Data.retract.all.N_Total ./ (Data.retract.all.N_Trials .* Data.retract.all.N_Channels);
-
-rSub = analyze.get_subset(r,'align',{'Grasp'});
-rWeek = analyze.trials.getChannelWeeklyGroupings(rSub,'animal',true);
-rSub = analyze.behavior.mergePredictionData(rSub,Data);
-rSub = analyze.behavior.mergeRatePerformance(rSub,false);
-disp('Pseudo-data generated.');
-
-%% Fit Error Prediction models
+% %% Make "swapped" label data tables for predictive models
+% clc;
+% Data.pre.pred = Data.pre.all;
+% Data.pre.pred.GroupID = categorical(3-double(Data.pre.pred.GroupID),1:2,{'Ischemia','Intact'});
+% Data.reach.pred = Data.reach.all;
+% Data.reach.pred.GroupID = categorical(3-double(Data.reach.pred.GroupID),1:2,{'Ischemia','Intact'});
+% Data.retract.pred = Data.retract.all;
+% Data.retract.pred.GroupID = categorical(3-double(Data.retract.pred.GroupID),1:2,{'Ischemia','Intact'});
+% 
+% Data.pre.pred.N_Pre_Hat = predict(mdl.pre.all.mdl,Data.pre.pred).*Data.pre.pred.N_Total ./ (Data.pre.pred.N_Trials .* Data.pre.pred.N_Channels);
+% Data.reach.pred.N_Reach_Hat = predict(mdl.reach.all.mdl,Data.reach.pred).*Data.reach.pred.N_Total./ (Data.reach.pred.N_Trials .* Data.reach.pred.N_Channels);
+% Data.retract.pred.N_Retract_Hat = predict(mdl.retract.all.mdl,Data.retract.pred).*Data.retract.pred.N_Total./ (Data.retract.pred.N_Trials .* Data.retract.pred.N_Channels);
+% Data.pre.all.N_Pre_Hat = predict(mdl.pre.all.mdl,Data.pre.all).*Data.pre.all.N_Total ./ (Data.pre.all.N_Trials .* Data.pre.all.N_Channels);
+% Data.reach.all.N_Reach_Hat = predict(mdl.reach.all.mdl,Data.reach.all).*Data.reach.all.N_Total ./ (Data.reach.all.N_Trials .* Data.reach.all.N_Channels);
+% Data.retract.all.N_Retract_Hat = predict(mdl.retract.all.mdl,Data.retract.all).*Data.retract.all.N_Total ./ (Data.retract.all.N_Trials .* Data.retract.all.N_Channels);
+% 
+% rSub = analyze.get_subset(r,'align',{'Grasp'});
+% rWeek = analyze.trials.getChannelWeeklyGroupings(rSub,'animal',true);
+% rSub = analyze.behavior.mergePredictionData(rSub,Data);
+% rSub = analyze.behavior.mergeRatePerformance(rSub,false);
+% disp('Pseudo-data generated.');
+% 
+% %% Fit Error Prediction models
+% S = struct(...
+%    'Link',@(mu)sqrt(asin(mu)./(pi/2)), ...
+%    'Derivative',@(mu)1./(sqrt(2*pi).*sqrt(1 - mu.^2).*sqrt(asin(mu))), ...
+%    'SecondDerivative',@(mu)sqrt(2/pi).*((mu./(2.*(1-mu.^2).^(3/2).*sqrt(asin(mu))))-(1./(4.*(1-mu.^2).*asin(mu).^(3/2)))), ...
+%    'Inverse',@(y)sin((y.^2).*(pi/2))...
+%    );
+% tic; fprintf(1,'Fitting classification model for <strong>PRE</strong> phase...');
+% mdl.pre.outcome.id = '10e';
+% mdl.pre.outcome.tag = 'PRE-Outcome-Classifier';
+% mdl.pre.outcome.mdl = fitglme(rSub,...
+%    'Labels~GroupID*Area*PostOpDay+Performance_mu+epsilon_pre+(1+Performance_mu|AnimalID)+(1+epsilon_pre|ChannelID)',...
+%    'FitMethod','REMPL',...
+%    'Distribution','binomial',...
+%    'Link',S,...
+%    'BinomialSize',ones(size(rSub,1),1),...
+%    'DummyVarCoding','effects');
+% fprintf(1,'complete (%5.2f sec)\n',toc);
+% tic; fprintf(1,'Fitting classification model for <strong>REACH</strong> phase...');
+% mdl.reach.outcome.id = '11e';
+% mdl.reach.outcome.tag = 'REACH-Outcome-Classifier';
+% mdl.reach.outcome.mdl = fitglme(rSub,...
+%    'Labels~GroupID*Area*PostOpDay+Performance_mu+epsilon_reach+(1+Performance_mu|AnimalID)+(1+epsilon_reach|ChannelID)',...
+%    'FitMethod','REMPL',...
+%    'Distribution','binomial',...
+%    'Link',S,...
+%    'BinomialSize',ones(size(rSub,1),1),...
+%    'DummyVarCoding','effects');
+% fprintf(1,'complete (%5.2f sec)\n',toc);
+% tic; fprintf(1,'Fitting classification model for <strong>RETRACT</strong> phase...');
+% mdl.retract.outcome.id = '12e';
+% mdl.retract.outcome.tag = 'RETRACT-Outcome-Classifier';
+% mdl.retract.outcome.mdl = fitglme(rSub,...
+%    'Labels~GroupID*Area*PostOpDay+Performance_mu+epsilon_retract+(1+Performance_mu|AnimalID)+(1+epsilon_retract|ChannelID)',...
+%    'FitMethod','REMPL',...
+%    'Distribution','binomial',...
+%    'BinomialSize',ones(size(rSub,1),1),...
+%    'Link',S,...
+%    'DummyVarCoding','effects');
+% fprintf(1,'complete (%5.2f sec)\n',toc);
+% 
+%% Fit simple version of single-trial classifier model
 S = struct(...
    'Link',@(mu)sqrt(asin(mu)./(pi/2)), ...
    'Derivative',@(mu)1./(sqrt(2*pi).*sqrt(1 - mu.^2).*sqrt(asin(mu))), ...
    'SecondDerivative',@(mu)sqrt(2/pi).*((mu./(2.*(1-mu.^2).^(3/2).*sqrt(asin(mu))))-(1./(4.*(1-mu.^2).*asin(mu).^(3/2)))), ...
    'Inverse',@(y)sin((y.^2).*(pi/2))...
    );
-tic; fprintf(1,'Fitting classification model for <strong>PRE</strong> phase...');
-mdl.pre.outcome.id = '10e';
-mdl.pre.outcome.tag = 'PRE-Outcome-Classifier';
-mdl.pre.outcome.mdl = fitglme(rSub,...
-   'Labels~GroupID*Area*PostOpDay+Performance_mu+epsilon_pre+(1+Performance_mu|AnimalID)+(1+epsilon_pre|ChannelID)',...
-   'FitMethod','REMPL',...
-   'Distribution','binomial',...
-   'Link',S,...
-   'BinomialSize',ones(size(rSub,1),1),...
-   'DummyVarCoding','effects');
-fprintf(1,'complete (%5.2f sec)\n',toc);
-tic; fprintf(1,'Fitting classification model for <strong>REACH</strong> phase...');
-mdl.reach.outcome.id = '11e';
-mdl.reach.outcome.tag = 'REACH-Outcome-Classifier';
-mdl.reach.outcome.mdl = fitglme(rSub,...
-   'Labels~GroupID*Area*PostOpDay+Performance_mu+epsilon_reach+(1+Performance_mu|AnimalID)+(1+epsilon_reach|ChannelID)',...
-   'FitMethod','REMPL',...
-   'Distribution','binomial',...
-   'Link',S,...
-   'BinomialSize',ones(size(rSub,1),1),...
-   'DummyVarCoding','effects');
-fprintf(1,'complete (%5.2f sec)\n',toc);
-tic; fprintf(1,'Fitting classification model for <strong>RETRACT</strong> phase...');
-mdl.retract.outcome.id = '12e';
-mdl.retract.outcome.tag = 'RETRACT-Outcome-Classifier';
-mdl.retract.outcome.mdl = fitglme(rSub,...
-   'Labels~GroupID*Area*PostOpDay+Performance_mu+epsilon_retract+(1+Performance_mu|AnimalID)+(1+epsilon_retract|ChannelID)',...
-   'FitMethod','REMPL',...
-   'Distribution','binomial',...
-   'BinomialSize',ones(size(rSub,1),1),...
-   'Link',S,...
-   'DummyVarCoding','effects');
-fprintf(1,'complete (%5.2f sec)\n',toc);
-
-%% Fit simple version of single-trial classifier model
-mdl.all.direct_outcome.id = 14;
+mdl.all.direct_outcome.id = '13a';
+rSub.Labels = double(rSub.Outcome)-1;
 mdl.all.direct_outcome.tag = 'ALL-Outcome-Classifier-Direct';
 tic; fprintf(1,'Fitting classification model for <strong>ALL</strong> phases...');
 mdl.all.direct_outcome.mdl = fitglme(rSub,...
@@ -173,6 +234,36 @@ mdl.all.direct_outcome.mdl = fitglme(rSub,...
    'BinomialSize',ones(size(rSub,1),1),...
    'DummyVarCoding','effects');
 fprintf(1,'complete (%5.2f sec)\n',toc);
+
+% rSub.Prediction_Outcome = predict(mdl.all.direct_outcome.mdl,rSub);
+% rSub = analyze.trials.addConfusionData(rSub);
+% [data2,fig2,tbl2] = analyze.trials.weeklyConfusion(rSub);
+
+%% Estimate model for Figure 3b
+
+mdl.all.direct_outcome_performance.id = '13b';
+mdl.all.direct_outcome_performance.tag = 'Channel-Outcome-Classifier-plus-Performance';
+tic; fprintf(1,'Fitting classification model for <strong>ALL</strong> phases...');
+mdl.all.direct_outcome_performance.mdl = fitglme(rSub,...
+   'Labels~1+Performance_mu+(1+N_Pre_Grasp+N_Reach+N_Retract|ChannelID)',...
+   'FitMethod','REMPL',...
+   'Distribution','binomial',...
+   'Link',S,...
+   'BinomialSize',ones(size(rSub,1),1),...
+   'DummyVarCoding','effects');
+fprintf(1,'complete (%5.2f sec)\n',toc);
+
+%%
+
+rSub.Prediction_Outcome = predict(mdl.all.direct_outcome_performance.mdl,rSub);
+[rAUC,TID] = analyze.trials.addThresholdPrior(rSub);
+rAUC = analyze.trials.addConfusionData(rAUC,rAUC.Prior); % prior == threshold
+[data3,fig,tbl3] = analyze.trials.weeklyConfusion(rAUC);
+saveas(fig,fullfile(outPath,'Fig3 - Outcome Classifier - Individual Channels - Performance Included.png'));
+savefig(fig,fullfile(outPath,'Fig3 - Outcome Classifier - Individual Channels - Performance Included.fig'));
+delete(fig);
+
+
 
 %% Display classification model info
 clc;

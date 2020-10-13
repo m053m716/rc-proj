@@ -94,7 +94,8 @@ p = double(tmp);
 fStats = fStats(iSort,[1,2,4,5,6]);
 
 fprintf(1,'--------------------------------------------------------------------\n');
-fprintf(1,'<strong>%s MODEL:</strong> %s (%s)\n',upper(type),tag,mdl.ResponseName);
+fprintf(1,'<strong>%s MODEL:</strong> %s (%s)\t\t<strong>N</strong> = %d\n',...
+   upper(type),tag,mdl.ResponseName,mdl.NumObservations);
 disp(mdl.Formula);
 fprintf(1,'--------------------------------------------------------------------\n');
 fprintf(1,'\t\t<strong>%s (%s link)</strong> Fit Method: %s\n',...
@@ -114,11 +115,13 @@ fprintf(1,'\n<strong>FIT (R^2):</strong> %s (%s)\n\n',tag,mdl.ResponseName);
 disp(mdl.Rsquared);
 fprintf(1,'\n\t<strong>%6s</strong>  |  <strong>%-6s</strong>\n','AIC','BIC');
 fprintf(1,'\t%6.2f  |  %-6.2f\n',mdl.ModelCriterion.AIC,mdl.ModelCriterion.BIC);
-fprintf(1,'\n<strong>SIGNIFICANT RANDOM EFFECTS:</strong> %s (%s)\n\n',tag,mdl.ResponseName);
 R = table(Group,Rat,Name,Estimate,p);
+
 if isempty(R)
-   fprintf(1,'<strong>NONE</strong> (alpha: %6.2f)\n\n',alpha);
+   fprintf(1,'\n<strong>NO SIGNIFICANT RANDOM EFFECTS</strong> (alpha: %6.2f)\n\n',alpha);
 else
+   fprintf(1,'\n(<strong>N</strong> = %d) <strong>SIGNIFICANT RANDOM EFFECTS:</strong> %s (%s)\n\n',...
+      size(R,1),tag,mdl.ResponseName);
    disp(R);
 end
 end

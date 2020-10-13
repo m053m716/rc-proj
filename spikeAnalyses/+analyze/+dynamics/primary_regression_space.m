@@ -83,10 +83,13 @@ D.FP_Classification = strings(size(D,1),1);
 D.FP_Dim = nan(size(D,1),1);
 D.FP_Explained = nan(size(D,1),1);
 D.FP_VarCapt = nan(size(D,1),1);
+D.FP_M = cell(size(D,1),1);
 D.RFP_Classification = strings(size(D,1),1);
 D.RFP_Dim = nan(size(D,1),1);
 D.AFP_Classification = strings(size(D,1),1);
 D.AFP_Dim = nan(size(D,1),1);
+D.SFP_Classification = strings(size(D,1),6);
+D.SFP_VarCapt = nan(size(D,1),6);
 
 if size(D,1)>1
    for ii = 1:size(D,1)
@@ -129,6 +132,7 @@ lambda = lambda(1:D.FP_Dim);
 D.FP_Explained = sum(expl(1:D.FP_Dim));
 D.FP_VarCapt = nanmean(vc(1:D.FP_Dim));
 D.FP_Classification = analyze.dynamics.fp_classify(D.FP_Dim,A,lambda);
+D.FP_M = {A};
 
 % % % Repeat steps, but for "Residual" fixed point % % %
 % Get relevant fields from cell struct element for this table row
@@ -195,4 +199,31 @@ A = A(1:D.AFP_Dim,1:D.AFP_Dim);
 lambda = lambda(1:D.AFP_Dim);
 
 D.AFP_Classification = analyze.dynamics.fp_classify(D.AFP_Dim,A,lambda);
+
+
+% % % Repeat process for Skew fixed point % % %
+
+
+% Get relevant fields from cell struct element for this table row
+A = D.Summary{1}.skew.M;
+lambda = D.Summary{1}.skew.lambda;
+vc = D.Summary{1}.SS.skew.explained.varcapt;
+
+% Sort by Eigenvalue
+[~,iSort] = sort(abs(lambda),'descend');
+Lambda = lambda(iSort);
+A = A(:,iSort);
+vc = vc(iSort);
+
+% Use paired dimensions to form plane
+vec = reshape((1:numel(vc))',2,numel(vc)/2)';
+for iV = 1:size(vec,1)
+   M = A(vec(iV,:),vec(iV,:));
+   lambda = Lambda(vec(iV,:));
+   D.SFP_VarCapt(iV) = nanmean(vc(vec(iV,:)));
+   D.SFP_Classification(iV) = analyze.dynamics.fp_classify(2,M,lambda);
+end
+   
+D.Properties.VariableDescriptions{'SFP_Classification'} = 'Classification of M_Skew planes';  
+D.Properties.VariableDescriptions{'FP_Classification'} = 'Classification of M_MLS top plane or 3D space depending on top dimensions';
 end

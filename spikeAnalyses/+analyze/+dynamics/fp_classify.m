@@ -53,7 +53,7 @@ switch dim
          return;
       end
       if tau == 0
-         classification = "Non-Isolated";
+         classification = "Non-Isolated (Plane of Fixed Points)";
          return;
       end
       

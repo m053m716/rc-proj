@@ -8,6 +8,7 @@
 %  batch_estimate_reconstruction_error - Redo reconstruction error estimate
 %  computeROC                          - Compute true-positive rate, false-positive rate, and area-under-curve for ROC analysis
 %  fit_gauspuls                        - Function that goes to the fmincon procedure of fit_transfer_fcn for gauspuls fit
+%  getSS                               - Return sum of squares struct for data and predictions
 %  interpolateUniformTrend             - Interpolates trends between per-day averages
 %  nonlinear_constraint                - Nonlinear constraint(s) on parameter array p
 %  pivotChannelAUCtable                - Pivot channel AUC table for ROC prediction to make combined statistical model
@@ -15,6 +16,7 @@
 %  random_levels_2_double              - Helper to convert levels of random effects to numeric double to help match with original data
 %  reconstruct_gauspuls                - Returns reconstructed Gaussian pulse modulated oscillation (primarily used in fit_gauspuls)
 %  remove_excluded                     - Remove outlier data or categories otherwise not in model
+%  ROCstats                            - Evaluate TPR and FPR for categorical observations using continuous predictions discreetized by some threshold
 %
 % Graphics/Visualization Functions
 %  addJitteredScatter                  - Adds jittered scatter plot to current axes

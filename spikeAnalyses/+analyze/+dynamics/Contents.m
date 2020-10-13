@@ -19,6 +19,7 @@
 %  exportSubTable             - Create table for GLME model fit, using only R^2_adj
 %  exportTable                - Create table for GLME model fit
 %  fp_classify                - Classify fixed-point for row of table D
+%  getPredictionMask          - Return mask for matched samples for fitting prediction
 %  parseSingleR2              - Used to update R^2 estimate for adjusted R^2 etc using proj
 %  plotSliceSampleTrends      - Use model-based surrogates with slicesample to generate by-day trends with 95% confidence bounds
 %  primary_regression_space   - Classify fixed point in primary regression space of least-squares optimal regression matrix of top PCs
@@ -27,5 +28,6 @@
 % Graphics
 %  inputDistribution          - Plot observed distribution & smoothed cdf estimate
 %  makeJointDistViz           - Visualize joint distribution between R2 & %-explained
+%  plotPhaseQuiver            - Plot the phase portrait given M the linearized system
 %  scatterR2andPerf           - Scatter R^2_BEST on x-axis and y-axis as behavioral perf
 %  scatterR2ByDayAndExplained - Create scatter plot for R2 fit by day & % exp
