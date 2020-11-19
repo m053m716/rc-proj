@@ -48,22 +48,22 @@ alignVideo;
 ---
 
 #### alignVideo Select File ####  
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/00_align_uiselect.PNG "Fig. 1 - File Select")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/00_align_uiselect.PNG "Fig. 1 - File Select")  
 **Figure 1: File selection.** If no arguments are specified, select the **Beam.mat** file from wherever you have put it.  After a few steps of processing, generating the interface, and loading the video, the interface should popup. To skip this step, specify the optional ('FNAME', _val_) argument pair.  
 
 ---
 
 #### alignVideo GUI Overview ####  
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/00_align_baseGUI.PNG "Fig. 2 - GUI")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/00_align_baseGUI.PNG "Fig. 2 - GUI")  
 **Figure 2: GUI overview.** The graphical user interface (GUI) consists of 3 main components: a heads up display (HUD) at the top; the video which is displayed in the middle; and an alignment timeline at the bottom.  
 
 ---
 
 #### alignVideo HUD ####  
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/00_align_HUD.PNG "Fig. 3 - HUD")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/00_align_HUD.PNG "Fig. 3 - HUD")  
 **Figure 3: HUD.** This region simply shows the name of the currently selected video, the time with respect to the start of the video (Video Time, seconds), and the time with respect to the start of the neurophysiological recording (Neural Time, seconds). The window on the right could be used in case there are multiple videos for a given neural recording, but in practice this hasn't been used.  
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/00_align_save.PNG "Fig. 4 - Saving")    
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/00_align_save.PNG "Fig. 4 - Saving")    
 **Figure 4: Save Status.** Once you have saved the alignment offset (alt + s), the file name will turn green and the GUI will prompt you to exit.   
 
 #### alignVideo General Strategy ####    
@@ -76,31 +76,31 @@ This alignment technique works on the assumption that basically most of the time
 ---
 
 #### alignVideo Example ####  
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/00_align_ax-good-guess.PNG "Fig. 5 - Good Guess")    
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/00_align_ax-good-guess.PNG "Fig. 5 - Good Guess")    
 **Figure 5: Good alignment guess.** In this case, the correlation algorithm worked pretty well and the "trains" appear to be aligned fairly well. Recommend going straight to step 2.  
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/00_align_ax-bad-guess.PNG "Fig. 6 - Bad Guess")    
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/00_align_ax-bad-guess.PNG "Fig. 6 - Bad Guess")    
 **Figure 6: Bad alignment guess.** Something went wrong with the correlation algorithm. Note the starred points. You want to grab an idiosyncratic "feature" of the red train to try and have the best ability to line it up with a similarly shaped point on the blue train. Alternatively, the double-starred point shows where you have two high-frequency "bursts" near each other, which tends to be an easier thing to match up while dragging the series against one another.  
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/00_align_ax-drag-bad.PNG "Fig. 7 - Bad Match")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/00_align_ax-drag-bad.PNG "Fig. 7 - Bad Match")  
 **Figure 7: Bad dragging match.** The dot-dashed series is being dragged, but at this point it doesn't really match up well on anything. Notice lots of periods where the blue and dot-dashed series do not overlap.  
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/00_align_ax-drag-ok.PNG "Fig. 8 - OK mismatch")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/00_align_ax-drag-ok.PNG "Fig. 8 - OK mismatch")  
 **Figure 8: OK mismatch.** Sometimes, the experimenter's hand is in the way etc. so you don't get the paw time-series. So in that case you should be able to see the beam breaks but not have any paw probability time-series since DeepLabCut (DLC) couldn't "see" the paw. In practice, DLC was pretty accurate on detecting the paw presence, so more often than not it is worse to have a lot of blue (paw) series that don't have any matching red series than the other way around. It sort of depends on the idiosyncracies of the rat, though.  
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/00_align_ax-drag-good.PNG "Fig. 9 - Good Match")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/00_align_ax-drag-good.PNG "Fig. 9 - Good Match")  
 **Figure 9: Good match.** Once things are aligned, click the axis again and it will make the lines bold and they won't follow the mouse any more. Notice how the blue lines have more or less "disappeared" behind the red, indicating that this is a good approximate line-up.  
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/00_align_ax-fine-tune_03.PNG "Fig. 10a - Fine-tuning 1")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/00_align_ax-fine-tune_03.PNG "Fig. 10a - Fine-tuning 1")  
 **Figure 10a: Fine-tuning.** Click the zoomed-out axis above the series to move the video to that time-point. Then zoom in (numpad +). You can zoom back out if this ends up not working (numpad -), or hit spacebar to just play the video and approximately see how it looks. You can also navigate 1 frame forward or backwards using the 'd' and 'a' keys respectively. Here, a point is selected just before the onset of a moderate-length beam break, where the paw was also detected. Notice that the alignment so far is good because the beam is not crossed and we are not crossing it yet in the time-series.  
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/00_align_ax-fine-tune_04.PNG "Fig. 10b - Fine-tuning 2")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/00_align_ax-fine-tune_04.PNG "Fig. 10b - Fine-tuning 2")  
 **Figure 10b: Fine-tuning.** Advancing by 1 frame, the beam is crossed and it is also crossed in the time-series.  
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/00_align_ax-fine-tune_01.PNG "Fig. 10c - Fine-tuning 3")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/00_align_ax-fine-tune_01.PNG "Fig. 10c - Fine-tuning 3")  
 **Figure 10c: Fine-tuning.** Going to the end of the beam-break, we see that in the last beam frame, the paw still appears to be crossing the beam.  
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/00_align_ax-fine-tune_02.PNG "Fig. 10d - Fine-tuning 4")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/00_align_ax-fine-tune_02.PNG "Fig. 10d - Fine-tuning 4")  
 **Figure 10d: Fine-tuning.** Advancing by 1 frame, the paw has moved off of the frame in the video and the red line indicating the tripping of the beam-break by a high value has returned to low as well. Repeating this process for several beam-breaks at various points throughout the video gives a good indication that the video and neural data are aligned.  
 
 ---
@@ -140,19 +140,19 @@ This alignment technique works on the assumption that basically most of the time
 ---
 
 #### scoreVideo Select File ####  
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/01_score_uiselect.PNG "Fig. 1 - File Select")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/01_score_uiselect.PNG "Fig. 1 - File Select")  
 **Figure 1: File selection.** If no arguments are specified, select the **Trials.mat** file from wherever you have put it.  After a few steps of processing, generating the interface, and loading the video, the interface should popup. To skip this step, specify the optional ('FNAME', _val_) argument pair.  
 
 ---
 
 #### scoreVideo GUI Overview ####  
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/01_score_baseGUI.PNG "Fig. 2 - GUI")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/01_score_baseGUI.PNG "Fig. 2 - GUI")  
 **Figure 2: GUI overview.** The graphical user interface (GUI) consists of 3 main components: a heads up display (HUD) at the top; the video which is displayed on the left/middle; and a control display for marker times on the right side.  
 
 ---
 
 #### scoreVideo HUD ####  
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/01_score_HUD.PNG "Fig. 3 - HUD")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/01_score_HUD.PNG "Fig. 3 - HUD")  
 **Figure 3: HUD.** This region simply shows the name of the currently selected video, the time with respect to the start of the video (Video Time, seconds), and the time with respect to the start of the neurophysiological recording (Neural Time, seconds); if no alignment has been done, the default is zero offset. The main difference from the alignVideo.m HUD is the right-most part that has a progress indicator that shows the total number of trials to score and the current trial being scored. As invalid trials are removed (_delete_ key), the total number of trials will decrease. When all fields (Reach, Grasp, Support, and Outcome) have been filled for a given trial, the corresponding segment of the tracker image will change from red to blue.  Continuing a previously-scored video should fill the bar with your previous progress and move you to the next unscored trial, so it's fine to save (_alt + s_) in the middle and finish later.  
 
 ---
@@ -172,13 +172,13 @@ This alignment technique works on the assumption that basically most of the time
 ##### Reach #####  
 This is the *reach onset* time. We are defining it as the first frame in which the digits cross the box opening. It is similar to the *digits-to-midline.*  
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/01_score_bad-reach.PNG "Fig. 4 - Bad Reach")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/01_score_bad-reach.PNG "Fig. 4 - Bad Reach")  
 **Figure 4: Bad Reach.** Pressing _r_ sets the reach onset time. Pressing it again on the same frame unsets the reach time. In this example, he is reaching but no pellet is present; when this happens he does not close his paw, so it is not considered a complete trial and thus excluded (_delete_ key) from further analysis.  
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/01_score_not-a-grasp.PNG "Fig. 5 - Not-a-grasp")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/01_score_not-a-grasp.PNG "Fig. 5 - Not-a-grasp")  
 **Figure 5: Not-a-grasp.** This is a typical posture when a reach is performed without a grasp. This type of behavior is discarded.   
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/01_score_good-reach.PNG "Fig. 6 - Good Reach")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/01_score_good-reach.PNG "Fig. 6 - Good Reach")  
 **Figure 6: Good Reach.** Here, he is just crossing the plane of the box opening, and there is a pellet present.  
 
 ---
@@ -188,23 +188,23 @@ This is the *grasp onset* time. We are defining it as the first frame in which t
 
 **Successful Example** 
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/01_score_successful-grasp-1.PNG "Fig. 7a - Successful Grasp 1")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/01_score_successful-grasp-1.PNG "Fig. 7a - Successful Grasp 1")  
 **Figure 7a: Successful Grasp - arpeggio.** We aren't officially looking for arpeggio, but basically just before he closes his paw, the digits will splay out like this.  
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/01_score_successful-grasp-2.PNG "Fig. 7b - Successful Grasp 2")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/01_score_successful-grasp-2.PNG "Fig. 7b - Successful Grasp 2")  
 **Figure 7b: Successful Grasp - closing.** His paw closes fully around the pellet. This is the frame that gets scored as grasp onset (hotkey _g_).    
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/01_score_successful-grasp-3.PNG "Fig. 7c - Successful Grasp 3")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/01_score_successful-grasp-3.PNG "Fig. 7c - Successful Grasp 3")  
 **Figure 7c: Successful Grasp - retrieval.** The forelimb supinates as he retrieves the pellet successfully. Typical behavior is to bring the pellet directly to the mouth, with the other forelimb coming over to help hold it.    
 
 **Unsuccessful Example**  
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/01_score_unsuccessful-grasp-1.PNG "Fig. 8a - Unsuccessful Grasp 1")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/01_score_unsuccessful-grasp-1.PNG "Fig. 8a - Unsuccessful Grasp 1")  
 **Figure 8a: Unsuccessful Grasp.** Here, he has attempted to retrieve the pellet (left), but was unsuccessful as it has popped out. He still closed his paw, so this is considered as a grasping trial. 
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/01_score_unsuccessful-grasp-2.PNG "Fig. 8b - Unsuccessful Grasp 2")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/01_score_unsuccessful-grasp-2.PNG "Fig. 8b - Unsuccessful Grasp 2")  
 **Figure 8b: Unsuccessful Grasp - closing.** A common failure mode is the lack of fine motor control in the digits, particularly in injured rats. In this case, the pellet just got wedged between his digits but he did not actually fully close the digits around it.  
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/01_score_unsuccessful-grasp-3.PNG "Fig. 8c - Unsuccessful Grasp 3")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/01_score_unsuccessful-grasp-3.PNG "Fig. 8c - Unsuccessful Grasp 3")  
 **Figure 8c: Unsuccessful Grasp - retrieval.** When the pellet is retrieved as in **8b** a small bar prevents the full retrieval of the pellet into the behavioral box. This results in the pellet popping out of the paw (blue arrow).  
 
 ---
@@ -212,7 +212,7 @@ This is the *grasp onset* time. We are defining it as the first frame in which t
 ##### Support #####  
 This is the *support onset* time. It is fairly approximate, since the supporting limb is inside the behavioral box and often partially obscured from view. This is primarily scored to give an indication of the number of trials in which the inappropriate forelimb was grossly active during the trial.  
 
-![](https://raw.githubusercontent.com/m053m716/rc-proj/master/docs/img/01_score_support.PNG "Fig. 9 - Both forelimbs in use")  
+![](https://media.githubusercontent.com/media/m053m716/rc-proj/master/docs/img/01_score_support.PNG "Fig. 9 - Both forelimbs in use")  
 **Figure 9: Support limb activity.** As soon as the other forelimb is seen actively moving (particularly pressing against the glass or mirroring the movements of the retrieving limb), the support marker is placed (hotkey _b_). If no activity of the other forelimb is observed for the duration of the trial, this is indicated by marking the support time as _inf_ (hotkey _v_).  
 
 ---

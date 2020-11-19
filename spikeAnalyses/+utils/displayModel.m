@@ -105,9 +105,9 @@ disp(fStats);
 if strcmpi(mdl.Link.Name,'logit')
    fprintf(1,'\n<strong>Coefficient Log-odds</strong>:\n\n');
    coefName = coefName(iSort,:);
-   LogOdds = exp(coefVal(iSort));
+   Odds = exp(coefVal(iSort));
    pValue = double(fStats.pValue);
-   le_tab = [coefName,table(LogOdds,pValue)];
+   le_tab = [coefName,table(Odds,pValue)];
    disp(le_tab);
 end
 disp(anova(mdl));

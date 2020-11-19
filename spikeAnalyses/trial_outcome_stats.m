@@ -150,7 +150,10 @@ fig = analyze.behavior.per_animal_trends(U,...
    'Title','Performance by Day (neural exclusions)',...
    'LegendLocation','eastoutside',...
    'LegendStyle','animals');
-saveas(fig,fullfile(outPath,'FigS1 - Post-Op Success Rate - Neural Scoring.png'));
+utils.expAI(fig,'figures/R01-Renewal_FigS1b - Post-Op Success Rate - Neural Scoring.ai');
+utils.expAI(fig,'figures/R01-Renewal_FigS1b - Post-Op Success Rate - Neural Scoring.eps');
+saveas(fig,'figures/R01-Renewal_FigS1b - Post-Op Success Rate - Neural Scoring.png');
+% saveas(fig,fullfile(outPath,'FigS1 - Post-Op Success Rate - Neural Scoring.png'));
 savefig(fig,fullfile(outPath,'FigS1 - Post-Op Success Rate - Neural Scoring.fig'));
 delete(fig);
 
